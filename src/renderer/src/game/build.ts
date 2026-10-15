@@ -1,17 +1,18 @@
 import {
-  BARRICADE_STONE,
   BUILD_ORDER,
   BUILDS,
   COLS,
   ROWS,
   TILE,
   TURRET_BRANCHES,
+  TURRET_PLAIN_MAX,
   type Branch,
   type BuildKind
 } from './constants'
 import { addText, burst, ring, smoke, sparks } from './fx'
 import { buildingAt, idx, isBaseCell } from './grid'
-import { investedCost, maxHpOf, nextUpgrade } from './stats'
+import { hasUnlock } from './progress'
+import { branchUnlocked, investedCost, levelName, maxHpOf, nextUpgrade } from './stats'
 import type { Building, GameState, Player } from './types'
 
 export type PlacementStatus = 'ok' | 'repair' | 'upgrade' | 'poor' | 'invalid' | 'occupied'
@@ -34,7 +35,8 @@ export function placementStatus(state: GameState, p: Player, col: number, row: n
   const existing = buildingAt(state, col, row)
   if (existing) {
     if (existing.hp < existing.maxHp) return 'repair'
-    return nextUpgrade(existing) ? 'upgrade' : 'occupied'
+    const up = nextUpgrade(existing, p.unlocks)
+    return up && !up.locked ? 'upgrade' : 'occupied'
   }
   for (const q of state.players) {
     if (Math.floor(q.x / TILE) === col && Math.floor(q.y / TILE) === row) return 'invalid'
@@ -43,7 +45,7 @@ export function placementStatus(state: GameState, p: Player, col: number, row: n
 }
 
 /** Pose un bâtiment sans contrôle ni paiement (utilisé par la construction et les tests). */
-export function placeBuilding(state: GameState, kind: BuildKind, col: number, row: number): Building {
+export function placeBuilding(state: GameState, kind: BuildKind, col: number, row: number, boost = false): Building {
   const def = BUILDS[kind]
   const b: Building = {
     kind,
@@ -57,7 +59,9 @@ export function placeBuilding(state: GameState, kind: BuildKind, col: number, ro
     branch: 0,
     pop: 0,
     recoil: 0,
-    side: 1
+    side: 1,
+    boost,
+    web: 0
   }
   state.grid[idx(col, row)] = b
   if (def.solid) state.flowDirty = true
@@ -66,11 +70,11 @@ export function placeBuilding(state: GameState, kind: BuildKind, col: number, ro
 
 /**
  * Passe un bâtiment au niveau supérieur sans contrôle ni paiement.
- * `branch` ne sert que pour le niveau 3 d'une tourelle.
+ * `branch` ne sert que pour le passage à la spécialisation (niveau 4) d'une tourelle.
  */
 export function upgradeBuilding(state: GameState, b: Building, branch: Branch = 0): void {
   const ratio = b.maxHp > 0 ? b.hp / b.maxHp : 1
-  if (b.kind === 'turret' && b.level === 2) {
+  if (b.kind === 'turret' && b.level === TURRET_PLAIN_MAX) {
     if (branch === 0) return
     b.branch = branch
   }
@@ -88,12 +92,7 @@ function upgradeFx(state: GameState, b: Building): void {
   ring(state, cx, cy, '#ffd54a', 44)
   sparks(state, cx, cy, '#ffe082', 14, 190)
   smoke(state, cx, cy + 6, '#d7ccc8', 3, 45)
-  const label =
-    b.kind === 'barricade'
-      ? BARRICADE_STONE.name
-      : b.level >= 3 && b.branch !== 0
-        ? TURRET_BRANCHES[b.branch].name
-        : `Niveau ${b.level}`
+  const label = b.kind === 'turret' && b.branch === 0 ? `Niveau ${b.level}` : levelName(b)
   addText(state, cx, cy - 40, label, '#ffe082')
 }
 
@@ -106,7 +105,7 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
     case 'ok': {
       const kind = BUILD_ORDER[p.selected]
       state.gold -= BUILDS[kind].cost
-      const b = placeBuilding(state, kind, col, row)
+      const b = placeBuilding(state, kind, col, row, hasUnlock(p.unlocks, 'overclock'))
       b.pop = 0.7
       burst(state, cx, cy, '#d7ccc8', 6, 70)
       smoke(state, cx, cy + 8, '#a1887f', 3, 40)
@@ -140,7 +139,7 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
 }
 
 /**
- * Améliore le bâtiment ciblé. Pour une tourelle de niveau 2 rien n'est dépensé : on demande à l'interface
+ * Améliore le bâtiment ciblé. Pour une tourelle de niveau 3 rien n'est dépensé : on demande à l'interface
  * de proposer le choix de branche (`state.choice`), puis `applyTurretBranch` conclut.
  */
 export function actUpgrade(state: GameState, p: Player): boolean {
@@ -150,9 +149,13 @@ export function actUpgrade(state: GameState, p: Player): boolean {
     addText(state, p.x, p.y - 24, 'Rien à améliorer', '#b0bec5')
     return false
   }
-  const next = nextUpgrade(b)
+  const next = nextUpgrade(b, p.unlocks)
   if (!next) {
     addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, 'Niveau max', '#b0bec5')
+    return false
+  }
+  if (next.locked) {
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, 'Verrouillé (Compétences)', '#ce93d8')
     return false
   }
   if (state.gold < next.cost) {
@@ -170,14 +173,15 @@ export function actUpgrade(state: GameState, p: Player): boolean {
 }
 
 /**
- * Passe une tourelle de niveau 2 au niveau 3 avec la branche choisie. `player` : celui qui demande
- * (s'il est fourni, il doit être à portée de la tourelle).
+ * Passe une tourelle de niveau 3 au niveau 4 avec la branche choisie. `player` : celui qui demande ;
+ * il doit avoir débloqué la branche et être à portée de la tourelle.
  */
-export function applyTurretBranch(state: GameState, col: number, row: number, branch: Branch, player?: Player): boolean {
+export function applyTurretBranch(state: GameState, col: number, row: number, branch: Branch, player: Player): boolean {
   if (branch !== 1 && branch !== 2) return false
   const b = buildingAt(state, col, row)
-  if (!b || b.kind !== 'turret' || b.level !== 2) return false
-  if (player && Math.hypot(player.x - (col + 0.5) * TILE, player.y - (row + 0.5) * TILE) > PICK_REACH * TILE) return false
+  if (!b || b.kind !== 'turret' || b.level !== TURRET_PLAIN_MAX) return false
+  if (!branchUnlocked(player.unlocks, branch)) return false
+  if (Math.hypot(player.x - (col + 0.5) * TILE, player.y - (row + 0.5) * TILE) > PICK_REACH * TILE) return false
   const cost = TURRET_BRANCHES[branch].cost
   if (state.gold < cost) {
     addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, "Pas assez d'or", '#ff8a65')

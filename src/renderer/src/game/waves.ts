@@ -14,9 +14,10 @@ function shuffle<T>(arr: T[]): T[] {
 export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   const mult = players === 2 ? 1.6 : 1
   const grunts = Math.round((5 + wave * 2.2) * mult)
-  const runners = wave >= 3 ? Math.round((1 + (wave - 3) * 1.3) * mult) : 0
+  const runners = wave >= 3 ? Math.round((1 + (wave - 3) * 1.5) * mult) : 0
+  const splitters = wave >= 4 ? Math.round((1 + (wave - 4) * 1) * mult) : 0
   const brutes = wave >= 5 ? Math.round((1 + (wave - 5) * 0.7) * mult) : 0
-  const splitters = wave >= 4 ? Math.round((1 + (wave - 4) * 0.6) * mult) : 0
+  const spiders = wave >= 6 ? Math.round((1 + (wave - 6) * 0.5) * mult) : 0
   const bosses = wave % 5 === 0 ? Math.ceil(wave / 10) : 0
 
   const list: EnemyKind[] = []
@@ -24,6 +25,7 @@ export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   for (let i = 0; i < runners; i++) list.push('runner')
   for (let i = 0; i < brutes; i++) list.push('brute')
   for (let i = 0; i < splitters; i++) list.push('splitter')
+  for (let i = 0; i < spiders; i++) list.push('spider')
   shuffle(list)
   for (let i = 0; i < bosses; i++) list.push('boss')
   return list
@@ -31,7 +33,7 @@ export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
 
 export const waveScale = (wave: number): number => 1 + (wave - 1) * 0.1
 
-export const spawnInterval = (wave: number): number => Math.max(0.25, 0.8 - wave * 0.04)
+export const spawnInterval = (wave: number): number => Math.max(0.10, 1.0 - wave * 0.05)
 
 /** Points d'entrée : 1 côté au début, jusqu'aux 4 côtés plus tard. */
 export function pickGates(wave: number): Vec[] {
@@ -70,6 +72,10 @@ export function createEnemy(state: GameState, kind: EnemyKind, x: number, y: num
     face: Math.atan2(HEIGHT / 2 - y, WIDTH / 2 - x),
     age: 0,
     minion,
+    abilityCd: 1 + Math.random() * 2,
+    cast: 0,
+    webCol: 0,
+    webRow: 0,
     lx: x,
     ly: y,
     checkT: 1.5,

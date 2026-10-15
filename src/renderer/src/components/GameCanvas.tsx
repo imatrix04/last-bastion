@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { HEIGHT, WIDTH } from '../game/constants'
 import { Game } from '../game/engine'
 import { gameBridge } from '../game/gameBridge'
+import { loadoutOf } from '../game/progress'
 import { useStore } from '../store'
 
 export function GameCanvas(): React.JSX.Element {
@@ -15,7 +16,7 @@ export function GameCanvas(): React.JSX.Element {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const game = new Game(canvas, playerCount, mode, {
+    const game = new Game(canvas, playerCount, mode, loadoutOf(useStore.getState().progress), {
       onHud: (hud) => useStore.getState().setHud(hud),
       onGameOver: (result) => useStore.getState().endGame(result),
       onChoice: (request) => useStore.getState().openChoice(request)

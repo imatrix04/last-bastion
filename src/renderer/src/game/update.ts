@@ -13,13 +13,15 @@ import {
   ROWS,
   SPIKES,
   TILE,
+  WEB,
   WIDTH
 } from './constants'
 import { CONTROLS, SKIP_WAVE, type InputLike } from './controls'
-import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx } from './fx'
+import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot } from './fx'
 import { distToRect, idx, isBaseCell, resolveTiles } from './grid'
 import { computeFlow, nextCell } from './pathing'
-import { turretStats } from './stats'
+import { killIndex } from './progress'
+import { fireRateMult, isWeapon, playerStats, turretStats } from './stats'
 import type { Building, Enemy, GameState, Player } from './types'
 import { composeWave, createEnemy, pickGates, spawnEnemy, spawnInterval, waveScale } from './waves'
 
@@ -37,6 +39,7 @@ export function step(state: GameState, dt: number, input: InputLike): void {
   updateTurrets(state, dt)
   updateSpikes(state, dt)
   updateBullets(state, dt)
+  advanceWebs(state, dt, true)
   reapEnemies(state)
   updateFx(state, dt)
 
@@ -127,8 +130,9 @@ function hitBase(state: GameState, amount: number, from: Enemy): void {
 export function movePlayer(state: GameState, p: Player, ix: number, iy: number, dt: number): void {
   if (ix !== 0 || iy !== 0) {
     const len = Math.hypot(ix, iy)
-    p.x += (ix / len) * PLAYER.speed * dt
-    p.y += (iy / len) * PLAYER.speed * dt
+    const speed = playerStats(p.perks).speed
+    p.x += (ix / len) * speed * dt
+    p.y += (iy / len) * speed * dt
     if (iy === 0) {
       p.dirX = Math.sign(ix)
       p.dirY = 0
@@ -178,15 +182,16 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
 
     // Tir automatique sur l'ennemi le plus proche
     p.shootCd -= dt
-    const target = nearestEnemy(state, p.x, p.y, PLAYER.range)
+    const ps = playerStats(p.perks)
+    const target = nearestEnemy(state, p.x, p.y, ps.range)
     if (target) {
       p.aim = Math.atan2(target.y - p.y, target.x - p.x)
       if (p.shootCd <= 0) {
         const spread = (Math.random() - 0.5) * 0.08
         const angle = p.aim + spread
-        fire(state, p.x, p.y, angle, PLAYER.bulletSpeed, PLAYER.damage, PLAYER.range, 0)
+        fire(state, p.x, p.y, angle, ps.bulletSpeed, ps.damage, ps.range, 0)
         muzzle(state, p.x + Math.cos(angle) * 22, p.y + Math.sin(angle) * 22, angle, 0)
-        p.shootCd = 1 / PLAYER.fireRate
+        p.shootCd = 1 / ps.fireRate
       }
     } else {
       p.aim = Math.atan2(p.dirY, p.dirX)
@@ -250,6 +255,73 @@ function endWave(state: GameState): void {
 
 // -------------------------------------------------------------------- ennemis
 
+/** Arme de défense la plus proche (qui n'est pas déjà sous une toile), dans un rayon donné. */
+function nearestWeapon(state: GameState, x: number, y: number, range: number): Building | null {
+  let best: Building | null = null
+  let bestD = range * range
+  for (const b of state.grid) {
+    if (!b || !isWeapon(b.kind) || b.web > 0) continue
+    const dx = (b.col + 0.5) * TILE - x
+    const dy = (b.row + 0.5) * TILE - y
+    const d = dx * dx + dy * dy
+    if (d < bestD) {
+      bestD = d
+      best = b
+    }
+  }
+  return best
+}
+
+/**
+ * L'araignée se dresse puis crache une toile sur une arme de défense à portée : sa cadence de tir est réduite
+ * pendant quelques secondes. Renvoie vrai tant qu'elle prépare son tir (elle est alors immobile).
+ */
+function spiderAbility(state: GameState, e: Enemy, dt: number): boolean {
+  if (e.cast > 0) {
+    e.cast -= dt
+    turnToward(e, Math.atan2((e.webRow + 0.5) * TILE - e.y, (e.webCol + 0.5) * TILE - e.x), dt * 2)
+    if (e.cast > 0) return true
+    e.cast = 0
+    const b = state.grid[idx(e.webCol, e.webRow)]
+    if (b && isWeapon(b.kind)) {
+      const a = Math.atan2((e.webRow + 0.5) * TILE - e.y, (e.webCol + 0.5) * TILE - e.x)
+      webShot(state, e.x + Math.cos(a) * e.radius, e.y + Math.sin(a) * e.radius, (e.webCol + 0.5) * TILE, (e.webRow + 0.5) * TILE, e.webCol, e.webRow)
+    }
+    return false
+  }
+  e.abilityCd -= dt
+  if (e.abilityCd > 0) return false
+  const target = nearestWeapon(state, e.x, e.y, WEB.range)
+  if (!target) {
+    e.abilityCd = 0.4
+    return false
+  }
+  e.webCol = target.col
+  e.webRow = target.row
+  e.cast = WEB.windup
+  e.abilityCd = WEB.cooldown
+  return true
+}
+
+/** Fait voler les toiles ; à l'arrivée (hôte seulement), la toile englue l'arme visée. */
+export function advanceWebs(state: GameState, dt: number, apply: boolean): void {
+  let w = 0
+  for (const web of state.webs) {
+    web.t += dt
+    if (web.t < web.dur) {
+      state.webs[w++] = web
+      continue
+    }
+    if (!apply || web.col < 0) continue
+    const b = state.grid[idx(web.col, web.row)]
+    if (!b || !isWeapon(b.kind)) continue
+    b.web = WEB.duration
+    sparks(state, web.tx, web.ty, '#f5f5ff', 8, 130)
+    ring(state, web.tx, web.ty, '#e8eaf6', 30)
+  }
+  state.webs.length = w
+}
+
 /** Tourne progressivement l'ennemi vers un cap (par le chemin le plus court). */
 function turnToward(e: Enemy, target: number, dt: number): void {
   let d = target - e.face
@@ -299,6 +371,10 @@ function updateEnemies(state: GameState, dt: number): void {
     e.flash = Math.max(0, e.flash - dt)
     e.attackCd -= dt
     e.age += dt
+    if (e.kind === 'spider' && spiderAbility(state, e, dt)) {
+      e.attacking = false
+      continue
+    }
 
     // Contrôle toutes les 1,2 s : un ennemi qui n'avance plus et n'attaque pas est considéré coincé.
     e.checkT -= dt
@@ -425,6 +501,7 @@ function reapEnemies(state: GameState): void {
     const reward = e.minion ? Math.ceil(def.reward / 2) : def.reward
     state.gold += reward
     state.kills += 1
+    state.kstats[killIndex(e.kind, e.minion)] += 1
     deathFx(state, e)
     if (e.kind === 'splitter') split(state, e, born)
     addText(state, e.x, e.y - 12, `+${reward}`, '#ffd54a')
@@ -440,6 +517,7 @@ function reapEnemies(state: GameState): void {
 export function decayBuildingFx(b: Building, dt: number): void {
   b.pop = Math.max(0, b.pop - dt * 2.5)
   b.recoil = Math.max(0, b.recoil - dt * 7)
+  b.web = Math.max(0, b.web - dt)
 }
 
 function updateTurrets(state: GameState, dt: number): void {
@@ -467,7 +545,7 @@ function updateTurrets(state: GameState, dt: number): void {
       muzzle(state, mx, my, b.angle, heavy ? 3 : double ? 2 : 1)
       b.recoil = 1
       if (heavy) state.shake = Math.min(1, state.shake + 0.04)
-      b.cooldown = 1 / stats.fireRate
+      b.cooldown = 1 / (stats.fireRate * fireRateMult(b))
     }
   }
 }

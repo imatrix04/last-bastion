@@ -654,3 +654,213 @@ input {
   font-weight: 800;
   color: var(--gold);
 }
+
+/* ------------------------------------------------------ Arbre de compétences */
+
+.panel.wide {
+  width: 68em;
+}
+.screen.skills {
+  overflow-y: auto;
+}
+.skills-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.skills-head h2 {
+  margin: 0;
+}
+.sbranches {
+  display: grid;
+  grid-template-columns: 1fr 1.9fr 1fr;
+  gap: 1.6em;
+  margin-top: 1em;
+  align-items: start;
+}
+.sbranch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.sbranch h3 {
+  margin: 0 0 0.6em;
+  font-size: 0.95em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.stier {
+  display: flex;
+  gap: 0.9em;
+  width: 100%;
+  justify-content: center;
+}
+.slink {
+  width: 3px;
+  height: 1.5em;
+  background: linear-gradient(var(--line), rgba(255, 255, 255, 0.35));
+}
+.snode {
+  flex: 1;
+  max-width: 17em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.8em 0.8em 0.9em;
+  border: 2px solid var(--line);
+  border-radius: 0.9em;
+  background: rgba(255, 255, 255, 0.04);
+}
+.snode .sglyph {
+  font-size: 2em;
+  line-height: 1.1;
+  color: var(--nc);
+}
+.snode .sname {
+  font-weight: 800;
+  color: var(--nc);
+}
+.snode .sblurb {
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--muted);
+  min-height: 3.2em;
+}
+.snode .sdetails {
+  margin: 0.2em 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82em;
+  font-variant-numeric: tabular-nums;
+}
+.snode.ready {
+  border-color: var(--gold);
+  box-shadow: 0 0 1.2em -0.5em var(--gold);
+}
+.snode.owned {
+  border-color: #7bd17b;
+  background: rgba(123, 209, 123, 0.08);
+}
+.snode.blocked {
+  opacity: 0.55;
+}
+.snode .sstatus {
+  margin-top: 0.2em;
+  font-weight: 700;
+  font-size: 0.88em;
+  color: #9be37f;
+}
+.snode .sstatus.lock {
+  color: #ce93d8;
+}
+.snode button {
+  margin-top: 0.2em;
+  width: 100%;
+}
+
+/* Fin de partie : points gagnés */
+.earn {
+  margin: 0.8em 0 0.2em;
+  padding: 0.6em 0.9em;
+  border: 1px solid var(--line);
+  border-radius: 0.7em;
+  background: rgba(255, 213, 74, 0.07);
+  font-size: 0.9em;
+}
+.earn .total {
+  display: block;
+  font-size: 1.7em;
+  font-weight: 800;
+  color: var(--gold);
+}
+.earn .calc {
+  color: var(--muted);
+  font-size: 0.88em;
+}
+
+/* Carte verrouillée du pop-up de choix de tourelle */
+.pcard.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.pcard .plock {
+  margin-top: 0.3em;
+  font-weight: 800;
+  color: #ce93d8;
+}
+
+/* Section « Soldat » : améliorations à rangs */
+.sperks-title {
+  margin: 1.2em 0 0.6em;
+  font-size: 0.95em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sperks {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.7em;
+}
+.perk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.7em 0.6em 0.8em;
+  border: 2px solid var(--line);
+  border-radius: 0.8em;
+  background: rgba(255, 255, 255, 0.04);
+}
+.perk .sname {
+  font-weight: 800;
+  color: #80d8ff;
+  font-size: 0.95em;
+}
+.perk .sblurb {
+  margin: 0;
+  font-size: 0.74em;
+  color: var(--muted);
+  min-height: 3em;
+}
+.perk .sdetails {
+  font-size: 0.82em;
+  font-variant-numeric: tabular-nums;
+}
+.perk .sdetails b {
+  color: #9be37f;
+}
+.perk.ready {
+  border-color: var(--gold);
+  box-shadow: 0 0 1em -0.5em var(--gold);
+}
+.perk.owned {
+  border-color: #7bd17b;
+  background: rgba(123, 209, 123, 0.08);
+}
+.perk .sstatus {
+  font-weight: 700;
+  font-size: 0.85em;
+  color: #9be37f;
+}
+.perk button {
+  width: 100%;
+  font-size: 0.85em;
+}
+.pips {
+  display: flex;
+  gap: 0.25em;
+}
+.pips span {
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: transparent;
+}
+.pips span.on {
+  background: var(--gold);
+  border-color: var(--gold);
+}

@@ -27,6 +27,13 @@ export function GameOverOverlay(): React.JSX.Element {
   const toMenu = useStore((s) => s.toMenu)
   const bestWave = useStore((s) => s.bestWave)
   const mode = useStore((s) => s.mode)
+  const openSkills = useStore((s) => s.openSkills)
+  const total = useStore((s) => s.progress.points)
+
+  const toSkills = (): void => {
+    toMenu()
+    openSkills()
+  }
 
   return (
     <div className="screen overlay">
@@ -42,6 +49,15 @@ export function GameOverOverlay(): React.JSX.Element {
             <span>monstres abattus</span>
           </div>
         </div>
+        {result && (
+          <div className="earn">
+            <span className="total">+{result.points} points</span>
+            <span className="calc">
+              ({Math.round(result.score.kills)} pts de monstres + {result.score.waves} pts de vagues) × {result.score.mult.toFixed(1)} · total{' '}
+              {total}
+            </span>
+          </div>
+        )}
         <p className="hint">{result?.newRecord ? 'Nouveau record !' : `Record : vague ${bestWave}`}</p>
         <div className="buttons column">
           {mode === 'client' ? (
@@ -51,6 +67,7 @@ export function GameOverOverlay(): React.JSX.Element {
               Rejouer
             </button>
           )}
+          <button onClick={toSkills}>Compétences</button>
           <button onClick={toMenu}>{mode === 'local' ? 'Menu principal' : 'Quitter la partie'}</button>
         </div>
       </div>

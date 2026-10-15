@@ -15,6 +15,10 @@ export interface Player {
   /** Angle de tir (vers l'ennemi le plus proche). */
   aim: number
   selected: number
+  /** Compétences débloquées par ce joueur (masque de bits, voir progress.ts). */
+  unlocks: number
+  /** Rangs des améliorations du joueur (ordre de PERKS dans progress.ts). */
+  perks: number[]
   shootCd: number
   buildCd: number
 }
@@ -36,6 +40,13 @@ export interface Enemy {
   age: number
   /** Issu de la division d'un Éclateur : récompense réduite. */
   minion: boolean
+  /** Araignée : secondes avant la prochaine toile. */
+  abilityCd: number
+  /** Araignée : préparation du tir en cours (> 0 = elle crache, immobile). */
+  cast: number
+  /** Araignée : case de l'arme visée. */
+  webCol: number
+  webRow: number
   /** Détection de blocage : position au dernier contrôle et minuteur. */
   lx: number
   ly: number
@@ -51,7 +62,7 @@ export interface Building {
   maxHp: number
   cooldown: number
   angle: number
-  /** 1 à 3 : barricade (bois / pierre), tourelle (3 niveaux). */
+  /** Barricade : 1 bois, 2 pierre, 3 renforcée · tourelle : 1 à 3, puis 4 = spécialisée (voir branch). */
   level: number
   branch: Branch
   /** Rendu seulement : rebond après une amélioration (1 → 0). */
@@ -60,6 +71,10 @@ export interface Building {
   recoil: number
   /** Canon qui a tiré en dernier (double canon) : -1 ou 1. */
   side: number
+  /** Overclocking : cadence de tir augmentée (compétence du joueur qui l'a construit). */
+  boost: boolean
+  /** Secondes restantes sous une toile d'araignée (cadence de tir réduite). */
+  web: number
 }
 
 export interface Bullet {
@@ -110,6 +125,19 @@ export interface Decal {
   seed: number
 }
 
+/** Toile crachée par une araignée, en vol vers une arme de défense. */
+export interface Web {
+  x: number
+  y: number
+  tx: number
+  ty: number
+  t: number
+  dur: number
+  /** Case visée (-1 : toile purement visuelle, côté joueur distant). */
+  col: number
+  row: number
+}
+
 export interface FloatText {
   x: number
   y: number
@@ -123,7 +151,8 @@ export type Phase = 'prep' | 'combat'
 /**
  * Effet visuel à rejouer chez l'autre joueur :
  * particules ['b', x, y, couleur, nombre, vitesse, style], texte ['t', x, y, texte, couleur],
- * onde de choc ['r', x, y, couleur, rayon], flash de bouche ['m', x, y, angle, style], tache ['d', x, y, couleur, taille].
+ * onde de choc ['r', x, y, couleur, rayon], flash de bouche ['m', x, y, angle, style], tache ['d', x, y, couleur, taille],
+ * toile d'araignée en vol ['w', x, y, cibleX, cibleY].
  */
 export type FxEvent =
   | ['b', number, number, string, number, number, number]
@@ -131,6 +160,7 @@ export type FxEvent =
   | ['r', number, number, string, number]
   | ['m', number, number, number, number]
   | ['d', number, number, string, number]
+  | ['w', number, number, number, number]
 
 /** Un joueur veut améliorer une tourelle de niveau 2 : l'interface lui propose le choix de branche. */
 export interface ChoiceRequest {
@@ -157,6 +187,10 @@ export interface HudState {
 export interface RunResult {
   wave: number
   kills: number
+  /** Points de compétence gagnés (calculés à la fin de la partie). */
+  points: number
+  /** Détail du calcul, pour l'affichage. */
+  score: { kills: number; waves: number; mult: number }
 }
 
 export interface GameState {
@@ -167,6 +201,7 @@ export interface GameState {
   bullets: Bullet[]
   particles: Particle[]
   rings: Ring[]
+  webs: Web[]
   decals: Decal[]
   texts: FloatText[]
   /** Une entrée par case (COLS * ROWS). */
@@ -187,6 +222,8 @@ export interface GameState {
   flowDirty: boolean
   nextEnemyId: number
   kills: number
+  /** Kills par type, dans l'ordre de KILL_KINDS (sert au calcul des points de fin de partie). */
+  kstats: number[]
   gameOver: boolean
   shake: number
   /** Demande de choix de branche, à relayer à l'interface puis effacer. */

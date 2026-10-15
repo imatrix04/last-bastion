@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CONTROLS, SKIP_WAVE } from '../game/controls'
+import { UNLOCKS } from '../game/progress'
 import { session } from '../net'
 import { loadAddress, useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
@@ -10,6 +11,9 @@ export function Menu(): React.JSX.Element {
   const joinLobby = useStore((s) => s.joinLobby)
   const netError = useStore((s) => s.netError)
   const bestWave = useStore((s) => s.bestWave)
+  const openSkills = useStore((s) => s.openSkills)
+  const points = useStore((s) => s.progress.points)
+  const unlocked = useStore((s) => s.progress.unlocked.length)
   const label = useKeyLabels()
   const [address, setAddress] = useState(loadAddress)
   const [version, setVersion] = useState('')
@@ -36,6 +40,11 @@ export function Menu(): React.JSX.Element {
           </button>
           <button className="primary" onClick={() => start(2)}>
             Coop · même clavier
+          </button>
+        </div>
+        <div className="buttons">
+          <button onClick={openSkills}>
+            Compétences · <b>{points}</b> pts · {unlocked}/{UNLOCKS.length}
           </button>
         </div>
 

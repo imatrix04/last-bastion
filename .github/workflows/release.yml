@@ -22,12 +22,12 @@ jobs:
         run: node scripts/release-notes.mjs "${GITHUB_REF_NAME}" release-notes.md
       - run: npm run typecheck
       - run: npm run build
-      - name: Build et publication
-        run: npx electron-builder --win --publish always
+      - name: Créer la release (une seule fois, avec les notes)
+        shell: bash
+        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME#v}" --notes-file release-notes.md --verify-tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Notes de version
-        shell: bash
-        run: gh release edit "${GITHUB_REF_NAME}" --notes-file release-notes.md
+      - name: Build et envoi des fichiers sur la release
+        run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -48,14 +48,27 @@ Les joueurs **tirent automatiquement** sur l'ennemi le plus proche et construise
 ## Règles du jeu
 
 - L'or est partagé. Il vient des monstres abattus et de la fin de chaque vague.
-- **Barricade** (10) : bois, fragile, pas cher. **R** la renforce en **mur de pierre** (+25, 420 PV).
-- **Tourelle** (90) : tire seule, portée 240 px. **R** → niveau 2 (+60, dégâts ↑). **R** encore → pop-up de choix à la souris (ou touches 1 / 2) entre deux spécialisations de niveau 3 : **double canon** (+110, cadence ×2, deux tubes en alternance) ou **canon lourd** (+130, dégâts ×3, gros obus, portée accrue). Les cartes comparent vitesse, dégâts, PV et portée.
+- **Mur en bois** (barricade) : fragile, pas cher. Avec les compétences, **R** le renforce en **mur en pierre**, puis en **mur en pierre renforcé**.
+- **Tourelle** (90) : tire seule, portée 240 px. **R** → niveau 2, **R** → niveau 3 (dégâts ↑ à chaque fois). **R** encore → pop-up de choix à la souris (ou touches 1 / 2) entre deux spécialisations de niveau 4 : **double canon** (+110, cadence ×2, deux tubes en alternance) ou **canon lourd** (+130, dégâts ×3, gros obus, portée accrue). Les cartes comparent vitesse, dégâts, PV et portée.
 - **Pieux** (25) : piège au sol qui blesse et ralentit, s'use à chaque passage.
 - La démolition rembourse 50 % de l'or investi (pose + améliorations), proportionnellement aux PV restants.
 - Les ennemis cherchent le chemin le moins coûteux vers la forteresse : ils **contournent** si c'est moins cher, sinon ils **cassent** le point le plus faible. Un labyrinthe bien pensé les fait marcher longtemps sous le feu des tourelles.
 - Les bords de la carte restent libres (couloirs d'apparition, signalés par des chevrons rouges avant chaque vague). De plus en plus de côtés s'ouvrent au fil des vagues.
-- Ennemis : Rôdeur, Coureur (rapide), Brute (costaud), **Éclateur** (dès la vague 4 : à sa mort il se divise en 4 Rôdeurs), Colosse (boss toutes les 5 vagues). À deux, les vagues sont 1,6 fois plus nombreuses.
+- Ennemis : Rôdeur, Coureur (rapide), Brute (costaud), **Araignée** (dès la vague 6 : se dresse puis crache une toile sur une tourelle à portée, qui tire 3 fois moins vite pendant 6 s), **Éclateur** (dès la vague 4 : à sa mort il se divise en 4 Rôdeurs), Colosse (boss toutes les 5 vagues). À deux, les vagues sont 1,6 fois plus nombreuses.
 - Le meilleur score (vague atteinte) est sauvegardé en local.
+
+## Compétences (progression entre les parties)
+
+Au départ, seul le mur en bois est utilisable et les tourelles s'arrêtent au niveau 2. À la fin de chaque partie on gagne des **points de compétence** à dépenser dans l'écran **Compétences** du menu (aussi accessible depuis l'écran de fin de partie) :
+
+- **Murs** : Mur en pierre → Mur en pierre renforcé (nouveau niveau 3, stats dans `BARRICADE_REINFORCED`).
+- **Tourelles niveau 4** : Double canons et Canon lourd, deux compétences indépendantes. Une carte non débloquée est grisée dans le pop-up de choix.
+- **Technologie** : **Overclocking**, la cadence de toutes tes tourelles (et futures armes de défense) augmente (`OVERCLOCK` dans `constants.ts`). Le bonus s'applique aux armes que **tu** construis ; un éclair orange les signale.
+- **Soldat** : 5 améliorations du joueur à 5 rangs chacune (vitesse, cadence de tir, portée, dégâts, vitesse des balles), de plus en plus chères. Valeurs dans `PERKS` (`game/progress.ts`) ; les statistiques de base restent dans `PLAYER`.
+
+Gain : `(Σ kills pondérés + 10 × vague) × (1 + vague / 10)`. Valeur d'un kill : Rôdeur et Coureur 1, Brute et Éclateur 3, Colosse 15, petits Rôdeurs issus d'une division 0,5. Exemple : vague 10 avec 250 kills mélangés ≈ 950 points.
+
+La sauvegarde (points et compétences) est locale (localStorage). En ligne, chacun garde **ses** compétences : l'invité envoie les siennes (compétences et rangs d'améliorations) à l'hôte à la connexion, et chacun reçoit les points de la partie. Tout se règle dans `game/progress.ts` (coûts, prérequis, valeurs des kills). Pour ajouter une compétence : l'ajouter **à la fin** de `UNLOCKS` (l'ordre fixe les bits de la sauvegarde réseau) puis la brancher dans `stats.ts` (`nextUpgrade`).
 
 ## Architecture
 
@@ -66,10 +79,11 @@ src/
   preload/index.ts            API minimale exposée au renderer (contextBridge)
   renderer/src/
     App.tsx, store.ts         écrans (menu / jeu / pause / game over), état zustand
-    components/               Menu, Hud, Overlays, GameCanvas, UpgradePicker (pop-up de choix niveau 3)
+    components/               Menu, Hud, Overlays, GameCanvas, UpgradePicker (pop-up de choix niveau 3), SkillTree (compétences)
     game/                     le jeu lui-même, sans dépendance à React
       constants.ts            équilibrage : bâtiments, ennemis, vitesses, coûts
       update.ts               simulation (joueurs, vagues, ennemis, tourelles, tirs)
+      progress.ts             compétences, formule de points de fin de partie
       stats.ts                niveaux des bâtiments : PV, stats de tourelle, prix, prochaine amélioration
       sprites.ts              dessin des ennemis animés et des tourelles (corps pré-rendus), lueurs
       pathing.ts              champ de distance vers la forteresse (les murs ont un coût)

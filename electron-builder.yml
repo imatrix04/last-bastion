@@ -17,3 +17,4 @@ publish:
   provider: github
   owner: imatrix04
   repo: last-bastion
+  releaseType: release

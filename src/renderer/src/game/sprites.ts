@@ -206,7 +206,45 @@ const paintBoss: Painter = (g, r, white) => {
   }
 }
 
+const paintSpider: Painter = (g, r, white) => {
+  // Abdomen : gros, sombre, marqué d'un sablier rouge
+  shaded(g, -0.6 * r, 0, 0.95 * r, 0.82 * r, '#6b4770', '#2d1a35', '#0d0613', white, 2.4)
+  if (!white) {
+    g.fillStyle = '#e53935'
+    g.beginPath()
+    g.moveTo(-0.95 * r, -0.28 * r)
+    g.lineTo(-0.35 * r, -0.05 * r)
+    g.lineTo(-0.95 * r, 0.28 * r)
+    g.closePath()
+    g.moveTo(-0.15 * r, -0.28 * r)
+    g.lineTo(-0.55 * r, 0)
+    g.lineTo(-0.15 * r, 0.28 * r)
+    g.closePath()
+    g.fill()
+    g.fillStyle = 'rgba(255, 255, 255, 0.12)'
+    g.beginPath()
+    g.ellipse(-0.75 * r, -0.4 * r, 0.3 * r, 0.14 * r, -0.4, 0, TAU)
+    g.fill()
+  }
+  // Céphalothorax
+  shaded(g, 0.45 * r, 0, 0.62 * r, 0.55 * r, '#5b3c62', '#2a1833', '#0d0613', white, 2.4)
+  // Crochets
+  g.fillStyle = tint('#f1e4d0', white)
+  g.strokeStyle = ink(white)
+  g.lineWidth = 1.4
+  for (const s of [-1, 1]) {
+    g.beginPath()
+    g.moveTo(0.85 * r, s * 0.12 * r)
+    g.quadraticCurveTo(1.35 * r, s * 0.15 * r, 1.25 * r, s * 0.5 * r)
+    g.quadraticCurveTo(1.05 * r, s * 0.28 * r, 0.85 * r, s * 0.3 * r)
+    g.closePath()
+    g.fill()
+    g.stroke()
+  }
+}
+
 const PAINTERS: Record<EnemyKind, Painter> = {
+  spider: paintSpider,
   grunt: paintGrunt,
   runner: paintRunner,
   brute: paintBrute,
@@ -271,6 +309,31 @@ function fist(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, co
 function drawLimbs(ctx: CanvasRenderingContext2D, e: Enemy, r: number, ph: number, white: boolean): void {
   const atk = e.attacking
   switch (e.kind) {
+    case 'spider': {
+      // 8 pattes à deux segments, en marche alternée ; quand elle crache, les pattes avant se dressent.
+      const casting = e.cast > 0
+      for (const s of [-1, 1]) {
+        for (let i = 0; i < 4; i++) {
+          const baseX = (0.7 - i * 0.42) * r
+          const phase = ph * 1.3 + i * 1.6 + (s > 0 ? Math.PI : 0)
+          const step = Math.sin(phase) * 0.28 * r
+          const lift = Math.max(0, Math.cos(phase)) * 0.15 * r
+          let kneeX = baseX + (i < 2 ? 0.55 : -0.25 - (i - 2) * 0.2) * r + step * 0.4
+          let kneeY = s * (0.95 + i * 0.08) * r - lift * s
+          let footX = baseX + (i < 2 ? 1.05 - i * 0.2 : -0.9 - (i - 3) * 0.2) * r + step
+          let footY = s * (1.95 + (i === 1 || i === 2 ? 0.15 : 0)) * r
+          if (casting && i === 0) {
+            kneeX += 0.35 * r
+            kneeY = s * 0.65 * r
+            footX += 0.45 * r
+            footY = s * 0.5 * r
+          }
+          limb(ctx, baseX, s * 0.35 * r, kneeX, kneeY, 0.22 * r, '#2a1836', white)
+          limb(ctx, kneeX, kneeY, footX, footY, 0.15 * r, '#3a2248', white)
+        }
+      }
+      break
+    }
     case 'grunt': {
       const sw = Math.sin(ph)
       ctx.fillStyle = tint('#3e5a1c', white)
@@ -326,6 +389,36 @@ function drawLimbs(ctx: CanvasRenderingContext2D, e: Enemy, r: number, ph: numbe
 /** Yeux qui brillent, noyaux de l'Éclateur, fissures du Colosse : dessinés par-dessus le corps. */
 function drawFront(ctx: CanvasRenderingContext2D, e: Enemy, r: number, ph: number, t: number, white: boolean): void {
   switch (e.kind) {
+    case 'spider': {
+      if (white) break
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      const pulse = 0.65 + 0.35 * Math.sin(t * 6 + e.id)
+      const eyes: Array<[number, number, number]> = [
+        [0.78, -0.2, 0.1],
+        [0.78, 0.2, 0.1],
+        [0.62, -0.34, 0.07],
+        [0.62, 0.34, 0.07],
+        [0.88, -0.07, 0.05],
+        [0.88, 0.07, 0.05]
+      ]
+      for (const [ex, ey, er] of eyes) drawGlow(ctx, ex * r, ey * r, er * r * 6, '#ff1744', 0.55 * pulse)
+      if (e.cast > 0) drawGlow(ctx, 1.25 * r, 0, r * 1.3, '#e8eaf6', 0.8)
+      ctx.restore()
+      ctx.fillStyle = '#ff5252'
+      for (const [ex, ey, er] of eyes) {
+        ctx.beginPath()
+        ctx.arc(ex * r, ey * r, er * r, 0, TAU)
+        ctx.fill()
+      }
+      ctx.fillStyle = '#fff'
+      for (const s of [-1, 1]) {
+        ctx.beginPath()
+        ctx.arc(0.8 * r, s * 0.2 * r, 0.035 * r, 0, TAU)
+        ctx.fill()
+      }
+      break
+    }
     case 'splitter': {
       const spin = t * 0.5 + e.id
       for (let i = 0; i < 4; i++) {
@@ -501,6 +594,10 @@ export interface TurretLook {
   side: number
   /** Rebond d'amélioration (1 → 0). */
   pop: number
+  /** Overclocking : liseré et éclair orange. */
+  boost?: boolean
+  /** Secondes restantes sous une toile d'araignée. */
+  web?: number
 }
 
 /** Tourelle centrée en (cx, cy), tuile de 40 px. Sert à la partie et aux aperçus du pop-up de choix. */
@@ -514,7 +611,13 @@ export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number
   // Socle
   ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
   ctx.fillRect(-16, -13, 34, 34)
-  if (t.level >= 3) {
+  if (t.boost) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    drawGlow(ctx, 0, 0, 34, '#ff9100', 0.3 + 0.12 * Math.sin(time * 7))
+    ctx.restore()
+  }
+  if (t.branch !== 0) {
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
     drawGlow(ctx, 0, 0, 30, accent, 0.28 + 0.1 * Math.sin(time * 4))
@@ -542,7 +645,7 @@ export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number
   ctx.arc(0, 0, 13, 0, TAU)
   ctx.fill()
   if (t.level >= 2) {
-    ctx.strokeStyle = t.level >= 3 ? accent : '#ffd54a'
+    ctx.strokeStyle = t.branch !== 0 ? accent : '#ffd54a'
     ctx.globalAlpha = 0.8
     ctx.lineWidth = 1.6
     ctx.beginPath()
@@ -593,15 +696,60 @@ export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number
   ctx.rotate(-t.angle)
 
   // Dôme
-  ctx.fillStyle = t.level >= 3 ? '#90a4ae' : '#78909c'
+  ctx.fillStyle = t.branch !== 0 ? '#90a4ae' : '#78909c'
   ctx.beginPath()
   ctx.arc(0, 0, 7, 0, TAU)
   ctx.fill()
-  if (t.level >= 3) {
+  if (t.branch !== 0) {
     ctx.fillStyle = accent
     ctx.beginPath()
     ctx.arc(0, 0, 3, 0, TAU)
     ctx.fill()
   }
+  if (t.boost) {
+    // Éclair d'Overclocking dans le coin du socle
+    ctx.fillStyle = '#ffca28'
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(15, -17)
+    ctx.lineTo(10, -9)
+    ctx.lineTo(13.5, -9)
+    ctx.lineTo(11, -2)
+    ctx.lineTo(18, -11)
+    ctx.lineTo(14, -11)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+  }
+  if (t.web && t.web > 0) drawWeb(ctx, Math.min(1, t.web))
+  ctx.restore()
+}
+
+/** Toile d'araignée posée sur une arme (repère centré sur la tuile). */
+function drawWeb(ctx: CanvasRenderingContext2D, alpha: number): void {
+  ctx.save()
+  ctx.globalAlpha = 0.25 + 0.65 * alpha
+  ctx.fillStyle = 'rgba(210, 215, 235, 0.22)'
+  ctx.fillRect(-18, -18, 36, 36)
+  ctx.strokeStyle = '#f1f3ff'
+  ctx.lineWidth = 1.2
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4 + Math.PI / 8
+    ctx.moveTo(0, 0)
+    ctx.lineTo(Math.cos(a) * 21, Math.sin(a) * 21)
+  }
+  for (const rad of [6, 12, 18]) {
+    for (let i = 0; i < 8; i++) {
+      const a1 = (i * Math.PI) / 4 + Math.PI / 8
+      const a2 = a1 + Math.PI / 4
+      const m = rad * (1 - 0.1 * Math.sin(i * 2.3))
+      ctx.moveTo(Math.cos(a1) * m, Math.sin(a1) * m)
+      ctx.quadraticCurveTo(Math.cos((a1 + a2) / 2) * m * 0.88, Math.sin((a1 + a2) / 2) * m * 0.88, Math.cos(a2) * m, Math.sin(a2) * m)
+    }
+  }
+  ctx.stroke()
   ctx.restore()
 }

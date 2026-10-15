@@ -1,8 +1,9 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
-import { PLAYER_COLORS, TURRET_BRANCHES, type Branch } from '../game/constants'
+import { PLAYER_COLORS, TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from '../game/constants'
 import { gameBridge } from '../game/gameBridge'
 import { drawTurret } from '../game/sprites'
-import { turretStats } from '../game/stats'
+import { unlockMask } from '../game/progress'
+import { TURRET_SPEC_LEVEL, branchUnlocked, turretStats } from '../game/stats'
 import type { ChoiceRequest } from '../game/types'
 import { useStore } from '../store'
 
@@ -18,7 +19,7 @@ function TurretPreview({ branch }: { branch: Branch }): React.JSX.Element {
     const canvas = ref.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
-    const rate = turretStats(3, branch).fireRate
+    const rate = turretStats(TURRET_SPEC_LEVEL, branch).fireRate
     let raf = 0
     const t0 = performance.now()
     const frame = (now: number): void => {
@@ -26,7 +27,7 @@ function TurretPreview({ branch }: { branch: Branch }): React.JSX.Element {
       const t = (now - t0) / 1000
       const cycle = t * rate
       const look = {
-        level: 3,
+        level: TURRET_SPEC_LEVEL,
         branch,
         angle: -0.5 + Math.sin(t * 0.9) * 0.5,
         recoil: Math.max(0, 1 - (cycle % 1) * 5),
@@ -59,14 +60,16 @@ function StatRow({ label, from, to, unit }: { label: string; from: number; to: n
   )
 }
 
-/** Pop-up de choix du niveau 3 d'une tourelle : deux cartes comparées à la tourelle actuelle, choix à la souris. */
+/** Pop-up de choix de la spécialisation (niveau 4) d'une tourelle : deux cartes comparées à la tourelle actuelle, choix à la souris. */
 export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JSX.Element {
   const gold = useStore((s) => s.hud.gold)
+  const unlocked = useStore((s) => s.progress.unlocked)
+  const mask = unlockMask(unlocked)
   const close = useStore((s) => s.closeChoice)
-  const cur = turretStats(2, 0)
+  const cur = turretStats(TURRET_PLAIN_MAX, 0)
 
   const pick = (branch: 1 | 2): void => {
-    if (gold < TURRET_BRANCHES[branch].cost) return
+    if (!branchUnlocked(mask, branch) || gold < TURRET_BRANCHES[branch].cost) return
     gameBridge.current?.pickBranch(request, branch)
     close()
   }
@@ -86,7 +89,7 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
     <div className="screen overlay" onClick={close}>
       <div className="picker" onClick={(e) => e.stopPropagation()} style={{ '--pc': PLAYER_COLORS[request.player] } as CSSProperties}>
         <h2>
-          <span className="who">J{request.player + 1}</span> Spécialiser la tourelle · niveau 3
+          <span className="who">J{request.player + 1}</span> Spécialiser la tourelle · niveau {TURRET_SPEC_LEVEL}
         </h2>
         <p className="hint">
           Clique sur une carte (ou <kbd>1</kbd> / <kbd>2</kbd>) · <kbd>Échap</kbd> pour annuler
@@ -95,9 +98,10 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
           {CHOICES.map((branch, i) => {
             const def = TURRET_BRANCHES[branch]
             const s = def.stats
-            const poor = gold < def.cost
+            const locked = !branchUnlocked(mask, branch)
+            const poor = !locked && gold < def.cost
             return (
-              <button key={branch} className={`pcard b${branch}${poor ? ' poor' : ''}`} onClick={() => pick(branch)} disabled={poor}>
+              <button key={branch} className={`pcard b${branch}${poor ? ' poor' : ''}${locked ? ' locked' : ''}`} onClick={() => pick(branch)} disabled={poor || locked}>
                 <span className="pnum">{i + 1}</span>
                 <TurretPreview branch={branch} />
                 <span className="pname">{def.name}</span>
@@ -109,7 +113,11 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
                   <StatRow label="Portée" from={cur.range} to={s.range} />
                   <StatRow label="Dégâts / s" from={Math.round(cur.damage * cur.fireRate)} to={Math.round(s.damage * s.fireRate)} />
                 </div>
-                <span className="pcost">{poor ? `${def.cost} or (manque ${def.cost - gold})` : `${def.cost} or`}</span>
+                {locked ? (
+                  <span className="plock">🔒 À débloquer dans Compétences</span>
+                ) : (
+                  <span className="pcost">{poor ? `${def.cost} or (manque ${def.cost - gold})` : `${def.cost} or`}</span>
+                )}
               </button>
             )
           })}

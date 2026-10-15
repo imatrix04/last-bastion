@@ -3,6 +3,7 @@ import { GameCanvas } from './components/GameCanvas'
 import { Hud } from './components/Hud'
 import { Lobby } from './components/Lobby'
 import { Menu } from './components/Menu'
+import { SkillTree } from './components/SkillTree'
 import { UpgradePicker } from './components/UpgradePicker'
 import { GameOverOverlay, PauseOverlay } from './components/Overlays'
 import { UpdateDialog } from './components/UpdateDialog'
@@ -48,6 +49,7 @@ export default function App(): React.JSX.Element {
         {screen === 'gameover' && <GameOverOverlay />}
         {screen === 'lobby' && <Lobby />}
         {screen === 'menu' && <Menu />}
+        {screen === 'skills' && <SkillTree />}
         <UpdateDialog />
       </div>
     </div>

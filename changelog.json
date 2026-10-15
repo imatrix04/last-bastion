@@ -1,9 +1,38 @@
 {
   "releases": [
-        {
+    {
+      "version": "1.2.0",
+      "date": "2026-10-15",
+      "added": [
+        "Arbre de compétences dans le menu (aussi accessible depuis l'écran de fin de partie) : on gagne des points à chaque partie pour débloquer de nouvelles défenses et améliorer son personnage",
+        "Points de fin de partie : (monstres abattus pondérés par type + 10 par vague) × (1 + vague/10). Le Colosse rapporte 15, l'Araignée 4, la Brute et l'Éclateur 3, le Rôdeur et le Coureur 1",
+        "Compétences Murs : Mur en pierre, puis Mur en pierre renforcé (nouveau niveau 3 de la barricade, avec son propre aspect blindé)",
+        "Compétences Tourelles : Double canons et Canon lourd, à débloquer séparément pour pouvoir les choisir au niveau 4",
+        "Compétence Overclocking : la cadence de tir de toutes les tourelles que tu construis augmente de 30 % (éclair orange sur les armes concernées), prévue aussi pour les futures armes de défense",
+        "Section « Soldat » : 5 améliorations du joueur à 5 rangs chacune (vitesse, cadence de tir, portée, dégâts, vitesse des balles), de plus en plus chères",
+        "Nouvel ennemi, l'Araignée (dès la vague 6) : elle se dresse puis crache une toile sur une tourelle à portée, qui tire alors 3 fois moins vite pendant 6 secondes",
+        "Les tourelles montent maintenant jusqu'au niveau 3, puis au niveau 4 avec le choix entre Double canons et Canon lourd",
+        "Sauvegarde locale des points, des compétences et des améliorations ; en ligne, chacun garde les siennes et gagne ses points"
+      ],
+      "changed": [
+        "Au départ, seul le mur en bois est disponible, les tourelles s'arrêtent au niveau 3 et le joueur n'a aucune amélioration : tout est à débloquer",
+        "La forteresse est plus petite : 3 × 3 cases au lieu de 4 × 4",
+        "Pop-up de choix de tourelle : une carte non débloquée est grisée avec « À débloquer dans Compétences »",
+        "Difficulté revue à la hausse : Rôdeur 50 PV, Coureur 35 PV, Brute 370 PV, Éclateur 230 PV, Colosse 1500 PV, et dégâts des ennemis augmentés",
+        "Vagues : plus de Coureurs (+1,5 par vague) et d'Éclateurs (+1 par vague) ; apparitions plus lentes au début puis de plus en plus rapprochées jusqu'à 0,1 s entre deux ennemis",
+        "Économie revue : 60 or au départ ; mur en bois 15 or, tourelle 120 or (niveau 2 : 150, niveau 3 : 250, double canons : 370, canon lourd : 420), pieux 45 or",
+        "Défenses rééquilibrées : mur en bois 110 PV, mur en pierre 45 or / 320 PV, mur renforcé 75 or / 580 PV ; tourelles niveau 1 à 3 de 12, 18 puis 24 dégâts (portée 220)",
+        "Le joueur est plus lent (vitesse 150) et tire plus lentement mais plus fort (2,5 tirs/s, 12 dégâts, portée 250), à compenser avec les améliorations",
+        "Protocole réseau en version 4 : l'hôte et l'invité doivent avoir la même version du jeu"
+      ],
+      "fixed": []
+    },
+    {
       "version": "1.1.4",
       "date": "2026-10-15",
-      "added": ["Mise à jour automatique depuis GitHub avec affichage des nouveautés"],
+      "added": [
+        "Mise à jour automatique depuis GitHub avec affichage des nouveautés"
+      ],
       "changed": [],
       "fixed": []
     },

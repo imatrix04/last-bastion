@@ -1,12 +1,13 @@
 import { buildTarget } from './build'
-import { BASE, ENEMIES, HEIGHT, TILE, WIDTH, type Branch } from './constants'
+import { BASE, ENEMIES, HEIGHT, TILE, TURRET_PLAIN_MAX, WIDTH, type Branch } from './constants'
 import { CONTROLS, type InputLike } from './controls'
-import { addText, burst, decal, muzzle, ring, updateFx } from './fx'
+import { addText, burst, decal, muzzle, ring, updateFx, webShot } from './fx'
 import { buildingAt, idx, inBounds } from './grid'
 import { buildKindAt, enemyKindAt, type Snap } from './netproto'
+import { KILL_KINDS } from './progress'
 import { maxHpOf, nextUpgrade, turretStats } from './stats'
 import type { ChoiceRequest, Enemy, GameState, HudState } from './types'
-import { decayBuildingFx, movePlayer, nearestEnemy } from './update'
+import { advanceWebs, decayBuildingFx, movePlayer, nearestEnemy } from './update'
 
 /** Le joueur distant contrôle toujours le joueur 2 (rose). */
 export const LOCAL_ID = 1
@@ -44,6 +45,7 @@ export class ClientView {
     st.phase = s.phase === 1 ? 'combat' : 'prep'
     st.countdown = s.countdown
     st.kills = s.kills
+    if (s.kstats.length === KILL_KINDS.length) st.kstats = s.kstats
     st.shake = Math.max(st.shake, s.shake)
     st.gates = s.gates.map(([x, y]) => ({ x, y }))
     this.queued = s.queued
@@ -101,6 +103,10 @@ export class ClientView {
           face: Math.atan2(HEIGHT / 2 - y, WIDTH / 2 - x),
           age: 0,
           minion: false,
+          abilityCd: 0,
+          cast: 0,
+          webCol: 0,
+          webRow: 0,
           lx: x,
           ly: y,
           checkT: 0,
@@ -116,6 +122,7 @@ export class ClientView {
       e.maxHp = maxHp
       e.flash = (flags & 1) !== 0 ? 0.08 : 0
       e.attacking = (flags & 2) !== 0
+      e.cast = (flags & 4) !== 0 ? 0.1 : 0
       list.push(e)
     }
     for (const id of this.enemies.keys()) if (!seen.has(id)) this.enemies.delete(id)
@@ -124,11 +131,11 @@ export class ClientView {
     // Bâtiments (on garde l'angle et les animations des tourelles, recalculés ici à chaque image)
     const previous = st.grid.slice()
     st.grid.fill(null)
-    for (const [kindIndex, col, row, hp, rawLevel, rawBranch] of s.buildings) {
+    for (const [kindIndex, col, row, hp, rawLevel, rawBranch, rawBoost, rawWeb] of s.buildings) {
       const kind = buildKindAt(kindIndex)
       if (!kind || !inBounds(col, row)) continue
       const i = idx(col, row)
-      const level = Math.min(3, Math.max(1, Math.round(rawLevel)))
+      const level = Math.min(TURRET_PLAIN_MAX + 1, Math.max(1, Math.round(rawLevel)))
       const branch: Branch = rawBranch === 1 || rawBranch === 2 ? rawBranch : 0
       const old = previous[i]
       const same = old && old.kind === kind
@@ -145,7 +152,9 @@ export class ClientView {
         // Un niveau de plus qu'à l'image précédente : rebond d'amélioration.
         pop: same && old.level < level ? 1 : same ? old.pop : 0,
         recoil: same ? old.recoil : 0,
-        side: same ? old.side : 1
+        side: same ? old.side : 1,
+        boost: rawBoost === 1,
+        web: Math.max(0, rawWeb / 10)
       }
     }
 
@@ -174,6 +183,9 @@ export class ClientView {
           break
         case 'd':
           decal(st, ev[1], ev[2], ev[3], ev[4])
+          break
+        case 'w':
+          webShot(st, ev[1], ev[2], ev[3], ev[4])
           break
         case 'm':
           muzzle(st, ev[1], ev[2], ev[3], ev[4])
@@ -206,9 +218,9 @@ export class ClientView {
     const p = this.state.players[LOCAL_ID]
     const { col, row } = buildTarget(p)
     const b = buildingAt(this.state, col, row)
-    if (!b || b.kind !== 'turret' || b.level !== 2) return null
-    const next = nextUpgrade(b)
-    if (!next || this.state.gold < next.cost) return null
+    if (!b || b.kind !== 'turret' || b.level !== TURRET_PLAIN_MAX) return null
+    const next = nextUpgrade(b, p.unlocks)
+    if (!next || next.locked || this.state.gold < next.cost) return null
     return { player: LOCAL_ID, col, row }
   }
 
@@ -261,6 +273,7 @@ export class ClientView {
       if (target) b.angle = Math.atan2(target.y - cy, target.x - cx)
     }
 
+    advanceWebs(st, dt, false)
     updateFx(st, dt)
   }
 

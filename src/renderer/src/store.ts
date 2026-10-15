@@ -1,9 +1,20 @@
 import { create } from 'zustand'
 import { BASE } from './game/constants'
+import {
+  PERKS,
+  UNLOCK_BY_ID,
+  emptyProgress,
+  isUnlockId,
+  loadoutOf,
+  sanitizePerks,
+  type PerkId,
+  type SavedProgress,
+  type UnlockId
+} from './game/progress'
 import type { ChoiceRequest, HudState, RunResult } from './game/types'
 import { session } from './net'
 
-export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover'
+export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover' | 'skills'
 /** local : une machine · host : héberge la partie en ligne · client : a rejoint la partie d'un hôte */
 export type Mode = 'local' | 'host' | 'client'
 
@@ -13,6 +24,7 @@ export interface EndResult extends RunResult {
 
 const BEST_KEY = 'last-bastion:best-wave'
 const ADDRESS_KEY = 'last-bastion:last-address'
+const PROGRESS_KEY = 'last-bastion:progress'
 
 function loadBest(): number {
   try {
@@ -25,6 +37,26 @@ function loadBest(): number {
 function saveBest(wave: number): void {
   try {
     localStorage.setItem(BEST_KEY, String(wave))
+  } catch {
+    /* stockage indisponible : on ignore */
+  }
+}
+
+function loadProgress(): SavedProgress {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? 'null') as { points?: unknown; unlocked?: unknown; perks?: unknown } | null
+    if (!raw) return emptyProgress()
+    const points = typeof raw.points === 'number' && Number.isFinite(raw.points) ? Math.max(0, Math.floor(raw.points)) : 0
+    const unlocked = Array.isArray(raw.unlocked) ? [...new Set(raw.unlocked.filter(isUnlockId))] : []
+    return { points, unlocked, perks: sanitizePerks(raw.perks) }
+  } catch {
+    return emptyProgress()
+  }
+}
+
+function saveProgress(progress: SavedProgress): void {
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress))
   } catch {
     /* stockage indisponible : on ignore */
   }
@@ -69,6 +101,8 @@ interface Store {
   /** Pop-up de choix de branche d'une tourelle de niveau 2 (null = fermé). */
   choice: ChoiceRequest | null
   bestWave: number
+  /** Points de compétence et compétences débloquées (sauvegardés en local). */
+  progress: SavedProgress
   /** Salle d'attente de l'hôte : adresses à donner au joueur 2. */
   lobby: { ips: string[]; port: number } | null
   /** Hôte : le joueur 2 est connecté. */
@@ -85,6 +119,14 @@ interface Store {
   resume: () => void
   toMenu: () => void
   setHud: (hud: HudState) => void
+  openSkills: () => void
+  closeSkills: () => void
+  /** Dépense des points pour débloquer une compétence (vérifie le prix et le prérequis). */
+  buyUnlock: (id: UnlockId) => boolean
+  /** Achète le rang suivant d'une amélioration du joueur. */
+  buyPerk: (id: PerkId) => boolean
+  /** Développement uniquement : ajoute des points pour tester. */
+  devAddPoints: (n: number) => void
   openChoice: (request: ChoiceRequest) => void
   closeChoice: () => void
   endGame: (result: RunResult) => void
@@ -99,6 +141,7 @@ export const useStore = create<Store>()((set, get) => ({
   result: null,
   choice: null,
   bestWave: loadBest(),
+  progress: loadProgress(),
   lobby: null,
   peerOnline: false,
   netError: null,
@@ -129,7 +172,7 @@ export const useStore = create<Store>()((set, get) => ({
     // Mémorisée tout de suite : si la connexion échoue, le champ du menu reste rempli.
     saveAddress(address.trim())
     set({ netError: null, screen: 'lobby', mode: 'client', lobby: null, peerOnline: false })
-    const result = await session.join(address.trim())
+    const result = await session.join(address.trim(), loadoutOf(get().progress))
     if (get().screen !== 'lobby' || get().mode !== 'client') {
       // Annulé pendant la connexion
       if (result.ok) session.close()
@@ -188,6 +231,41 @@ export const useStore = create<Store>()((set, get) => ({
 
   setHud: (hud) => set({ hud }),
 
+  openSkills: () => {
+    if (get().screen === 'menu') set({ screen: 'skills' })
+  },
+  closeSkills: () => {
+    if (get().screen === 'skills') set({ screen: 'menu' })
+  },
+  buyUnlock: (id) => {
+    const { progress } = get()
+    const def = UNLOCK_BY_ID[id]
+    if (progress.unlocked.includes(id) || progress.points < def.cost) return false
+    if (def.requires && !progress.unlocked.includes(def.requires)) return false
+    const next = { ...progress, points: progress.points - def.cost, unlocked: [...progress.unlocked, id] }
+    saveProgress(next)
+    set({ progress: next })
+    return true
+  },
+  buyPerk: (id) => {
+    const { progress } = get()
+    const i = PERKS.findIndex((p) => p.id === id)
+    const def = PERKS[i]
+    const rank = progress.perks[i] ?? 0
+    if (!def || rank >= def.costs.length || progress.points < def.costs[rank]) return false
+    const perks = progress.perks.slice()
+    perks[i] = rank + 1
+    const next = { ...progress, points: progress.points - def.costs[rank], perks }
+    saveProgress(next)
+    set({ progress: next })
+    return true
+  },
+  devAddPoints: (n) => {
+    const next = { ...get().progress, points: get().progress.points + n }
+    saveProgress(next)
+    set({ progress: next })
+  },
+
   openChoice: (request) => {
     if (get().screen === 'playing') set({ choice: request })
   },
@@ -196,11 +274,14 @@ export const useStore = create<Store>()((set, get) => ({
   endGame: (result) => {
     const newRecord = result.wave > get().bestWave
     if (newRecord) saveBest(result.wave)
+    const progress = { ...get().progress, points: get().progress.points + result.points }
+    saveProgress(progress)
     set({
       screen: 'gameover',
       choice: null,
       result: { ...result, newRecord },
-      bestWave: Math.max(get().bestWave, result.wave)
+      bestWave: Math.max(get().bestWave, result.wave),
+      progress
     })
   }
 }))

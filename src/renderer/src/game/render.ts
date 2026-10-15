@@ -96,6 +96,7 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
   for (const p of state.players) drawPlayer(ctx, p)
   drawGhostLabels(ctx, state)
   drawBullets(ctx, state)
+  drawWebShots(ctx, state)
   drawFx(ctx, state)
   ctx.restore()
 }
@@ -177,21 +178,23 @@ function drawBase(ctx: CanvasRenderingContext2D, state: GameState): void {
   const pulse = 0.5 + 0.5 * Math.sin(state.time * 3)
   const cx = x + w / 2
   const cy = y + h / 2
-  const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 64)
+  // Le cristal est dessiné pour une forteresse de 160 px de côté : on le met à l'échelle de la taille réelle.
+  const k = Math.min(w, h) / 160
+  const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 64 * k)
   glow.addColorStop(0, `rgba(120, 230, 255, ${0.5 + 0.25 * pulse})`)
   glow.addColorStop(1, 'rgba(120, 230, 255, 0)')
   ctx.fillStyle = glow
   ctx.beginPath()
-  ctx.arc(cx, cy, 64, 0, Math.PI * 2)
+  ctx.arc(cx, cy, 64 * k, 0, Math.PI * 2)
   ctx.fill()
   ctx.fillStyle = '#7fe7ff'
   ctx.strokeStyle = '#e0fbff'
   ctx.lineWidth = 2
   ctx.beginPath()
-  ctx.moveTo(cx, cy - 28)
-  ctx.lineTo(cx + 17, cy)
-  ctx.lineTo(cx, cy + 28)
-  ctx.lineTo(cx - 17, cy)
+  ctx.moveTo(cx, cy - 28 * k)
+  ctx.lineTo(cx + 17 * k, cy)
+  ctx.lineTo(cx, cy + 28 * k)
+  ctx.lineTo(cx - 17 * k, cy)
   ctx.closePath()
   ctx.fill()
   ctx.stroke()
@@ -216,7 +219,8 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number):
   }
   switch (b.kind) {
     case 'barricade': {
-      if (b.level >= 2) drawStoneWall(ctx, x, y)
+      if (b.level >= 3) drawReinforcedWall(ctx, x, y)
+      else if (b.level === 2) drawStoneWall(ctx, x, y)
       else drawWoodBarricade(ctx, x, y)
       break
     }
@@ -280,6 +284,39 @@ function drawWoodBarricade(ctx: CanvasRenderingContext2D, x: number, y: number):
   for (let i = 0; i < 3; i++) {
     ctx.fillRect(x + 8, y + 8 + i * 10, 2, 2)
     ctx.fillRect(x + TILE - 10, y + 8 + i * 10, 2, 2)
+  }
+}
+
+function drawReinforcedWall(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  drawStoneWall(ctx, x, y)
+  // Cadre d'acier, renforts en croix et rivets
+  ctx.fillStyle = 'rgba(38, 44, 56, 0.55)'
+  ctx.fillRect(x, y, TILE, 5)
+  ctx.fillRect(x, y + TILE - 5, TILE, 5)
+  ctx.fillRect(x, y, 5, TILE)
+  ctx.fillRect(x + TILE - 5, y, 5, TILE)
+  ctx.strokeStyle = '#3b4252'
+  ctx.lineWidth = 3
+  ctx.beginPath()
+  ctx.moveTo(x + 5, y + 5)
+  ctx.lineTo(x + TILE - 5, y + TILE - 5)
+  ctx.moveTo(x + TILE - 5, y + 5)
+  ctx.lineTo(x + 5, y + TILE - 5)
+  ctx.stroke()
+  ctx.strokeStyle = '#cfd8dc'
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(x + 0.75, y + 0.75, TILE - 1.5, TILE - 1.5)
+  ctx.fillStyle = '#eceff1'
+  for (const [px, py] of [
+    [3, 3],
+    [TILE - 3, 3],
+    [3, TILE - 3],
+    [TILE - 3, TILE - 3],
+    [TILE / 2, TILE / 2]
+  ]) {
+    ctx.beginPath()
+    ctx.arc(x + px, y + py, 1.8, 0, Math.PI * 2)
+    ctx.fill()
   }
 }
 
@@ -360,10 +397,13 @@ function drawGhostLabels(ctx: CanvasRenderingContext2D, state: GameState): void 
     const { col, row } = buildTarget(p)
     const target = buildingAt(state, col, row)
     if (!target) continue
-    const next = nextUpgrade(target)
+    const next = nextUpgrade(target, p.unlocks)
     let text = levelName(target)
     let color = '#e0e0e0'
-    if (next) {
+    if (next && next.locked) {
+      text += `  🔒 ${next.label}`
+      color = '#ce93d8'
+    } else if (next) {
       text += `  ▲ ${next.label} · ${next.cost}${next.mode === 'choice' ? '+' : ''}`
       color = state.gold >= next.cost ? '#ffe082' : '#ffab91'
     } else {
@@ -438,6 +478,38 @@ function drawDecals(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.fill()
   }
   ctx.globalAlpha = 1
+}
+
+/** Toiles d'araignée en vol : un fil tendu depuis l'araignée et un flocon blanc qui tourne. */
+function drawWebShots(ctx: CanvasRenderingContext2D, state: GameState): void {
+  for (const w of state.webs) {
+    const k = Math.min(1, w.t / w.dur)
+    const px = w.x + (w.tx - w.x) * k
+    const py = w.y + (w.ty - w.y) * k - Math.sin(k * Math.PI) * 14
+    ctx.strokeStyle = 'rgba(240, 242, 255, 0.7)'
+    ctx.lineWidth = 1.3
+    ctx.beginPath()
+    ctx.moveTo(w.x, w.y)
+    ctx.lineTo(px, py)
+    ctx.stroke()
+    ctx.save()
+    ctx.translate(px, py)
+    ctx.rotate(w.t * 14)
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 1.4
+    ctx.beginPath()
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 4
+      ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8)
+      ctx.lineTo(-Math.cos(a) * 8, -Math.sin(a) * 8)
+    }
+    ctx.stroke()
+    ctx.restore()
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    drawGlow(ctx, px, py, 14, '#e8eaf6', 0.55)
+    ctx.restore()
+  }
 }
 
 function drawBullets(ctx: CanvasRenderingContext2D, state: GameState): void {

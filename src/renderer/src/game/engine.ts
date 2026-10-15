@@ -4,6 +4,7 @@ import { BASE, HEIGHT, STEP, WIDTH, type Branch } from './constants'
 import { ClientView } from './clientView'
 import { Input } from './input'
 import { ACTIONS, CODES, SNAPSHOT_HZ, decodeInput, decodePick, decodeSnap, encodeSnap, type Action } from './netproto'
+import { emptyLoadout, scoreRun, type Loadout } from './progress'
 import { HostInput, RemoteInput } from './remoteInput'
 import { createBackground, render } from './render'
 import { createState } from './state'
@@ -50,12 +51,16 @@ export class Game {
     private canvas: HTMLCanvasElement,
     playerCount: 1 | 2,
     private mode: GameMode,
+    /** Compétences et améliorations du joueur de cette machine. */
+    loadout: Loadout,
     private callbacks: GameCallbacks
   ) {
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('Canvas 2D indisponible')
     this.ctx = ctx
-    this.state = createState(mode === 'local' ? playerCount : 2)
+    // Local : les deux joueurs partagent la sauvegarde. En ligne : chacun a les siennes (l'hôte est le joueur 1, l'invité le joueur 2).
+    const loadouts = mode === 'local' ? [loadout, loadout] : mode === 'host' ? [loadout, session.peerLoadout] : [emptyLoadout(), loadout]
+    this.state = createState(mode === 'local' ? playerCount : 2, loadouts)
     this.sim = this.input
 
     if (mode === 'host') {
@@ -98,7 +103,11 @@ export class Game {
     if (this.mode === 'host') {
       if (event.type === 'message' && event.msg.t === 'in') this.remote.apply(decodeInput(event.msg))
       else if (event.type === 'message' && event.msg.t === 'pick') this.onRemotePick(event.msg)
-      else if (event.type === 'ready') session.send({ t: 'start' }) // le joueur 2 revient en pleine partie
+      else if (event.type === 'ready') {
+        this.state.players[1].unlocks = session.peerLoadout.unlocks // ses compétences ont pu changer
+        this.state.players[1].perks = session.peerLoadout.perks.slice()
+        session.send({ t: 'start' }) // le joueur 2 revient en pleine partie
+      }
       else if (event.type === 'left') this.remote.clear()
     } else if (this.mode === 'client' && event.type === 'message' && event.msg.t === 'snap') {
       const snap = decodeSnap(event.msg)
@@ -222,7 +231,8 @@ export class Game {
     if (over && !this.ended) {
       this.ended = true
       this.callbacks.onHud(this.hud())
-      this.callbacks.onGameOver({ wave: this.state.wave, kills: this.state.kills })
+      const score = scoreRun(this.state.kstats, this.state.wave)
+      this.callbacks.onGameOver({ wave: this.state.wave, kills: this.state.kills, points: score.total, score })
       return
     }
     if (this.ended) return
