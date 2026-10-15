@@ -526,3 +526,131 @@ input {
 .net-status.off::before {
   background: #ffa726;
 }
+
+.changelog { text-align: left; margin: 8px 0; max-height: 40vh; overflow: auto; }
+.changelog ul { margin: 4px 0 8px 18px; padding: 0; }
+.changelog h3 { margin: 6px 0; color: var(--gold); }
+
+/* ----------------------------------------------- Pop-up de choix de tourelle */
+
+.picker {
+  width: 46em;
+  max-width: 94%;
+  padding: 1.2em 1.6em 1.3em;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--pc);
+  border-radius: 1.1em;
+  text-align: center;
+  box-shadow: 0 1.2em 3em rgba(0, 0, 0, 0.5);
+}
+.picker h2 {
+  margin: 0 0 0.2em;
+  font-size: 1.35em;
+}
+.picker h2 .who {
+  color: var(--pc);
+  margin-right: 0.4em;
+  letter-spacing: 0.08em;
+}
+.picker .hint {
+  margin: 0 0 1em;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+.pcards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1em;
+}
+.pcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.9em 0.9em 0.8em;
+  border: 2px solid var(--line);
+  border-radius: 0.9em;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  transition:
+    transform 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+.pcard.b1 {
+  --ac: #4dd0e1;
+}
+.pcard.b2 {
+  --ac: #ff9800;
+}
+.pcard:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: var(--ac);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 1.4em -0.4em var(--ac);
+}
+.pcard:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.pcard .pnum {
+  position: absolute;
+  top: 0.5em;
+  left: 0.7em;
+  font-size: 0.75em;
+  color: var(--muted);
+}
+.pcard-preview {
+  width: 6.2em;
+  height: 6.2em;
+  border-radius: 0.6em;
+  border: 1px solid var(--line);
+  image-rendering: auto;
+}
+.pcard .pname {
+  font-size: 1.15em;
+  font-weight: 800;
+  color: var(--ac);
+}
+.pcard .pblurb {
+  font-size: 0.8em;
+  color: var(--muted);
+  min-height: 2.4em;
+}
+.pcard .pstats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  margin-top: 0.2em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--line);
+}
+.pcard .pstat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.pcard .pstat .val {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.pcard .pstat .val b {
+  font-weight: 800;
+}
+.pcard .pstat .val.up b {
+  color: #9be37f;
+}
+.pcard .pstat .val.down b {
+  color: #ff8a65;
+}
+.pcard .pcost {
+  margin-top: 0.3em;
+  font-weight: 800;
+  color: var(--gold);
+}

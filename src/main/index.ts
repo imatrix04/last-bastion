@@ -1,6 +1,9 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { registerNetHandlers } from './net'
+import { registerUpdater } from './updater'
+
+let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -19,6 +22,10 @@ function createWindow(): void {
     }
   })
 
+  mainWindow = win
+  win.on('closed', () => {
+    mainWindow = null
+  })
   win.once('ready-to-show', () => win.show())
 
   // Le jeu n'ouvre jamais de fenêtre ni ne navigue ailleurs.
@@ -41,7 +48,9 @@ app.whenReady().then(() => {
     return win.isFullScreen()
   })
   ipcMain.handle('app:quit', () => app.quit())
+  ipcMain.handle('app:version', () => app.getVersion())
   registerNetHandlers()
+  registerUpdater(() => mainWindow)
 
   createWindow()
 

@@ -21,7 +21,7 @@ npm run sim        # simulation sans interface : 6 scénarios (solo/duo, avec ou
 
 ## Jouer en ligne (chacun sur son PC)
 
-Dans le menu : un joueur clique sur **Héberger une partie** (il est le Joueur 1, bleu) et donne son adresse à l'autre, qui la saisit puis clique sur **Rejoindre** (Joueur 2, rose). En ligne, chacun joue avec les touches du Joueur 1 (ZQSD / WASD, Espace, F, A/E…).
+Dans le menu : un joueur clique sur **Héberger une partie** (il est le Joueur 1, bleu) et donne son adresse à l'autre, qui la saisit puis clique sur **Rejoindre** (Joueur 2, rose). En ligne, chacun joue avec les touches du Joueur 1 (ZQSD / WASD, F, R, Retour arrière, A/E…).
 
 - Même réseau (même box ou Wi-Fi) : l'adresse affichée dans la salle d'attente suffit (port 7777).
 - À distance : soit redirection du port TCP 7777 de la box de l'hôte vers son PC, soit un VPN privé (Tailscale, ZeroTier, Radmin VPN) et on utilise l'adresse du VPN.
@@ -32,13 +32,14 @@ Dans le menu : un joueur clique sur **Héberger une partie** (il est le Joueur 1
 
 Les touches sont liées à leur **position** sur le clavier : ZQSD sur AZERTY = WASD sur QWERTY. Les labels affichés dans le jeu s'adaptent à ta disposition.
 
-| Action                       | Joueur 1 | Joueur 2                   |
-| ---------------------------- | -------- | -------------------------- |
-| Se déplacer                  | W A S D  | Flèches                    |
-| Construire / réparer         | Espace   | Entrée                     |
-| Démolir (remboursement 50 %) | F        | Maj droite                 |
-| Objet précédent / suivant    | Q / E    | `,` / `.` (touches voisines de M) |
-| Choix direct de l'objet      | 1 – 4    | Pavé numérique 1 – 4       |
+| Action                       | Joueur 1       | Joueur 2                   |
+| ---------------------------- | -------------- | -------------------------- |
+| Se déplacer                  | W A S D        | Flèches                    |
+| Construire / réparer         | F              | Entrée                     |
+| Améliorer                    | R              | Maj droite                 |
+| Démolir (remboursement 50 %) | Retour arrière | Suppr                      |
+| Objet précédent / suivant    | Q / E          | `,` / `.` (touches voisines de M) |
+| Choix direct de l'objet      | 1 – 3          | Pavé numérique 1 – 3       |
 
 Global : **N** lance la vague suivante plus tôt (bonus d'or), **Échap** ou **P** met en pause, **F11** plein écran.
 
@@ -47,10 +48,13 @@ Les joueurs **tirent automatiquement** sur l'ennemi le plus proche et construise
 ## Règles du jeu
 
 - L'or est partagé. Il vient des monstres abattus et de la fin de chaque vague.
-- **Barricade** (10) : bois, fragile, pas cher. **Mur de pierre** (30) : 420 PV. **Tourelle** (90) : tire seule, portée 240 px. **Pieux** (25) : piège au sol qui blesse et ralentit, s'use à chaque passage.
+- **Barricade** (10) : bois, fragile, pas cher. **R** la renforce en **mur de pierre** (+25, 420 PV).
+- **Tourelle** (90) : tire seule, portée 240 px. **R** → niveau 2 (+60, dégâts ↑). **R** encore → pop-up de choix à la souris (ou touches 1 / 2) entre deux spécialisations de niveau 3 : **double canon** (+110, cadence ×2, deux tubes en alternance) ou **canon lourd** (+130, dégâts ×3, gros obus, portée accrue). Les cartes comparent vitesse, dégâts, PV et portée.
+- **Pieux** (25) : piège au sol qui blesse et ralentit, s'use à chaque passage.
+- La démolition rembourse 50 % de l'or investi (pose + améliorations), proportionnellement aux PV restants.
 - Les ennemis cherchent le chemin le moins coûteux vers la forteresse : ils **contournent** si c'est moins cher, sinon ils **cassent** le point le plus faible. Un labyrinthe bien pensé les fait marcher longtemps sous le feu des tourelles.
 - Les bords de la carte restent libres (couloirs d'apparition, signalés par des chevrons rouges avant chaque vague). De plus en plus de côtés s'ouvrent au fil des vagues.
-- Ennemis : Rôdeur, Coureur (rapide), Brute (costaud), Colosse (boss toutes les 5 vagues). À deux, les vagues sont 1,6 fois plus nombreuses.
+- Ennemis : Rôdeur, Coureur (rapide), Brute (costaud), **Éclateur** (dès la vague 4 : à sa mort il se divise en 4 Rôdeurs), Colosse (boss toutes les 5 vagues). À deux, les vagues sont 1,6 fois plus nombreuses.
 - Le meilleur score (vague atteinte) est sauvegardé en local.
 
 ## Architecture
@@ -62,12 +66,14 @@ src/
   preload/index.ts            API minimale exposée au renderer (contextBridge)
   renderer/src/
     App.tsx, store.ts         écrans (menu / jeu / pause / game over), état zustand
-    components/               Menu, Hud, Overlays, GameCanvas
+    components/               Menu, Hud, Overlays, GameCanvas, UpgradePicker (pop-up de choix niveau 3)
     game/                     le jeu lui-même, sans dépendance à React
       constants.ts            équilibrage : bâtiments, ennemis, vitesses, coûts
       update.ts               simulation (joueurs, vagues, ennemis, tourelles, tirs)
+      stats.ts                niveaux des bâtiments : PV, stats de tourelle, prix, prochaine amélioration
+      sprites.ts              dessin des ennemis animés et des tourelles (corps pré-rendus), lueurs
       pathing.ts              champ de distance vers la forteresse (les murs ont un coût)
-      build.ts                construire / réparer / démolir
+      build.ts                construire / réparer / améliorer / démolir
       waves.ts                composition des vagues et points d'apparition
       render.ts               rendu canvas
       engine.ts               boucle de jeu à pas fixe 60 Hz, pont vers le HUD React (modes local / hôte / client)
@@ -88,6 +94,6 @@ Tout se règle dans `src/renderer/src/game/constants.ts` (coûts, PV, dégâts, 
 - Ennemis qui s'en prennent aux joueurs (PV, mort, réanimation par l'autre joueur)
 - Manette (Gamepad API) pour le joueur 2
 - Sons et musique, meilleurs sprites
-- Améliorations de tourelles, nouveaux bâtiments (mine d'or, mur piégé), ennemis à distance
+- Nouveaux bâtiments (mine d'or, mur piégé), ennemis à distance, niveaux supérieurs pour les tourelles
 - Sauvegarde de partie via le process principal, packaging (electron-builder) pour Steam / itch.io
 - Multijoueur en ligne (le moteur est déjà séparé du rendu, ce qui aide)

@@ -1,9 +1,10 @@
-import { actPlace, actRemove } from './build'
+import { actPlace, actRemove, actUpgrade } from './build'
 import {
   BASE,
   BUILD_ORDER,
   BUILD_REPEAT,
   BUILDS,
+  BULLET_STYLES,
   COLS,
   ENEMIES,
   HEIGHT,
@@ -12,15 +13,15 @@ import {
   ROWS,
   SPIKES,
   TILE,
-  TURRET,
   WIDTH
 } from './constants'
 import { CONTROLS, SKIP_WAVE, type InputLike } from './controls'
-import { addText, burst, updateFx } from './fx'
+import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx } from './fx'
 import { distToRect, idx, isBaseCell, resolveTiles } from './grid'
 import { computeFlow, nextCell } from './pathing'
+import { turretStats } from './stats'
 import type { Building, Enemy, GameState, Player } from './types'
-import { composeWave, pickGates, spawnEnemy, spawnInterval, waveScale } from './waves'
+import { composeWave, createEnemy, pickGates, spawnEnemy, spawnInterval, waveScale } from './waves'
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
@@ -71,7 +72,7 @@ function fire(
   speed: number,
   damage: number,
   range: number,
-  color: string
+  style: number
 ): void {
   state.bullets.push({
     x,
@@ -80,7 +81,7 @@ function fire(
     vy: Math.sin(angle) * speed,
     life: range / speed + 0.15,
     damage,
-    color
+    style
   })
 }
 
@@ -89,18 +90,32 @@ function damageEnemy(e: Enemy, amount: number): void {
   e.flash = 0.08
 }
 
+/** Couleur des éclats d'un bâtiment : bois, pierre ou métal. */
+function debrisColor(b: Building): string {
+  if (b.kind === 'barricade') return b.level >= 2 ? '#a9afbd' : '#9c6a35'
+  return b.kind === 'turret' ? '#78909c' : '#b0bec5'
+}
+
 function damageBuilding(state: GameState, b: Building, amount: number): void {
   b.hp -= amount
-  if (b.hp > 0) return
+  const cx = (b.col + 0.5) * TILE
+  const cy = (b.row + 0.5) * TILE
+  if (b.hp > 0) {
+    // Les pieux s'usent en continu : pas d'éclats à chaque pas.
+    if (amount >= 3) burst(state, cx, cy, debrisColor(b), 3, 90)
+    return
+  }
   state.grid[idx(b.col, b.row)] = null
   if (BUILDS[b.kind].solid) state.flowDirty = true
-  burst(state, (b.col + 0.5) * TILE, (b.row + 0.5) * TILE, '#bcaaa4', 12, 130)
+  burst(state, cx, cy, debrisColor(b), 12, 140)
+  smoke(state, cx, cy, '#8d6e63', 4, 60)
+  ring(state, cx, cy, '#bcaaa4', 34)
 }
 
 function hitBase(state: GameState, amount: number, from: Enemy): void {
   state.baseHp -= amount
   state.shake = Math.min(1, state.shake + 0.12)
-  burst(state, from.x, from.y, '#ffcc80', 3, 70)
+  sparks(state, from.x, from.y, '#ffcc80', 5, 120)
 }
 
 // -------------------------------------------------------------------- joueurs
@@ -148,6 +163,9 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
     if (input.wasPressed(c.next)) p.selected = (p.selected + 1) % n
     if (input.wasPressed(c.prev)) p.selected = (p.selected + n - 1) % n
 
+    // Amélioration (une pression = une amélioration)
+    if (input.wasPressed(c.upgrade)) actUpgrade(state, p)
+
     // Construction / réparation / démolition (la touche maintenue répète l'action)
     p.buildCd -= dt
     if (p.buildCd <= 0) {
@@ -165,7 +183,9 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
       p.aim = Math.atan2(target.y - p.y, target.x - p.x)
       if (p.shootCd <= 0) {
         const spread = (Math.random() - 0.5) * 0.08
-        fire(state, p.x, p.y, p.aim + spread, PLAYER.bulletSpeed, PLAYER.damage, PLAYER.range, '#fff59d')
+        const angle = p.aim + spread
+        fire(state, p.x, p.y, angle, PLAYER.bulletSpeed, PLAYER.damage, PLAYER.range, 0)
+        muzzle(state, p.x + Math.cos(angle) * 22, p.y + Math.sin(angle) * 22, angle, 0)
         p.shootCd = 1 / PLAYER.fireRate
       }
     } else {
@@ -230,6 +250,13 @@ function endWave(state: GameState): void {
 
 // -------------------------------------------------------------------- ennemis
 
+/** Tourne progressivement l'ennemi vers un cap (par le chemin le plus court). */
+function turnToward(e: Enemy, target: number, dt: number): void {
+  let d = target - e.face
+  d = Math.atan2(Math.sin(d), Math.cos(d))
+  e.face += d * (1 - Math.exp(-dt * 12))
+}
+
 /** Attaque ce qui bloque l'ennemi : un bâtiment ou la forteresse. */
 function strike(state: GameState, e: Enemy, target: Building | null, onBase: boolean): void {
   const def = ENEMIES[e.kind]
@@ -271,6 +298,7 @@ function updateEnemies(state: GameState, dt: number): void {
     const def = ENEMIES[e.kind]
     e.flash = Math.max(0, e.flash - dt)
     e.attackCd -= dt
+    e.age += dt
 
     // Contrôle toutes les 1,2 s : un ennemi qui n'avance plus et n'attaque pas est considéré coincé.
     e.checkT -= dt
@@ -294,6 +322,7 @@ function updateEnemies(state: GameState, dt: number): void {
       const d = distToRect(e.x, e.y, next.col * TILE, next.row * TILE, TILE, TILE)
       if (d <= e.radius + 4) {
         e.attacking = true
+        turnToward(e, Math.atan2((next.row + 0.5) * TILE - e.y, (next.col + 0.5) * TILE - e.x), dt)
         if (e.attackCd <= 0) strike(state, e, target, onBase)
         continue
       }
@@ -310,6 +339,7 @@ function updateEnemies(state: GameState, dt: number): void {
     const dy = ty - e.y
     const dist = Math.hypot(dx, dy) || 1
     const move = Math.min(dist, speed * dt)
+    if (dist > 0.5) turnToward(e, Math.atan2(dy, dx), dt)
     e.x += (dx / dist) * move
     e.y += (dy / dist) * move
   }
@@ -350,8 +380,41 @@ function updateEnemies(state: GameState, dt: number): void {
   }
 }
 
+/** Effets de mort : gerbe, tache au sol, onde de choc pour les gros. */
+function deathFx(state: GameState, e: Enemy): void {
+  const def = ENEMIES[e.kind]
+  const big = e.kind === 'boss' ? 1.5 : 1
+  burst(state, e.x, e.y, def.color, e.kind === 'boss' ? 34 : 8 + Math.round(e.radius / 2), 130 * big)
+  sparks(state, e.x, e.y, '#fff3e0', 3, 150)
+  smoke(state, e.x, e.y, '#6d5d4b', e.kind === 'boss' ? 8 : 2, 50)
+  decal(state, e.x, e.y, def.color, e.radius * 1.5 * big)
+  if (e.kind === 'brute' || e.kind === 'splitter') ring(state, e.x, e.y, def.color, 52)
+  if (e.kind === 'boss') {
+    ring(state, e.x, e.y, '#ffcdd2', 130)
+    ring(state, e.x, e.y, def.color, 80)
+    state.shake = Math.min(1, state.shake + 0.7)
+  }
+}
+
+/** Un Éclateur qui meurt se divise en 4 Rôdeurs. */
+function split(state: GameState, e: Enemy, out: Enemy[]): void {
+  const base = Math.random() * Math.PI
+  const r = ENEMIES.grunt.radius
+  for (let k = 0; k < 4; k++) {
+    const a = base + (k * Math.PI) / 2
+    const x = clamp(e.x + Math.cos(a) * 16, r, WIDTH - r)
+    const y = clamp(e.y + Math.sin(a) * 16, r, HEIGHT - r)
+    const child = createEnemy(state, 'grunt', x, y, 0.7, true)
+    child.face = a
+    out.push(child)
+    burst(state, x, y, ENEMIES.splitter.color, 2, 0, 3)
+    burst(state, x, y, ENEMIES.splitter.color, 4, 90)
+  }
+}
+
 function reapEnemies(state: GameState): void {
   const list = state.enemies
+  const born: Enemy[] = []
   let w = 0
   for (const e of list) {
     if (e.hp > 0) {
@@ -359,38 +422,52 @@ function reapEnemies(state: GameState): void {
       continue
     }
     const def = ENEMIES[e.kind]
-    state.gold += def.reward
+    const reward = e.minion ? Math.ceil(def.reward / 2) : def.reward
+    state.gold += reward
     state.kills += 1
-    burst(state, e.x, e.y, def.color, e.kind === 'boss' ? 30 : 10)
-    addText(state, e.x, e.y - 12, `+${def.reward}`, '#ffd54a')
+    deathFx(state, e)
+    if (e.kind === 'splitter') split(state, e, born)
+    addText(state, e.x, e.y - 12, `+${reward}`, '#ffd54a')
   }
   list.length = w
+  // Ajoutés après la boucle : la vague ne peut pas se terminer entre la mort d'un Éclateur et l'arrivée de ses petits.
+  for (const c of born) list.push(c)
 }
 
 // ------------------------------------------------------- tourelles, pièges, tirs
 
+/** Animations des bâtiments (rebond d'amélioration, recul du canon) : partagé avec l'affichage de l'invité. */
+export function decayBuildingFx(b: Building, dt: number): void {
+  b.pop = Math.max(0, b.pop - dt * 2.5)
+  b.recoil = Math.max(0, b.recoil - dt * 7)
+}
+
 function updateTurrets(state: GameState, dt: number): void {
   for (const b of state.grid) {
-    if (!b || b.kind !== 'turret') continue
+    if (!b) continue
+    decayBuildingFx(b, dt)
+    if (b.kind !== 'turret') continue
     b.cooldown -= dt
     const cx = (b.col + 0.5) * TILE
     const cy = (b.row + 0.5) * TILE
-    const target = nearestEnemy(state, cx, cy, TURRET.range)
+    const stats = turretStats(b.level, b.branch)
+    const target = nearestEnemy(state, cx, cy, stats.range)
     if (!target) continue
     b.angle = Math.atan2(target.y - cy, target.x - cx)
     if (b.cooldown <= 0) {
-      const muzzle = 16
-      fire(
-        state,
-        cx + Math.cos(b.angle) * muzzle,
-        cy + Math.sin(b.angle) * muzzle,
-        b.angle,
-        TURRET.bulletSpeed,
-        TURRET.damage,
-        TURRET.range,
-        '#80deea'
-      )
-      b.cooldown = 1 / TURRET.fireRate
+      const heavy = b.branch === 2
+      const double = b.branch === 1
+      // Double canon : les deux tubes tirent à tour de rôle, décalés de part et d'autre de l'axe.
+      b.side = -b.side
+      const lateral = double ? b.side * 4.5 : 0
+      const muzzleLen = heavy ? 22 : 17
+      const mx = cx + Math.cos(b.angle) * muzzleLen - Math.sin(b.angle) * lateral
+      const my = cy + Math.sin(b.angle) * muzzleLen + Math.cos(b.angle) * lateral
+      fire(state, mx, my, b.angle, stats.bulletSpeed, stats.damage, stats.range, heavy ? 2 : 1)
+      muzzle(state, mx, my, b.angle, heavy ? 3 : double ? 2 : 1)
+      b.recoil = 1
+      if (heavy) state.shake = Math.min(1, state.shake + 0.04)
+      b.cooldown = 1 / stats.fireRate
     }
   }
 }
@@ -424,7 +501,14 @@ function updateBullets(state: GameState, dt: number): void {
         const dy = e.y - b.y
         if (dx * dx + dy * dy <= r * r) {
           damageEnemy(e, b.damage)
-          burst(state, b.x, b.y, b.color, 3, 80)
+          const style = BULLET_STYLES[b.style] ?? BULLET_STYLES[0]
+          if (b.style === 2) {
+            sparks(state, b.x, b.y, style.color, 8, 200)
+            burst(state, b.x, b.y, style.color, 1, 0, 3)
+            ring(state, b.x, b.y, style.color, 26)
+          } else {
+            sparks(state, b.x, b.y, style.color, 3, 150)
+          }
           alive = false
           break
         }

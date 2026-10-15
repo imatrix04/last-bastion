@@ -1,6 +1,6 @@
 {
   "name": "last-bastion",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Base-defense 2D en coop local (Electron + React + TypeScript)",
   "main": "./out/main/index.js",
   "author": "Florent",
@@ -10,9 +10,12 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
-    "sim": "tsx scripts/simulate.ts"
+    "sim": "tsx scripts/simulate.ts",
+    "dist": "electron-vite build && electron-builder --win",
+    "release": "electron-vite build && electron-builder --win --publish always"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "ws": "^8.22.0",
@@ -24,6 +27,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

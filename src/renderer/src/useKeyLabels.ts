@@ -12,6 +12,8 @@ const FIXED: Record<string, string> = {
   Space: 'Espace',
   Enter: 'Entrée',
   ShiftRight: 'Maj droite',
+  Backspace: 'Retour',
+  Delete: 'Suppr',
   ArrowUp: '↑',
   ArrowDown: '↓',
   ArrowLeft: '←',

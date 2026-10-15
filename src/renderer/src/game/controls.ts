@@ -5,10 +5,11 @@ export interface PlayerControls {
   left: string
   right: string
   place: string
+  upgrade: string
   remove: string
   prev: string
   next: string
-  /** Sélection directe des 4 objets de construction. */
+  /** Sélection directe des 3 objets de construction. */
   slots: string[]
 }
 
@@ -18,11 +19,12 @@ export const CONTROLS: PlayerControls[] = [
     down: 'KeyS',
     left: 'KeyA',
     right: 'KeyD',
-    place: 'Space',
-    remove: 'KeyF',
+    place: 'KeyF',
+    upgrade: 'KeyR',
+    remove: 'Backspace',
     prev: 'KeyQ',
     next: 'KeyE',
-    slots: ['Digit1', 'Digit2', 'Digit3', 'Digit4']
+    slots: ['Digit1', 'Digit2', 'Digit3']
   },
   {
     up: 'ArrowUp',
@@ -30,10 +32,11 @@ export const CONTROLS: PlayerControls[] = [
     left: 'ArrowLeft',
     right: 'ArrowRight',
     place: 'Enter',
-    remove: 'ShiftRight',
+    upgrade: 'ShiftRight',
+    remove: 'Delete',
     prev: 'Comma',
     next: 'Period',
-    slots: ['Numpad1', 'Numpad2', 'Numpad3', 'Numpad4']
+    slots: ['Numpad1', 'Numpad2', 'Numpad3']
   }
 ]
 
@@ -47,6 +50,6 @@ export interface InputLike {
 
 /** Touches dont on bloque le comportement par défaut (défilement, focus...) pendant la partie. */
 export const GAME_KEYS: ReadonlySet<string> = new Set([
-  ...CONTROLS.flatMap((c) => [c.up, c.down, c.left, c.right, c.place, c.remove, c.prev, c.next, ...c.slots]),
+  ...CONTROLS.flatMap((c) => [c.up, c.down, c.left, c.right, c.place, c.upgrade, c.remove, c.prev, c.next, ...c.slots]),
   SKIP_WAVE
 ])

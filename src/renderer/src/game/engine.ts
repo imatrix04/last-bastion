@@ -1,18 +1,21 @@
 import { session, type SessionEvent } from '../net'
-import { BASE, HEIGHT, STEP, WIDTH } from './constants'
+import { applyTurretBranch } from './build'
+import { BASE, HEIGHT, STEP, WIDTH, type Branch } from './constants'
 import { ClientView } from './clientView'
 import { Input } from './input'
-import { ACTIONS, CODES, SNAPSHOT_HZ, decodeInput, decodeSnap, encodeSnap, type Action } from './netproto'
+import { ACTIONS, CODES, SNAPSHOT_HZ, decodeInput, decodePick, decodeSnap, encodeSnap, type Action } from './netproto'
 import { HostInput, RemoteInput } from './remoteInput'
 import { createBackground, render } from './render'
 import { createState } from './state'
-import type { GameState, HudState, RunResult } from './types'
+import type { ChoiceRequest, GameState, HudState, RunResult } from './types'
 import { step } from './update'
 import type { InputLike } from './controls'
 
 export interface GameCallbacks {
   onHud(hud: HudState): void
   onGameOver(result: RunResult): void
+  /** Un joueur local veut spécialiser une tourelle de niveau 2 : afficher le pop-up de choix. */
+  onChoice(request: ChoiceRequest): void
 }
 
 /**
@@ -94,11 +97,27 @@ export class Game {
   private onSession = (event: SessionEvent): void => {
     if (this.mode === 'host') {
       if (event.type === 'message' && event.msg.t === 'in') this.remote.apply(decodeInput(event.msg))
+      else if (event.type === 'message' && event.msg.t === 'pick') this.onRemotePick(event.msg)
       else if (event.type === 'ready') session.send({ t: 'start' }) // le joueur 2 revient en pleine partie
       else if (event.type === 'left') this.remote.clear()
     } else if (this.mode === 'client' && event.type === 'message' && event.msg.t === 'snap') {
       const snap = decodeSnap(event.msg)
       if (snap) this.view?.apply(snap)
+    }
+  }
+
+  /** Le joueur distant (joueur 2) a choisi la branche d'une tourelle : l'hôte vérifie puis applique. */
+  private onRemotePick(msg: Record<string, unknown>): void {
+    const pick = decodePick(msg)
+    if (pick && !this.ended) applyTurretBranch(this.state, pick.col, pick.row, pick.branch, this.state.players[1])
+  }
+
+  /** Choix de branche fait dans le pop-up (local, hôte ou invité). */
+  pickBranch(request: ChoiceRequest, branch: Branch): void {
+    if (this.mode === 'client') {
+      session.send({ t: 'pick', c: request.col, r: request.row, b: branch })
+    } else if (!this.ended) {
+      applyTurretBranch(this.state, request.col, request.row, branch, this.state.players[request.player])
     }
   }
 
@@ -140,6 +159,13 @@ export class Game {
       }
     }
 
+    // Demande de choix de branche : en ligne, celles du joueur 2 sont traitées chez lui.
+    const choice = this.state.choice
+    if (choice) {
+      this.state.choice = null
+      if (this.mode !== 'host' || choice.player === 0) this.callbacks.onChoice(choice)
+    }
+
     if (this.mode === 'host') this.sendSnapshot(dt)
     this.updateHud(dt, this.state.gameOver)
   }
@@ -149,7 +175,16 @@ export class Game {
     const view = this.view
     if (!view) return
     view.update(dt, this.input)
-    this.sendInput()
+    // Tourelle niveau 2 visée : le pop-up s'ouvre ici, l'hôte n'est prévenu qu'au moment du choix.
+    let skip: Action | null = null
+    if (this.input.wasPressed(CODES[0].upgrade)) {
+      const request = view.choiceRequest()
+      if (request) {
+        this.callbacks.onChoice(request)
+        skip = 'upgrade'
+      }
+    }
+    this.sendInput(skip)
     this.input.endStep()
     this.updateHud(dt, view.gameOver)
   }
@@ -169,13 +204,13 @@ export class Game {
   }
 
   /** Le joueur distant n'envoie que les changements : touches maintenues, et appuis rapides. */
-  private sendInput(): void {
+  private sendInput(skip: Action | null): void {
     const down: Action[] = []
     const pressed: Action[] = []
     for (const action of ACTIONS) {
       const code = CODES[0][action]
       if (this.input.isDown(code)) down.push(action)
-      if (this.input.wasPressed(code)) pressed.push(action)
+      if (action !== skip && this.input.wasPressed(code)) pressed.push(action)
     }
     const key = down.join(',')
     if (key === this.lastDown && pressed.length === 0) return

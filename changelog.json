@@ -1,0 +1,31 @@
+{
+  "releases": [
+    {
+      "version": "1.1.0",
+      "date": "2026-10-15",
+      "added": [
+        "Amélioration des bâtiments avec la touche R : la barricade se renforce en mur de pierre, la tourelle monte jusqu'au niveau 3",
+        "Tourelle niveau 2 : dégâts augmentés",
+        "Tourelle niveau 3 : pop-up de choix à la souris entre le double canon (cadence doublée) et le canon lourd (dégâts triplés), avec comparaison des stats",
+        "Nouvel ennemi, l'Éclateur (dès la vague 4) : à sa mort, il se divise en 4 Rôdeurs",
+        "Nouveaux effets visuels : flashs de tir, balles lumineuses, étincelles, taches au sol, ondes de choc, animation d'amélioration, pastilles de niveau et vignettage",
+        "Étiquette au-dessus du bâtiment visé avec son niveau et le coût de l'amélioration"
+      ],
+      "changed": [
+        "La barricade et le mur de pierre sont fusionnés : 3 objets à construire (touches 1 à 3)",
+        "Nouvelles touches du Joueur 1 : construire/réparer = F, améliorer = R, démolir = Retour arrière (Joueur 2 : Entrée, Maj droite, Suppr)",
+        "Les ennemis sont redessinés et animés (orientation, marche, apparition) ; chaque type a désormais son propre aspect",
+        "La démolition rembourse 50 % de l'or investi, améliorations comprises",
+        "Protocole réseau en version 2 : l'hôte et l'invité doivent avoir la même version du jeu"
+      ],
+      "fixed": []
+    },
+    {
+      "version": "1.0.1",
+      "date": "2026-10-15",
+      "added": ["Mise à jour automatique depuis GitHub avec affichage des nouveautés"],
+      "changed": [],
+      "fixed": []
+    }
+  ]
+}

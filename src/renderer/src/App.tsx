@@ -3,7 +3,9 @@ import { GameCanvas } from './components/GameCanvas'
 import { Hud } from './components/Hud'
 import { Lobby } from './components/Lobby'
 import { Menu } from './components/Menu'
+import { UpgradePicker } from './components/UpgradePicker'
 import { GameOverOverlay, PauseOverlay } from './components/Overlays'
+import { UpdateDialog } from './components/UpdateDialog'
 import { useStore } from './store'
 
 export default function App(): React.JSX.Element {
@@ -20,6 +22,11 @@ export default function App(): React.JSX.Element {
       if (e.repeat) return
       if (e.code === 'Escape' || e.code === 'KeyP') {
         const s = useStore.getState()
+        if (s.choice) {
+          // Le pop-up de choix passe avant la pause : Échap l'annule.
+          if (e.code === 'Escape') s.closeChoice()
+          return
+        }
         if (s.screen === 'playing') s.pause()
         else if (s.screen === 'paused') s.resume()
       }
@@ -28,6 +35,7 @@ export default function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const choice = useStore((s) => s.choice)
   const inGame = screen === 'playing' || screen === 'paused' || screen === 'gameover'
 
   return (
@@ -35,10 +43,12 @@ export default function App(): React.JSX.Element {
       <div className="stage">
         {inGame && <GameCanvas key={runId} />}
         {inGame && <Hud />}
+        {screen === 'playing' && choice && <UpgradePicker request={choice} />}
         {screen === 'paused' && <PauseOverlay />}
         {screen === 'gameover' && <GameOverOverlay />}
         {screen === 'lobby' && <Lobby />}
         {screen === 'menu' && <Menu />}
+        <UpdateDialog />
       </div>
     </div>
   )

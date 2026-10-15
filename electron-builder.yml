@@ -1,0 +1,19 @@
+appId: com.imatrix04.lastbastion
+productName: Last Bastion
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: changelog.json
+    to: changelog.json
+win:
+  target: nsis
+nsis:
+  oneClick: true
+  perMachine: false
+publish:
+  provider: github
+  owner: imatrix04
+  repo: last-bastion

@@ -4,7 +4,7 @@ import { CONTROLS, SKIP_WAVE } from '../game/controls'
 import { useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
 
-const GLYPHS = { barricade: '▤', wall: '▦', turret: '◉', spikes: '▲' } as const
+const GLYPHS = { barricade: '▤', turret: '◉', spikes: '▲' } as const
 
 export function Hud(): React.JSX.Element {
   const hud = useStore((s) => s.hud)
@@ -105,8 +105,8 @@ function BuildBar({
       </div>
       <div className="keys">
         <kbd>{label(c.prev)}</kbd>
-        <kbd>{label(c.next)}</kbd> objet · <kbd>{label(c.place)}</kbd> construire / réparer · <kbd>{label(c.remove)}</kbd>{' '}
-        démolir
+        <kbd>{label(c.next)}</kbd> objet · <kbd>{label(c.place)}</kbd> construire / réparer · <kbd>{label(c.upgrade)}</kbd>{' '}
+        améliorer · <kbd>{label(c.remove)}</kbd> démolir
       </div>
     </div>
   )

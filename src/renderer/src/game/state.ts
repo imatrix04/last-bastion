@@ -20,6 +20,8 @@ export function createState(playerCount: 1 | 2): GameState {
     enemies: [],
     bullets: [],
     particles: [],
+    rings: [],
+    decals: [],
     texts: [],
     grid: new Array(COLS * ROWS).fill(null),
     baseHp: BASE.maxHp,
@@ -36,7 +38,8 @@ export function createState(playerCount: 1 | 2): GameState {
     nextEnemyId: 1,
     kills: 0,
     gameOver: false,
-    shake: 0
+    shake: 0,
+    choice: null
   }
   computeFlow(state)
   return state

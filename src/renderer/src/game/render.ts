@@ -1,18 +1,9 @@
 import { buildTarget, placementStatus } from './build'
-import {
-  BASE,
-  BUILD_ORDER,
-  COLS,
-  ENEMIES,
-  HEIGHT,
-  PLAYER,
-  PLAYER_COLORS,
-  ROWS,
-  TILE,
-  TURRET,
-  WIDTH
-} from './constants'
-import type { Building, Enemy, GameState, Player } from './types'
+import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, PLAYER, PLAYER_COLORS, ROWS, TILE, TURRET_LEVELS, WIDTH } from './constants'
+import { buildingAt } from './grid'
+import { drawBar, drawEnemy, drawEnemyTrail, drawGlow, drawTurret } from './sprites'
+import { levelName, nextUpgrade } from './stats'
+import type { Building, GameState, Player } from './types'
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'
 
@@ -37,9 +28,22 @@ export function createBackground(scale: number): HTMLCanvasElement {
       g.fillRect(col * TILE, row * TILE, TILE, TILE)
     }
   }
+  // Grandes taches de teinte pour casser l'uniformité du damier
+  for (let i = 0; i < 46; i++) {
+    g.fillStyle = rnd() < 0.5 ? 'rgba(60, 100, 60, 0.07)' : 'rgba(8, 20, 12, 0.1)'
+    g.beginPath()
+    g.arc(rnd() * WIDTH, rnd() * HEIGHT, 30 + rnd() * 70, 0, Math.PI * 2)
+    g.fill()
+  }
   for (let i = 0; i < 320; i++) {
     g.fillStyle = rnd() < 0.5 ? '#27412b' : '#162419'
     g.fillRect(rnd() * WIDTH, rnd() * HEIGHT, 2, 3)
+  }
+  for (let i = 0; i < 70; i++) {
+    g.fillStyle = rnd() < 0.5 ? 'rgba(160, 170, 160, 0.16)' : 'rgba(110, 120, 110, 0.14)'
+    g.beginPath()
+    g.ellipse(rnd() * WIDTH, rnd() * HEIGHT, 1.5 + rnd() * 2.5, 1 + rnd() * 1.5, rnd() * 3, 0, Math.PI * 2)
+    g.fill()
   }
 
   // Bord de carte : terre battue, c'est par là que viennent les monstres
@@ -61,6 +65,13 @@ export function createBackground(scale: number): HTMLCanvasElement {
     g.lineTo(WIDTH, r * TILE + 0.5)
   }
   g.stroke()
+
+  // Vignettage
+  const vignette = g.createRadialGradient(WIDTH / 2, HEIGHT / 2, HEIGHT * 0.45, WIDTH / 2, HEIGHT / 2, WIDTH * 0.62)
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.45)')
+  g.fillStyle = vignette
+  g.fillRect(0, 0, WIDTH, HEIGHT)
   return canvas
 }
 
@@ -74,26 +85,22 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
   }
   ctx.drawImage(bg, 0, 0, WIDTH, HEIGHT)
 
+  drawDecals(ctx, state)
   drawGates(ctx, state)
-  for (const b of state.grid) if (b && b.kind === 'spikes') drawBuilding(ctx, b)
+  for (const b of state.grid) if (b && b.kind === 'spikes') drawBuilding(ctx, b, state.time)
   drawBase(ctx, state)
-  for (const b of state.grid) if (b && b.kind !== 'spikes') drawBuilding(ctx, b)
+  for (const b of state.grid) if (b && b.kind !== 'spikes') drawBuilding(ctx, b, state.time)
   drawGhosts(ctx, state)
-  for (const e of state.enemies) drawEnemy(ctx, e)
+  for (const e of state.enemies) drawEnemyTrail(ctx, e)
+  for (const e of state.enemies) drawEnemy(ctx, e, state.time)
   for (const p of state.players) drawPlayer(ctx, p)
+  drawGhostLabels(ctx, state)
   drawBullets(ctx, state)
   drawFx(ctx, state)
   ctx.restore()
 }
 
 // --------------------------------------------------------------------- éléments
-
-function drawBar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, ratio: number, color: string): void {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
-  ctx.fillRect(x - 1, y - 1, w + 2, h + 2)
-  ctx.fillStyle = color
-  ctx.fillRect(x, y, w * Math.max(0, Math.min(1, ratio)), h)
-}
 
 function drawGates(ctx: CanvasRenderingContext2D, state: GameState): void {
   const pulse = 0.5 + 0.5 * Math.sin(state.time * 5)
@@ -196,72 +203,25 @@ function drawBase(ctx: CanvasRenderingContext2D, state: GameState): void {
   drawBar(ctx, x + 8, y - 16, w - 16, 7, ratio, ratio > 0.5 ? '#66bb6a' : ratio > 0.25 ? '#ffa726' : '#ef5350')
 }
 
-function drawBuilding(ctx: CanvasRenderingContext2D, b: Building): void {
+function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number): void {
   const x = b.col * TILE
   const y = b.row * TILE
+  const popped = b.kind !== 'turret' && b.pop > 0
+  if (popped) {
+    const sc = 1 + 0.3 * b.pop
+    ctx.save()
+    ctx.translate(x + TILE / 2, y + TILE / 2)
+    ctx.scale(sc, sc)
+    ctx.translate(-(x + TILE / 2), -(y + TILE / 2))
+  }
   switch (b.kind) {
     case 'barricade': {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-      ctx.fillRect(x + 5, y + 7, TILE - 6, TILE - 6)
-      ctx.fillStyle = '#4a2f18'
-      ctx.fillRect(x + 3, y + 3, TILE - 6, TILE - 6)
-      for (let i = 0; i < 3; i++) {
-        ctx.fillStyle = i % 2 === 0 ? '#9c6a35' : '#8b5a2b'
-        ctx.fillRect(x + 5, y + 5 + i * 10, TILE - 10, 8)
-      }
-      ctx.fillStyle = '#cfd8dc'
-      for (let i = 0; i < 3; i++) {
-        ctx.fillRect(x + 8, y + 8 + i * 10, 2, 2)
-        ctx.fillRect(x + TILE - 10, y + 8 + i * 10, 2, 2)
-      }
-      break
-    }
-    case 'wall': {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-      ctx.fillRect(x + 3, y + 6, TILE, TILE)
-      ctx.fillStyle = '#8d93a0'
-      ctx.fillRect(x, y, TILE, TILE)
-      ctx.strokeStyle = '#575c68'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.moveTo(x, y + 13)
-      ctx.lineTo(x + TILE, y + 13)
-      ctx.moveTo(x, y + 26)
-      ctx.lineTo(x + TILE, y + 26)
-      ctx.moveTo(x + 20, y)
-      ctx.lineTo(x + 20, y + 13)
-      ctx.moveTo(x + 10, y + 13)
-      ctx.lineTo(x + 10, y + 26)
-      ctx.moveTo(x + 30, y + 13)
-      ctx.lineTo(x + 30, y + 26)
-      ctx.moveTo(x + 20, y + 26)
-      ctx.lineTo(x + 20, y + TILE)
-      ctx.stroke()
-      ctx.strokeStyle = '#b4bac6'
-      ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2)
+      if (b.level >= 2) drawStoneWall(ctx, x, y)
+      else drawWoodBarricade(ctx, x, y)
       break
     }
     case 'turret': {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-      ctx.fillRect(x + 4, y + 7, TILE - 6, TILE - 6)
-      ctx.fillStyle = '#37474f'
-      ctx.fillRect(x + 3, y + 3, TILE - 6, TILE - 6)
-      ctx.fillStyle = '#546e7a'
-      ctx.beginPath()
-      ctx.arc(x + TILE / 2, y + TILE / 2, 13, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.save()
-      ctx.translate(x + TILE / 2, y + TILE / 2)
-      ctx.rotate(b.angle)
-      ctx.fillStyle = '#cfd8dc'
-      ctx.fillRect(0, -3.5, 19, 7)
-      ctx.fillStyle = '#80deea'
-      ctx.fillRect(15, -2.5, 4, 5)
-      ctx.restore()
-      ctx.fillStyle = '#78909c'
-      ctx.beginPath()
-      ctx.arc(x + TILE / 2, y + TILE / 2, 7, 0, Math.PI * 2)
-      ctx.fill()
+      drawTurret(ctx, x + TILE / 2, y + TILE / 2, b, time)
       break
     }
     case 'spikes': {
@@ -285,10 +245,69 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building): void {
       break
     }
   }
+  if (popped) ctx.restore()
+
+  // Pastilles de niveau
+  if (b.level >= 2) {
+    for (let i = 0; i < b.level; i++) {
+      ctx.fillStyle = '#ffd54a'
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'
+      ctx.lineWidth = 1.2
+      ctx.beginPath()
+      ctx.arc(x + 6 + i * 6, y + TILE - 5, 2.3, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+    }
+  }
   if (b.hp < b.maxHp) {
     const ratio = b.hp / b.maxHp
     drawBar(ctx, x + 4, y - 5, TILE - 8, 4, ratio, ratio > 0.5 ? '#9ccc65' : ratio > 0.25 ? '#ffb74d' : '#e57373')
   }
+}
+
+function drawWoodBarricade(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+  ctx.fillRect(x + 5, y + 7, TILE - 6, TILE - 6)
+  ctx.fillStyle = '#4a2f18'
+  ctx.fillRect(x + 3, y + 3, TILE - 6, TILE - 6)
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#9c6a35' : '#8b5a2b'
+    ctx.fillRect(x + 5, y + 5 + i * 10, TILE - 10, 8)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
+    ctx.fillRect(x + 5, y + 5 + i * 10, TILE - 10, 2)
+  }
+  ctx.fillStyle = '#cfd8dc'
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(x + 8, y + 8 + i * 10, 2, 2)
+    ctx.fillRect(x + TILE - 10, y + 8 + i * 10, 2, 2)
+  }
+}
+
+function drawStoneWall(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+  ctx.fillRect(x + 3, y + 6, TILE, TILE)
+  ctx.fillStyle = '#8d93a0'
+  ctx.fillRect(x, y, TILE, TILE)
+  ctx.strokeStyle = '#575c68'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(x, y + 13)
+  ctx.lineTo(x + TILE, y + 13)
+  ctx.moveTo(x, y + 26)
+  ctx.lineTo(x + TILE, y + 26)
+  ctx.moveTo(x + 20, y)
+  ctx.lineTo(x + 20, y + 13)
+  ctx.moveTo(x + 10, y + 13)
+  ctx.lineTo(x + 10, y + 26)
+  ctx.moveTo(x + 30, y + 13)
+  ctx.lineTo(x + 30, y + 26)
+  ctx.moveTo(x + 20, y + 26)
+  ctx.lineTo(x + 20, y + TILE)
+  ctx.stroke()
+  ctx.strokeStyle = '#b4bac6'
+  ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+  ctx.fillRect(x + 2, y + 2, TILE - 4, 3)
 }
 
 function drawGhosts(ctx: CanvasRenderingContext2D, state: GameState): void {
@@ -301,11 +320,13 @@ function drawGhosts(ctx: CanvasRenderingContext2D, state: GameState): void {
         ? '90, 220, 130'
         : status === 'repair'
           ? '100, 180, 255'
-          : status === 'poor'
-            ? '255, 175, 70'
-            : status === 'occupied'
-              ? '220, 220, 220'
-              : '255, 90, 90'
+          : status === 'upgrade'
+            ? '255, 213, 74'
+            : status === 'poor'
+              ? '255, 175, 70'
+              : status === 'occupied'
+                ? '220, 220, 220'
+                : '255, 90, 90'
     const x = col * TILE
     const y = row * TILE
     ctx.fillStyle = `rgba(${rgb}, 0.25)`
@@ -322,56 +343,37 @@ function drawGhosts(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.strokeStyle = 'rgba(128, 222, 234, 0.45)'
       ctx.lineWidth = 1.5
       ctx.beginPath()
-      ctx.arc(x + TILE / 2, y + TILE / 2, TURRET.range, 0, Math.PI * 2)
+      ctx.arc(x + TILE / 2, y + TILE / 2, TURRET_LEVELS[0].range, 0, Math.PI * 2)
       ctx.stroke()
     }
   }
 }
 
-function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy): void {
-  const def = ENEMIES[e.kind]
-  const r = e.kind === 'boss' ? e.radius * 1.5 : e.radius
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-  ctx.beginPath()
-  ctx.ellipse(e.x + 2, e.y + r - 2, r * 0.9, r * 0.4, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.fillStyle = e.flash > 0 ? '#ffffff' : def.color
-  ctx.strokeStyle = '#1b1b1b'
-  ctx.lineWidth = e.kind === 'boss' ? 4 : 2.5
-  ctx.beginPath()
-  ctx.arc(e.x, e.y, r, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
-
-  if (e.kind === 'boss' || e.kind === 'brute') {
-    // Petites cornes
-    ctx.fillStyle = '#eceff1'
-    for (const s of [-1, 1]) {
-      ctx.beginPath()
-      ctx.moveTo(e.x + s * r * 0.55, e.y - r * 0.7)
-      ctx.lineTo(e.x + s * r * 0.95, e.y - r * 1.25)
-      ctx.lineTo(e.x + s * r * 0.2, e.y - r * 0.95)
-      ctx.closePath()
-      ctx.fill()
+/** Étiquette du bâtiment visé (nom, amélioration possible), dessinée par-dessus les joueurs. */
+function drawGhostLabels(ctx: CanvasRenderingContext2D, state: GameState): void {
+  ctx.font = `bold 12px ${FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.lineWidth = 3
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)'
+  for (const p of state.players) {
+    const { col, row } = buildTarget(p)
+    const target = buildingAt(state, col, row)
+    if (!target) continue
+    const next = nextUpgrade(target)
+    let text = levelName(target)
+    let color = '#e0e0e0'
+    if (next) {
+      text += `  ▲ ${next.label} · ${next.cost}${next.mode === 'choice' ? '+' : ''}`
+      color = state.gold >= next.cost ? '#ffe082' : '#ffab91'
+    } else {
+      text += '  · niveau max'
     }
-  }
-
-  const eye = r * 0.22
-  ctx.fillStyle = '#ffffff'
-  ctx.beginPath()
-  ctx.arc(e.x - r * 0.35, e.y - r * 0.15, eye, 0, Math.PI * 2)
-  ctx.arc(e.x + r * 0.35, e.y - r * 0.15, eye, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = '#b71c1c'
-  ctx.beginPath()
-  ctx.arc(e.x - r * 0.35, e.y - r * 0.1, eye * 0.5, 0, Math.PI * 2)
-  ctx.arc(e.x + r * 0.35, e.y - r * 0.1, eye * 0.5, 0, Math.PI * 2)
-  ctx.fill()
-
-  if (e.hp < e.maxHp || e.kind === 'boss') {
-    const w = Math.max(18, r * 2)
-    drawBar(ctx, e.x - w / 2, e.y - r - 10, w, 4, e.hp / e.maxHp, '#ef5350')
+    const lx = col * TILE + TILE / 2
+    const ly = Math.max(10, row * TILE - 14)
+    ctx.strokeText(text, lx, ly)
+    ctx.fillStyle = color
+    ctx.fillText(text, lx, ly)
   }
 }
 
@@ -410,30 +412,119 @@ function drawPlayer(ctx: CanvasRenderingContext2D, p: Player): void {
   ctx.fillText(`J${p.id + 1}`, p.x + 1, p.y + 2)
 }
 
+function drawDecals(ctx: CanvasRenderingContext2D, state: GameState): void {
+  for (const d of state.decals) {
+    const a = Math.min(1, d.life / 2.5) * 0.5
+    ctx.globalAlpha = a
+    ctx.fillStyle = d.color
+    const rr = (i: number): number => {
+      const v = Math.sin(d.seed + i * 12.9898) * 43758.5453
+      return v - Math.floor(v)
+    }
+    ctx.beginPath()
+    ctx.ellipse(d.x, d.y, d.size * 0.8, d.size * 0.65, rr(0) * 3, 0, Math.PI * 2)
+    ctx.fill()
+    for (let i = 1; i <= 5; i++) {
+      const ang = rr(i) * Math.PI * 2
+      const dist = d.size * (0.7 + rr(i + 7) * 0.9)
+      ctx.beginPath()
+      ctx.arc(d.x + Math.cos(ang) * dist, d.y + Math.sin(ang) * dist, d.size * (0.12 + rr(i + 3) * 0.2), 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.globalAlpha = a * 0.5
+    ctx.fillStyle = '#000000'
+    ctx.beginPath()
+    ctx.ellipse(d.x, d.y, d.size * 0.4, d.size * 0.3, rr(0) * 3, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.globalAlpha = 1
+}
+
 function drawBullets(ctx: CanvasRenderingContext2D, state: GameState): void {
-  ctx.lineWidth = 2.5
+  // Passe additive : halo et traînée
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
   ctx.lineCap = 'round'
   for (const b of state.bullets) {
-    ctx.strokeStyle = b.color
-    ctx.globalAlpha = 0.5
+    const st = BULLET_STYLES[b.style] ?? BULLET_STYLES[0]
+    ctx.strokeStyle = st.color
+    ctx.globalAlpha = 0.55
+    ctx.lineWidth = st.radius * 0.9
     ctx.beginPath()
-    ctx.moveTo(b.x - b.vx * 0.03, b.y - b.vy * 0.03)
+    ctx.moveTo(b.x - b.vx * 0.045, b.y - b.vy * 0.045)
     ctx.lineTo(b.x, b.y)
     ctx.stroke()
     ctx.globalAlpha = 1
-    ctx.fillStyle = b.color
+    drawGlow(ctx, b.x, b.y, st.radius * 3.4, st.color, 0.55)
+  }
+  ctx.restore()
+  // Passe normale : le projectile lui-même
+  for (const b of state.bullets) {
+    const st = BULLET_STYLES[b.style] ?? BULLET_STYLES[0]
+    ctx.fillStyle = st.color
     ctx.beginPath()
-    ctx.arc(b.x, b.y, 3, 0, Math.PI * 2)
+    ctx.arc(b.x, b.y, st.radius, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
+    ctx.beginPath()
+    ctx.arc(b.x, b.y, st.radius * 0.45, 0, Math.PI * 2)
     ctx.fill()
   }
 }
 
 function drawFx(ctx: CanvasRenderingContext2D, state: GameState): void {
-  for (const p of state.particles) {
-    ctx.globalAlpha = Math.max(0, p.life / p.maxLife)
-    ctx.fillStyle = p.color
-    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size)
+  // Ondes de choc
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  for (const r of state.rings) {
+    const k = 1 - r.life / r.maxLife
+    const radius = r.maxR * (1 - Math.pow(1 - k, 3))
+    ctx.globalAlpha = (1 - k) * 0.8
+    ctx.strokeStyle = r.color
+    ctx.lineWidth = 1 + 4 * (1 - k)
+    ctx.beginPath()
+    ctx.arc(r.x, r.y, radius, 0, Math.PI * 2)
+    ctx.stroke()
   }
+  ctx.restore()
+
+  // Éclats et fumées
+  for (const p of state.particles) {
+    if (p.shape === 1 || p.shape === 3) continue
+    const k = Math.max(0, p.life / p.maxLife)
+    if (p.shape === 2) {
+      ctx.globalAlpha = 0.35 * k
+      ctx.fillStyle = p.color
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, (p.size / 2) * (1 + (1 - k) * 1.2), 0, Math.PI * 2)
+      ctx.fill()
+    } else {
+      ctx.globalAlpha = k
+      ctx.fillStyle = p.color
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size)
+    }
+  }
+
+  // Étincelles et lueurs (additif)
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.lineCap = 'round'
+  for (const p of state.particles) {
+    if (p.shape !== 1 && p.shape !== 3) continue
+    const k = Math.max(0, p.life / p.maxLife)
+    if (p.shape === 3) {
+      drawGlow(ctx, p.x, p.y, p.size * (0.6 + 0.6 * k), p.color, k)
+    } else {
+      ctx.globalAlpha = k
+      ctx.strokeStyle = p.color
+      ctx.lineWidth = p.size
+      ctx.beginPath()
+      ctx.moveTo(p.x - p.vx * 0.04, p.y - p.vy * 0.04)
+      ctx.lineTo(p.x, p.y)
+      ctx.stroke()
+    }
+  }
+  ctx.restore()
   ctx.globalAlpha = 1
 
   ctx.font = `bold 15px ${FONT}`

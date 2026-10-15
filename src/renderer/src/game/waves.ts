@@ -1,4 +1,5 @@
 import { ENEMIES, HEIGHT, TILE, WIDTH, type EnemyKind } from './constants'
+import { smoke } from './fx'
 import type { Enemy, GameState, Vec } from './types'
 
 function shuffle<T>(arr: T[]): T[] {
@@ -15,12 +16,14 @@ export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   const grunts = Math.round((5 + wave * 2.2) * mult)
   const runners = wave >= 3 ? Math.round((1 + (wave - 3) * 1.3) * mult) : 0
   const brutes = wave >= 5 ? Math.round((1 + (wave - 5) * 0.7) * mult) : 0
+  const splitters = wave >= 4 ? Math.round((1 + (wave - 4) * 0.6) * mult) : 0
   const bosses = wave % 5 === 0 ? Math.ceil(wave / 10) : 0
 
   const list: EnemyKind[] = []
   for (let i = 0; i < grunts; i++) list.push('grunt')
   for (let i = 0; i < runners; i++) list.push('runner')
   for (let i = 0; i < brutes; i++) list.push('brute')
+  for (let i = 0; i < splitters; i++) list.push('splitter')
   shuffle(list)
   for (let i = 0; i < bosses; i++) list.push('boss')
   return list
@@ -49,15 +52,11 @@ export function pickGates(wave: number): Vec[] {
   })
 }
 
-export function spawnEnemy(state: GameState, kind: EnemyKind): void {
+/** Crée un ennemi (sans l'ajouter à la partie). `hpMult` : fraction des PV normaux de ce type à cette vague. */
+export function createEnemy(state: GameState, kind: EnemyKind, x: number, y: number, hpMult = 1, minion = false): Enemy {
   const def = ENEMIES[kind]
-  const gate = state.gates[Math.floor(Math.random() * state.gates.length)]
-  const onHorizontalEdge = gate.y < TILE || gate.y > HEIGHT - TILE
-  const jitter = (Math.random() - 0.5) * 90
-  const x = onHorizontalEdge ? Math.max(def.radius, Math.min(WIDTH - def.radius, gate.x + jitter)) : gate.x
-  const y = onHorizontalEdge ? gate.y : Math.max(def.radius, Math.min(HEIGHT - def.radius, gate.y + jitter))
-  const hp = Math.round(def.hp * state.waveScale)
-  const enemy: Enemy = {
+  const hp = Math.max(1, Math.round(def.hp * state.waveScale * hpMult))
+  return {
     id: state.nextEnemyId++,
     kind,
     x,
@@ -68,10 +67,23 @@ export function spawnEnemy(state: GameState, kind: EnemyKind): void {
     attackCd: Math.random() * def.interval,
     flash: 0,
     attacking: false,
+    face: Math.atan2(HEIGHT / 2 - y, WIDTH / 2 - x),
+    age: 0,
+    minion,
     lx: x,
     ly: y,
     checkT: 1.5,
     stuck: false
   }
-  state.enemies.push(enemy)
+}
+
+export function spawnEnemy(state: GameState, kind: EnemyKind): void {
+  const def = ENEMIES[kind]
+  const gate = state.gates[Math.floor(Math.random() * state.gates.length)]
+  const onHorizontalEdge = gate.y < TILE || gate.y > HEIGHT - TILE
+  const jitter = (Math.random() - 0.5) * 90
+  const x = onHorizontalEdge ? Math.max(def.radius, Math.min(WIDTH - def.radius, gate.x + jitter)) : gate.x
+  const y = onHorizontalEdge ? gate.y : Math.max(def.radius, Math.min(HEIGHT - def.radius, gate.y + jitter))
+  state.enemies.push(createEnemy(state, kind, x, y))
+  smoke(state, x, y, '#8d6e63', kind === 'boss' ? 8 : 3, 50)
 }

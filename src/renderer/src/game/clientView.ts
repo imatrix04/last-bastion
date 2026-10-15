@@ -1,10 +1,12 @@
-import { BASE, BUILDS, ENEMIES, TILE, TURRET } from './constants'
+import { buildTarget } from './build'
+import { BASE, ENEMIES, HEIGHT, TILE, WIDTH, type Branch } from './constants'
 import { CONTROLS, type InputLike } from './controls'
-import { addText, burst, updateFx } from './fx'
-import { idx, inBounds } from './grid'
-import { BULLET_COLORS, buildKindAt, enemyKindAt, type Snap } from './netproto'
-import type { Building, Enemy, GameState, HudState } from './types'
-import { movePlayer, nearestEnemy } from './update'
+import { addText, burst, decal, muzzle, ring, updateFx } from './fx'
+import { buildingAt, idx, inBounds } from './grid'
+import { buildKindAt, enemyKindAt, type Snap } from './netproto'
+import { maxHpOf, nextUpgrade, turretStats } from './stats'
+import type { ChoiceRequest, Enemy, GameState, HudState } from './types'
+import { decayBuildingFx, movePlayer, nearestEnemy } from './update'
 
 /** Le joueur distant contrôle toujours le joueur 2 (rose). */
 export const LOCAL_ID = 1
@@ -79,7 +81,7 @@ export class ClientView {
     // Ennemis
     const seen = new Set<number>()
     const list: ViewEnemy[] = []
-    for (const [id, kindIndex, x, y, hp, maxHp, flash] of s.enemies) {
+    for (const [id, kindIndex, x, y, hp, maxHp, flags] of s.enemies) {
       const kind = enemyKindAt(kindIndex)
       if (!kind) continue
       seen.add(id)
@@ -96,6 +98,9 @@ export class ClientView {
           attackCd: 0,
           flash: 0,
           attacking: false,
+          face: Math.atan2(HEIGHT / 2 - y, WIDTH / 2 - x),
+          age: 0,
+          minion: false,
           lx: x,
           ly: y,
           checkT: 0,
@@ -109,41 +114,102 @@ export class ClientView {
       e.ty = y
       e.hp = hp
       e.maxHp = maxHp
-      e.flash = flash === 1 ? 0.08 : 0
+      e.flash = (flags & 1) !== 0 ? 0.08 : 0
+      e.attacking = (flags & 2) !== 0
       list.push(e)
     }
     for (const id of this.enemies.keys()) if (!seen.has(id)) this.enemies.delete(id)
     st.enemies = list
 
-    // Bâtiments (on garde l'angle des tourelles, qui est recalculé ici à chaque image)
+    // Bâtiments (on garde l'angle et les animations des tourelles, recalculés ici à chaque image)
     const previous = st.grid.slice()
     st.grid.fill(null)
-    for (const [kindIndex, col, row, hp] of s.buildings) {
+    for (const [kindIndex, col, row, hp, rawLevel, rawBranch] of s.buildings) {
       const kind = buildKindAt(kindIndex)
       if (!kind || !inBounds(col, row)) continue
       const i = idx(col, row)
-      const building: Building = { kind, col, row, hp, maxHp: BUILDS[kind].hp, cooldown: 0, angle: previous[i]?.angle ?? 0 }
-      st.grid[i] = building
+      const level = Math.min(3, Math.max(1, Math.round(rawLevel)))
+      const branch: Branch = rawBranch === 1 || rawBranch === 2 ? rawBranch : 0
+      const old = previous[i]
+      const same = old && old.kind === kind
+      st.grid[i] = {
+        kind,
+        col,
+        row,
+        hp,
+        maxHp: maxHpOf(kind, level, branch),
+        cooldown: 0,
+        angle: same ? old.angle : 0,
+        level,
+        branch,
+        // Un niveau de plus qu'à l'image précédente : rebond d'amélioration.
+        pop: same && old.level < level ? 1 : same ? old.pop : 0,
+        recoil: same ? old.recoil : 0,
+        side: same ? old.side : 1
+      }
     }
 
     // Tirs : repartent de la position reçue et avancent à leur vitesse jusqu'au prochain état
-    st.bullets = s.bullets.map(([x, y, vx, vy, color]) => ({
+    st.bullets = s.bullets.map(([x, y, vx, vy, style]) => ({
       x,
       y,
       vx,
       vy,
       life: 0.25,
       damage: 0,
-      color: BULLET_COLORS[color] ?? BULLET_COLORS[0]
+      style: style >= 0 && style <= 2 ? Math.round(style) : 0
     }))
 
     // Effets (particules, textes flottants) joués par l'hôte
     for (const ev of s.fx) {
-      if (ev[0] === 'b') burst(st, ev[1], ev[2], ev[3], ev[4], ev[5])
-      else addText(st, ev[1], ev[2], ev[3], ev[4])
+      switch (ev[0]) {
+        case 'b':
+          burst(st, ev[1], ev[2], ev[3], ev[4], ev[5], ev[6] as 0 | 1 | 2 | 3)
+          break
+        case 't':
+          addText(st, ev[1], ev[2], ev[3], ev[4])
+          break
+        case 'r':
+          ring(st, ev[1], ev[2], ev[3], ev[4])
+          break
+        case 'd':
+          decal(st, ev[1], ev[2], ev[3], ev[4])
+          break
+        case 'm':
+          muzzle(st, ev[1], ev[2], ev[3], ev[4])
+          if (ev[4] >= 1) this.kick(ev[1], ev[2], ev[3], ev[4])
+          break
+      }
     }
 
     this.ready = true
+  }
+
+  /** Une tourelle vient de tirer (flash de bouche reçu) : recul, et canon qui a tiré pour le double canon. */
+  private kick(x: number, y: number, angle: number, style: number): void {
+    const col = Math.floor(x / TILE)
+    const row = Math.floor(y / TILE)
+    const b = buildingAt(this.state, col, row)
+    if (!b || b.kind !== 'turret') return
+    b.recoil = 1
+    if (style === 2) {
+      const lateral = (x - (col + 0.5) * TILE) * -Math.sin(angle) + (y - (row + 0.5) * TILE) * Math.cos(angle)
+      b.side = lateral > 0 ? 1 : -1
+    }
+  }
+
+  /**
+   * Si le joueur local vise une tourelle de niveau 2 qu'il peut s'offrir, l'interface doit proposer le choix de branche
+   * (le pop-up est de son côté ; l'hôte ne reçoit que sa décision).
+   */
+  choiceRequest(): ChoiceRequest | null {
+    const p = this.state.players[LOCAL_ID]
+    const { col, row } = buildTarget(p)
+    const b = buildingAt(this.state, col, row)
+    if (!b || b.kind !== 'turret' || b.level !== 2) return null
+    const next = nextUpgrade(b)
+    if (!next || this.state.gold < next.cost) return null
+    return { player: LOCAL_ID, col, row }
   }
 
   /** Appelé à chaque image avec le temps écoulé. */
@@ -161,9 +227,17 @@ export class ClientView {
 
     // Lissage entre deux états reçus
     const k = 1 - Math.exp(-dt * 18)
+    const kTurn = 1 - Math.exp(-dt * 12)
     for (const e of this.enemies.values()) {
-      e.x += (e.tx - e.x) * k
-      e.y += (e.ty - e.y) * k
+      const dx = e.tx - e.x
+      const dy = e.ty - e.y
+      e.age += dt
+      if (Math.hypot(dx, dy) > 0.6) {
+        const d = Math.atan2(Math.sin(Math.atan2(dy, dx) - e.face), Math.cos(Math.atan2(dy, dx) - e.face))
+        e.face += d * kTurn
+      }
+      e.x += dx * k
+      e.y += dy * k
     }
     const partner = st.players[1 - LOCAL_ID]
     partner.x += (this.partner.x - partner.x) * k
@@ -178,10 +252,12 @@ export class ClientView {
 
     // Les tourelles visent localement (même règle que l'hôte : l'ennemi le plus proche à portée)
     for (const b of st.grid) {
-      if (!b || b.kind !== 'turret') continue
+      if (!b) continue
+      decayBuildingFx(b, dt)
+      if (b.kind !== 'turret') continue
       const cx = (b.col + 0.5) * TILE
       const cy = (b.row + 0.5) * TILE
-      const target = nearestEnemy(st, cx, cy, TURRET.range)
+      const target = nearestEnemy(st, cx, cy, turretStats(b.level, b.branch).range)
       if (target) b.angle = Math.atan2(target.y - cy, target.x - cx)
     }
 

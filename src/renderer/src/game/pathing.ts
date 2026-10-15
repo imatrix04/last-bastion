@@ -1,5 +1,6 @@
 import { BASE, BUILDS, COLS, ROWS } from './constants'
 import { idx, inBounds, isBaseCell } from './grid'
+import { breakCostOf } from './stats'
 import type { GameState } from './types'
 
 const DIRS: ReadonlyArray<readonly [number, number]> = [
@@ -13,7 +14,7 @@ const DIRS: ReadonlyArray<readonly [number, number]> = [
 export function cellCost(state: GameState, col: number, row: number): number {
   if (isBaseCell(col, row)) return 1
   const b = state.grid[idx(col, row)]
-  if (b && BUILDS[b.kind].solid) return 1 + BUILDS[b.kind].breakCost
+  if (b && BUILDS[b.kind].solid) return 1 + breakCostOf(b)
   return 1
 }
 

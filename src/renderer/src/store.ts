@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { BASE } from './game/constants'
-import type { HudState, RunResult } from './game/types'
+import type { ChoiceRequest, HudState, RunResult } from './game/types'
 import { session } from './net'
 
 export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover'
@@ -66,6 +66,8 @@ interface Store {
   runId: number
   hud: HudState
   result: EndResult | null
+  /** Pop-up de choix de branche d'une tourelle de niveau 2 (null = fermé). */
+  choice: ChoiceRequest | null
   bestWave: number
   /** Salle d'attente de l'hôte : adresses à donner au joueur 2. */
   lobby: { ips: string[]; port: number } | null
@@ -83,6 +85,8 @@ interface Store {
   resume: () => void
   toMenu: () => void
   setHud: (hud: HudState) => void
+  openChoice: (request: ChoiceRequest) => void
+  closeChoice: () => void
   endGame: (result: RunResult) => void
 }
 
@@ -93,6 +97,7 @@ export const useStore = create<Store>()((set, get) => ({
   runId: 0,
   hud: initialHud,
   result: null,
+  choice: null,
   bestWave: loadBest(),
   lobby: null,
   peerOnline: false,
@@ -105,6 +110,7 @@ export const useStore = create<Store>()((set, get) => ({
       playerCount,
       runId: s.runId + 1,
       hud: initialHud,
+      choice: null,
       result: null,
       netError: null
     })),
@@ -143,6 +149,7 @@ export const useStore = create<Store>()((set, get) => ({
       playerCount: 2,
       runId: s.runId + 1,
       hud: initialHud,
+      choice: null,
       result: null,
       lobby: null
     })),
@@ -154,6 +161,7 @@ export const useStore = create<Store>()((set, get) => ({
       playerCount: 2,
       runId: s.runId + 1,
       hud: initialHud,
+      choice: null,
       result: null,
       lobby: null,
       netError: null
@@ -175,16 +183,22 @@ export const useStore = create<Store>()((set, get) => ({
 
   toMenu: () => {
     session.close()
-    set({ screen: 'menu', mode: 'local', lobby: null, peerOnline: false })
+    set({ screen: 'menu', mode: 'local', lobby: null, peerOnline: false, choice: null })
   },
 
   setHud: (hud) => set({ hud }),
+
+  openChoice: (request) => {
+    if (get().screen === 'playing') set({ choice: request })
+  },
+  closeChoice: () => set({ choice: null }),
 
   endGame: (result) => {
     const newRecord = result.wave > get().bestWave
     if (newRecord) saveBest(result.wave)
     set({
       screen: 'gameover',
+      choice: null,
       result: { ...result, newRecord },
       bestWave: Math.max(get().bestWave, result.wave)
     })

@@ -2,10 +2,27 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 type NetEvent = { type: 'peer-joined' } | { type: 'peer-left' } | { type: 'message'; data: string }
 
+type UpdateEvent =
+  | { type: 'available'; version: string; releases: unknown[] }
+  | { type: 'progress'; percent: number }
+  | { type: 'ready' }
+  | { type: 'error'; message: string }
+
 // API minimale exposée au renderer : rien d'autre que ce dont le jeu a besoin.
 const api = {
   toggleFullscreen: (): Promise<boolean> => ipcRenderer.invoke('window:toggle-fullscreen'),
   quit: (): Promise<void> => ipcRenderer.invoke('app:quit'),
+  version: (): Promise<string> => ipcRenderer.invoke('app:version'),
+  update: {
+    download: (): Promise<void> => ipcRenderer.invoke('update:download'),
+    onEvent: (callback: (event: UpdateEvent) => void): (() => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, event: UpdateEvent): void => callback(event)
+      ipcRenderer.on('update:event', handler)
+      return () => {
+        ipcRenderer.removeListener('update:event', handler)
+      }
+    }
+  },
   net: {
     host: (port?: number): Promise<{ ok: true; ips: string[]; port: number } | { ok: false; error: string }> =>
       ipcRenderer.invoke('net:host', port),

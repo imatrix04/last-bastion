@@ -1,9 +1,9 @@
-import { BUILD_ORDER, type BuildKind, type EnemyKind } from './constants'
+import { BUILD_ORDER, type Branch, type BuildKind, type EnemyKind } from './constants'
 import { CONTROLS, SKIP_WAVE } from './controls'
 import type { FxEvent, GameState } from './types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 1
+export const PROTO_VERSION = 2
 export const NET_PORT = 7777
 /** Fréquence d'envoi de l'état du jeu par l'hôte. */
 export const SNAPSHOT_HZ = 20
@@ -11,7 +11,7 @@ export const SNAPSHOT_HZ = 20
 // ------------------------------------------------------------------- entrées
 
 /** Ce que le joueur distant envoie : des actions logiques, indépendantes de la disposition du clavier. */
-export const ACTIONS = ['up', 'down', 'left', 'right', 'place', 'remove', 'prev', 'next', 's0', 's1', 's2', 's3', 'skip'] as const
+export const ACTIONS = ['up', 'down', 'left', 'right', 'place', 'upgrade', 'remove', 'prev', 'next', 's0', 's1', 's2', 'skip'] as const
 export type Action = (typeof ACTIONS)[number]
 const ACTION_SET: ReadonlySet<string> = new Set(ACTIONS)
 
@@ -23,13 +23,13 @@ function codesFor(player: number): Record<Action, string> {
     left: c.left,
     right: c.right,
     place: c.place,
+    upgrade: c.upgrade,
     remove: c.remove,
     prev: c.prev,
     next: c.next,
     s0: c.slots[0],
     s1: c.slots[1],
     s2: c.slots[2],
-    s3: c.slots[3],
     skip: SKIP_WAVE
   }
 }
@@ -45,8 +45,7 @@ export function decodeInput(raw: Record<string, unknown>): { d: Action[]; p: Act
 
 // ----------------------------------------------------------------- snapshots
 
-const ENEMY_KINDS: readonly EnemyKind[] = ['grunt', 'runner', 'brute', 'boss']
-export const BULLET_COLORS: readonly string[] = ['#fff59d', '#80deea']
+const ENEMY_KINDS: readonly EnemyKind[] = ['grunt', 'runner', 'brute', 'boss', 'splitter']
 
 export const enemyKindAt = (i: number): EnemyKind | undefined => ENEMY_KINDS[i]
 export const buildKindAt = (i: number): BuildKind | undefined => BUILD_ORDER[i]
@@ -73,11 +72,11 @@ export interface Snap {
   gates: number[][]
   /** [x, y, angle de tir, objet sélectionné, dirX, dirY] */
   players: number[][]
-  /** [id, type, x, y, pv, pvMax, flash] */
+  /** [id, type, x, y, pv, pvMax, drapeaux : 1 = flash de dégâts, 2 = attaque en cours] */
   enemies: number[][]
-  /** [x, y, vx, vy, couleur] */
+  /** [x, y, vx, vy, style] (style : index dans BULLET_STYLES) */
   bullets: number[][]
-  /** [type, col, row, pv] */
+  /** [type, col, row, pv, niveau, branche] */
   buildings: number[][]
   fx: FxEvent[]
 }
@@ -86,7 +85,7 @@ const r1 = (v: number): number => Math.round(v * 10) / 10
 
 export function encodeSnap(state: GameState): Snap {
   const buildings: number[][] = []
-  for (const b of state.grid) if (b) buildings.push([BUILD_ORDER.indexOf(b.kind), b.col, b.row, Math.ceil(b.hp)])
+  for (const b of state.grid) if (b) buildings.push([BUILD_ORDER.indexOf(b.kind), b.col, b.row, Math.ceil(b.hp), b.level, b.branch])
 
   return {
     t: 'snap',
@@ -101,8 +100,8 @@ export function encodeSnap(state: GameState): Snap {
     shake: r1(state.shake),
     gates: state.gates.map((g) => [Math.round(g.x), Math.round(g.y)]),
     players: state.players.map((p) => [r1(p.x), r1(p.y), Math.round(p.aim * 100) / 100, p.selected, p.dirX, p.dirY]),
-    enemies: state.enemies.map((e) => [e.id, ENEMY_KINDS.indexOf(e.kind), r1(e.x), r1(e.y), Math.ceil(e.hp), e.maxHp, e.flash > 0 ? 1 : 0]),
-    bullets: state.bullets.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy), Math.max(0, BULLET_COLORS.indexOf(b.color))]),
+    enemies: state.enemies.map((e) => [e.id, ENEMY_KINDS.indexOf(e.kind), r1(e.x), r1(e.y), Math.ceil(e.hp), e.maxHp, (e.flash > 0 ? 1 : 0) | (e.attacking ? 2 : 0)]),
+    bullets: state.bullets.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy), b.style]),
     buildings,
     fx: state.fxLog ? state.fxLog.slice(0, MAX_FX) : []
   }
@@ -129,9 +128,15 @@ function decodeFx(v: unknown): FxEvent[] {
   for (const e of v) {
     if (out.length >= MAX_FX || !Array.isArray(e)) continue
     if (e[0] === 'b' && isNum(e[1]) && isNum(e[2]) && typeof e[3] === 'string' && isNum(e[4]) && isNum(e[5])) {
-      out.push(['b', e[1], e[2], e[3].slice(0, 20), clamp(e[4], 0, 60), clamp(e[5], 0, 400)])
+      out.push(['b', e[1], e[2], e[3].slice(0, 20), clamp(e[4], 0, 60), clamp(e[5], 0, 400), clamp(Math.round(num(e[6])), 0, 3)])
     } else if (e[0] === 't' && isNum(e[1]) && isNum(e[2]) && typeof e[3] === 'string' && typeof e[4] === 'string') {
       out.push(['t', e[1], e[2], e[3].slice(0, 40), e[4].slice(0, 20)])
+    } else if (e[0] === 'r' && isNum(e[1]) && isNum(e[2]) && typeof e[3] === 'string' && isNum(e[4])) {
+      out.push(['r', e[1], e[2], e[3].slice(0, 20), clamp(e[4], 0, 300)])
+    } else if (e[0] === 'm' && isNum(e[1]) && isNum(e[2]) && isNum(e[3]) && isNum(e[4])) {
+      out.push(['m', e[1], e[2], e[3], clamp(Math.round(e[4]), 0, 3)])
+    } else if (e[0] === 'd' && isNum(e[1]) && isNum(e[2]) && typeof e[3] === 'string' && isNum(e[4])) {
+      out.push(['d', e[1], e[2], e[3].slice(0, 20), clamp(e[4], 0, 120)])
     }
   }
   return out
@@ -157,7 +162,17 @@ export function decodeSnap(raw: Record<string, unknown>): Snap | null {
     players,
     enemies: rows(raw.enemies, 7, MAX_ENEMIES),
     bullets: rows(raw.bullets, 5, MAX_BULLETS),
-    buildings: rows(raw.buildings, 4, MAX_BUILDINGS),
+    buildings: rows(raw.buildings, 6, MAX_BUILDINGS),
     fx: decodeFx(raw.fx)
   }
+}
+
+// ------------------------------------------------------- choix d'une branche
+
+/** L'invité a choisi la branche d'une tourelle de niveau 2 (le pop-up est chez lui, l'hôte valide). */
+export function decodePick(raw: Record<string, unknown>): { col: number; row: number; branch: Branch } | null {
+  const { c, r, b } = raw
+  if (!isNum(c) || !isNum(r) || !Number.isInteger(c) || !Number.isInteger(r)) return null
+  if (b !== 1 && b !== 2) return null
+  return { col: c, row: r, branch: b }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CONTROLS, SKIP_WAVE } from '../game/controls'
 import { session } from '../net'
 import { loadAddress, useStore } from '../store'
@@ -12,6 +12,10 @@ export function Menu(): React.JSX.Element {
   const bestWave = useStore((s) => s.bestWave)
   const label = useKeyLabels()
   const [address, setAddress] = useState(loadAddress)
+  const [version, setVersion] = useState('')
+  useEffect(() => {
+    void window.api?.version().then(setVersion)
+  }, [])
 
   const move = (i: number): string => {
     const c = CONTROLS[i]
@@ -96,6 +100,15 @@ export function Menu(): React.JSX.Element {
               </td>
             </tr>
             <tr>
+              <td>Améliorer (barricade → pierre, tourelle niv. 2 puis 3)</td>
+              <td>
+                <kbd>{label(CONTROLS[0].upgrade)}</kbd>
+              </td>
+              <td>
+                <kbd>{label(CONTROLS[1].upgrade)}</kbd>
+              </td>
+            </tr>
+            <tr>
               <td>Démolir (remboursement partiel)</td>
               <td>
                 <kbd>{label(CONTROLS[0].remove)}</kbd>
@@ -116,10 +129,10 @@ export function Menu(): React.JSX.Element {
             <tr>
               <td>Choix direct de l&apos;objet</td>
               <td>
-                <kbd>1</kbd>–<kbd>4</kbd>
+                <kbd>1</kbd>–<kbd>3</kbd>
               </td>
               <td>
-                <kbd>Pavé 1</kbd>–<kbd>4</kbd>
+                <kbd>Pavé 1</kbd>–<kbd>3</kbd>
               </td>
             </tr>
           </tbody>
@@ -138,6 +151,7 @@ export function Menu(): React.JSX.Element {
             </button>
           )}
         </div>
+        {version && <p className="hint">v{version}</p>}
       </div>
     </div>
   )
