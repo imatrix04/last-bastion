@@ -1,0 +1,216 @@
+import { session, type SessionEvent } from '../net'
+import { BASE, HEIGHT, STEP, WIDTH } from './constants'
+import { ClientView } from './clientView'
+import { Input } from './input'
+import { ACTIONS, CODES, SNAPSHOT_HZ, decodeInput, decodeSnap, encodeSnap, type Action } from './netproto'
+import { HostInput, RemoteInput } from './remoteInput'
+import { createBackground, render } from './render'
+import { createState } from './state'
+import type { GameState, HudState, RunResult } from './types'
+import { step } from './update'
+import type { InputLike } from './controls'
+
+export interface GameCallbacks {
+  onHud(hud: HudState): void
+  onGameOver(result: RunResult): void
+}
+
+/**
+ * local  : une seule machine (solo, ou 2 joueurs sur le même clavier)
+ * host   : simule le jeu et envoie l'état au joueur distant (contrôle le joueur 1)
+ * client : n'affiche que l'état reçu de l'hôte et lui envoie ses touches (contrôle le joueur 2)
+ */
+export type GameMode = 'local' | 'host' | 'client'
+
+/** Boucle de jeu : pas fixe de 1/60 s pour la simulation, rendu à chaque image. */
+export class Game {
+  private state: GameState
+  private input = new Input()
+  private remote = new RemoteInput()
+  private sim: InputLike
+  private view: ClientView | null = null
+  private unsubscribe: (() => void) | null = null
+  private ctx: CanvasRenderingContext2D
+  private bg: CanvasImageSource
+  private raf = 0
+  private last = 0
+  private acc = 0
+  private hudTimer = 0
+  private snapTimer = 0
+  private lastDown = ''
+  private paused = false
+  private ended = false
+  private scale = 1
+  private observer: ResizeObserver
+
+  constructor(
+    private canvas: HTMLCanvasElement,
+    playerCount: 1 | 2,
+    private mode: GameMode,
+    private callbacks: GameCallbacks
+  ) {
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas 2D indisponible')
+    this.ctx = ctx
+    this.state = createState(mode === 'local' ? playerCount : 2)
+    this.sim = this.input
+
+    if (mode === 'host') {
+      this.state.fxLog = []
+      this.sim = new HostInput(this.input, this.remote)
+    } else if (mode === 'client') {
+      this.view = new ClientView(this.state)
+    }
+    if (mode !== 'local') this.unsubscribe = session.subscribe(this.onSession)
+    // Un nouveau jeu côté hôte : le joueur distant (déjà connecté) doit passer à l'écran de jeu.
+    if (mode === 'host' && session.peerReady) session.send({ t: 'start' })
+
+    this.bg = createBackground(1)
+    this.observer = new ResizeObserver(() => this.resize())
+    this.observer.observe(canvas)
+    this.resize()
+  }
+
+  start(): void {
+    this.callbacks.onHud(this.hud())
+    this.last = performance.now()
+    this.raf = requestAnimationFrame(this.frame)
+  }
+
+  /** En local la pause fige le jeu. En ligne on ne peut pas figer l'autre joueur : le jeu continue, les touches sont juste ignorées. */
+  setPaused(paused: boolean): void {
+    this.paused = paused && this.mode === 'local'
+    this.input.enabled = !paused
+    this.input.reset()
+  }
+
+  destroy(): void {
+    cancelAnimationFrame(this.raf)
+    this.observer.disconnect()
+    this.input.dispose()
+    this.unsubscribe?.()
+  }
+
+  private onSession = (event: SessionEvent): void => {
+    if (this.mode === 'host') {
+      if (event.type === 'message' && event.msg.t === 'in') this.remote.apply(decodeInput(event.msg))
+      else if (event.type === 'ready') session.send({ t: 'start' }) // le joueur 2 revient en pleine partie
+      else if (event.type === 'left') this.remote.clear()
+    } else if (this.mode === 'client' && event.type === 'message' && event.msg.t === 'snap') {
+      const snap = decodeSnap(event.msg)
+      if (snap) this.view?.apply(snap)
+    }
+  }
+
+  /** Résolution interne adaptée à la taille réelle affichée (écrans HiDPI, plein écran). */
+  private resize(): void {
+    const rect = this.canvas.getBoundingClientRect()
+    const dpr = window.devicePixelRatio || 1
+    const wanted = (rect.width * dpr) / WIDTH
+    const scale = Math.min(2, Math.max(1, Math.round(wanted * 4) / 4))
+    if (scale === this.scale && this.canvas.width === Math.round(WIDTH * scale)) return
+    this.scale = scale
+    this.canvas.width = Math.round(WIDTH * scale)
+    this.canvas.height = Math.round(HEIGHT * scale)
+    this.bg = createBackground(scale)
+  }
+
+  private frame = (now: number): void => {
+    this.raf = requestAnimationFrame(this.frame)
+    const dt = Math.min(0.1, (now - this.last) / 1000)
+    this.last = now
+
+    if (this.mode === 'client') this.frameClient(dt)
+    else this.frameSim(dt)
+
+    this.ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0)
+    render(this.ctx, this.state, this.bg)
+  }
+
+  /** Local et hôte : la simulation tourne ici. */
+  private frameSim(dt: number): void {
+    if (!this.paused && !this.ended) {
+      this.acc += dt
+      while (this.acc >= STEP) {
+        step(this.state, STEP, this.sim)
+        this.input.endStep()
+        this.remote.endStep()
+        this.acc -= STEP
+        if (this.state.gameOver) break
+      }
+    }
+
+    if (this.mode === 'host') this.sendSnapshot(dt)
+    this.updateHud(dt, this.state.gameOver)
+  }
+
+  /** Joueur distant : envoie ses touches, lisse l'état reçu. */
+  private frameClient(dt: number): void {
+    const view = this.view
+    if (!view) return
+    view.update(dt, this.input)
+    this.sendInput()
+    this.input.endStep()
+    this.updateHud(dt, view.gameOver)
+  }
+
+  /** L'hôte envoie l'état du jeu 20 fois par seconde (2 fois par seconde quand la partie est finie). */
+  private sendSnapshot(dt: number): void {
+    const log = this.state.fxLog
+    if (!session.peerReady) {
+      if (log) log.length = 0
+      return
+    }
+    this.snapTimer += dt
+    if (this.snapTimer < (this.ended ? 0.5 : 1 / SNAPSHOT_HZ)) return
+    this.snapTimer = 0
+    session.send(encodeSnap(this.state), true)
+    if (log) log.length = 0
+  }
+
+  /** Le joueur distant n'envoie que les changements : touches maintenues, et appuis rapides. */
+  private sendInput(): void {
+    const down: Action[] = []
+    const pressed: Action[] = []
+    for (const action of ACTIONS) {
+      const code = CODES[0][action]
+      if (this.input.isDown(code)) down.push(action)
+      if (this.input.wasPressed(code)) pressed.push(action)
+    }
+    const key = down.join(',')
+    if (key === this.lastDown && pressed.length === 0) return
+    this.lastDown = key
+    session.send({ t: 'in', d: down, p: pressed })
+  }
+
+  private updateHud(dt: number, over: boolean): void {
+    if (over && !this.ended) {
+      this.ended = true
+      this.callbacks.onHud(this.hud())
+      this.callbacks.onGameOver({ wave: this.state.wave, kills: this.state.kills })
+      return
+    }
+    if (this.ended) return
+    this.hudTimer -= dt
+    if (this.hudTimer <= 0) {
+      this.hudTimer = 0.1
+      this.callbacks.onHud(this.hud())
+    }
+  }
+
+  private hud(): HudState {
+    if (this.view) return this.view.hud()
+    const s = this.state
+    return {
+      gold: s.gold,
+      wave: s.wave,
+      phase: s.phase,
+      countdown: Math.ceil(Math.max(0, s.countdown)),
+      baseHp: Math.ceil(s.baseHp),
+      baseMax: BASE.maxHp,
+      enemies: s.enemies.length + s.spawnQueue.length,
+      kills: s.kills,
+      selected: s.players.map((p) => p.selected)
+    }
+  }
+}
