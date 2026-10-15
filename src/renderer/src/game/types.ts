@@ -1,5 +1,6 @@
 import type { Look } from './appearance'
-import type { Branch, BuildKind, EnemyKind } from './constants'
+import type { BuildKind, EnemyKind } from './constants'
+import type { Branch } from './turrets'
 
 export interface Vec {
   x: number
@@ -67,7 +68,7 @@ export interface Building {
   maxHp: number
   cooldown: number
   angle: number
-  /** Barricade : 1 bois, 2 pierre, 3 renforcée · tourelle : 1 à 3, puis 4 = spécialisée (voir branch). */
+  /** Mur : 1 bois, 2 pierre, 3 bronze, 4 renforcé · pieux : 1 bois, 2 pierre, 3 renforcé · tourelle : 1 à 7 (à partir du 4, voir branch). */
   level: number
   branch: Branch
   /** Rendu seulement : rebond après une amélioration (1 → 0). */
@@ -76,8 +77,8 @@ export interface Building {
   recoil: number
   /** Canon qui a tiré en dernier (double canon) : -1 ou 1. */
   side: number
-  /** Overclocking : cadence de tir augmentée (compétence du joueur qui l'a construit). */
-  boost: boolean
+  /** Rang d'Overclocking du joueur qui l'a construit (0 = aucun, 1 à 5) : voir OVERCLOCK_LEVELS. */
+  boost: number
   /** Secondes restantes sous une toile d'araignée (cadence de tir réduite). */
   web: number
 }

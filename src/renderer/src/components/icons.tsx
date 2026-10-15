@@ -33,6 +33,31 @@ export const IconReinforced = (p: P): React.JSX.Element => (
   </svg>
 )
 
+export const IconBronze = (p: P): React.JSX.Element => (
+  <svg {...base(p)}>
+    <rect x="3" y="4" width="18" height="16" />
+    <path d="M12 4v16M3 12h18" />
+    <circle cx="7.5" cy="8" r="1" fill="currentColor" stroke="none" />
+    <circle cx="16.5" cy="8" r="1" fill="currentColor" stroke="none" />
+    <circle cx="7.5" cy="16" r="1" fill="currentColor" stroke="none" />
+    <circle cx="16.5" cy="16" r="1" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+export const IconSpikes = (p: P): React.JSX.Element => (
+  <svg {...base(p)}>
+    <path d="M3 20h18M4 20l3-12 3 12M10 20l3-12 3 12M15 20l2.5-9 2.5 9" />
+  </svg>
+)
+
+export const IconSpikesReinforced = (p: P): React.JSX.Element => (
+  <svg {...base(p)}>
+    <rect x="2.5" y="3.5" width="19" height="17" />
+    <path d="M5 20l3-11 3 11M11 20l3-11 3 11" />
+    <path d="M2.5 20.5h19" />
+  </svg>
+)
+
 export const IconDouble = (p: P): React.JSX.Element => (
   <svg {...base(p)}>
     <circle cx="8" cy="15" r="4.2" />
@@ -104,10 +129,12 @@ export const IconBack = (p: P): React.JSX.Element => (
 
 export const UNLOCK_ICONS: Record<UnlockId, (p: P) => React.JSX.Element> = {
   stone: IconStone,
+  bronze: IconBronze,
   reinforced: IconReinforced,
+  spikeStone: IconSpikes,
+  spikeReinforced: IconSpikesReinforced,
   double: IconDouble,
-  heavy: IconHeavy,
-  overclock: IconBolt
+  heavy: IconHeavy
 }
 
 export const PERK_ICONS: Record<PerkId, (p: P) => React.JSX.Element> = {
@@ -115,7 +142,8 @@ export const PERK_ICONS: Record<PerkId, (p: P) => React.JSX.Element> = {
   fireRate: IconFireRate,
   range: IconRange,
   damage: IconDamage,
-  bulletSpeed: IconBulletSpeed
+  bulletSpeed: IconBulletSpeed,
+  overclock: IconBolt
 }
 
 /** Emblème du jeu : le cristal de la forteresse dans son cadre. */

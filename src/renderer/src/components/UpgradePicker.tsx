@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { DEFAULT_COLORS } from '../game/appearance'
-import { TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from '../game/constants'
+import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN_MAX, type Branch } from '../game/turrets'
 import { gameBridge } from '../game/gameBridge'
 import { drawTurret } from '../game/sprites'
 import { unlockMask } from '../game/progress'
@@ -71,7 +71,7 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
   const cur = turretStats(TURRET_PLAIN_MAX, 0)
 
   const pick = (branch: 1 | 2): void => {
-    if (!branchUnlocked(mask, branch) || gold < TURRET_BRANCHES[branch].cost) return
+    if (!branchUnlocked(mask, branch) || gold < TURRET_BRANCHES[branch].levels[0].cost) return
     gameBridge.current?.pickBranch(request, branch)
     close()
   }
@@ -99,9 +99,11 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
         <div className="pcards">
           {CHOICES.map((branch, i) => {
             const def = TURRET_BRANCHES[branch]
-            const s = def.stats
+            const first = def.levels[0]
+            const s = first.stats
+            const top = def.levels[def.levels.length - 1].stats
             const locked = !branchUnlocked(mask, branch)
-            const poor = !locked && gold < def.cost
+            const poor = !locked && gold < first.cost
             return (
               <button key={branch} className={`pcard b${branch}${poor ? ' poor' : ''}${locked ? ' locked' : ''}`} onClick={() => pick(branch)} disabled={poor || locked}>
                 <span className="pnum">{i + 1}</span>
@@ -115,10 +117,13 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
                   <StatRow label="Portée" from={cur.range} to={s.range} />
                   <StatRow label="Dégâts / s" from={Math.round(cur.damage * cur.fireRate)} to={Math.round(s.damage * s.fireRate)} />
                 </div>
+                <p className="pfoot">
+                  Évolue jusqu’au niveau {TURRET_MAX_LEVEL} : {top.fireRate} tirs/s · {top.damage} dégâts · {top.range} px
+                </p>
                 {locked ? (
-                  <span className="plock">🔒 À débloquer dans Compétences</span>
+                  <span className="plock">Verrouillé · à débloquer dans Compétences</span>
                 ) : (
-                  <span className="pcost">{poor ? `${def.cost} or (manque ${def.cost - gold})` : `${def.cost} or`}</span>
+                  <span className="pcost">{poor ? `${first.cost} or (manque ${first.cost - gold})` : `${first.cost} or`}</span>
                 )}
               </button>
             )

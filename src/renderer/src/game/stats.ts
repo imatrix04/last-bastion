@@ -1,63 +1,91 @@
-import {
-  BARRICADE_REINFORCED,
-  BARRICADE_STONE,
-  BUILDS,
-  OVERCLOCK,
-  PLAYER,
-  TURRET_BRANCHES,
-  TURRET_L2_COST,
-  TURRET_L3_COST,
-  TURRET_LEVELS,
-  TURRET_PLAIN_MAX,
-  WEB,
-  type Branch,
-  type BuildKind,
-  type TurretStats
-} from './constants'
+import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS, WEB, type BuildKind, type SpikeLevel, type TierUnlock } from './constants'
 import { hasUnlock, perkMult } from './progress'
+import {
+  TURRET_BRANCHES,
+  TURRET_MAX_LEVEL,
+  TURRET_PLAIN_MAX,
+  TURRET_SPEC_LEVEL,
+  turretInvested,
+  turretLevel,
+  turretNextCost,
+  type Branch,
+  type TurretStats
+} from './turrets'
 import type { Building } from './types'
 
 /** Ce qui définit le niveau d'un bâtiment (partagé entre la simulation, l'invité et l'interface). */
 export type Leveled = Pick<Building, 'kind' | 'level' | 'branch'>
 
-/** Niveau d'une tourelle spécialisée (double canons / canon lourd). */
-export const TURRET_SPEC_LEVEL = TURRET_PLAIN_MAX + 1
+// ------------------------------------------------------------ murs et pieux : niveaux
 
-export function turretStats(level: number, branch: Branch): TurretStats {
-  if (level > TURRET_PLAIN_MAX && branch !== 0) return TURRET_BRANCHES[branch].stats
-  return TURRET_LEVELS[Math.min(TURRET_PLAIN_MAX, Math.max(1, level)) - 1]
+/** Un niveau de mur ou de pieux. */
+export interface Tier {
+  name: string
+  /** Prix pour atteindre ce niveau depuis le précédent (niveau 1 : prix de pose). */
+  cost: number
+  hp: number
+  breakCost: number
+  /** Compétence qui débloque ce niveau. */
+  unlock?: TierUnlock
+  /** Couleur des éclats quand il est touché. */
+  debris: string
 }
+
+const WALL_TIERS: readonly Tier[] = [
+  { name: BUILDS.barricade.name, cost: BUILDS.barricade.cost, hp: BUILDS.barricade.hp, breakCost: BUILDS.barricade.breakCost, debris: '#9c6a35' },
+  ...BARRICADE_TIERS
+]
+const SPIKE_TIERS: readonly Tier[] = SPIKE_LEVELS.map((l) => ({ name: l.name, cost: l.cost, hp: l.hp, breakCost: 0, unlock: l.unlock, debris: l.debris }))
+
+/** Niveaux d'un mur ou de pieux (null pour une tourelle, qui a sa propre configuration : turrets.ts). */
+export function tiersOf(kind: BuildKind): readonly Tier[] | null {
+  return kind === 'barricade' ? WALL_TIERS : kind === 'spikes' ? SPIKE_TIERS : null
+}
+
+export const maxLevelOf = (kind: BuildKind): number => tiersOf(kind)?.length ?? TURRET_MAX_LEVEL
+
+export function tierOf(kind: BuildKind, level: number): Tier | null {
+  const t = tiersOf(kind)
+  return t ? t[Math.min(t.length, Math.max(1, level)) - 1] : null
+}
+
+export const spikeStats = (level: number): SpikeLevel => SPIKE_LEVELS[Math.min(SPIKE_LEVELS.length, Math.max(1, level)) - 1]
+
+// ------------------------------------------------------------------------ tourelles
+
+export { TURRET_SPEC_LEVEL }
+
+export const turretStats = (level: number, branch: Branch): TurretStats => turretLevel(level, branch).stats
 
 /** Armes de défense : ce que l'Overclocking accélère et que les araignées prennent pour cible. */
 export const isWeapon = (kind: BuildKind): boolean => kind === 'turret'
 
+/** Multiplicateur de l'Overclocking pour un rang donné (0 = pas d'Overclocking). */
+export const overclockMult = (rank: number): number => (rank > 0 ? OVERCLOCK_LEVELS[Math.min(OVERCLOCK_LEVELS.length, rank) - 1] : 1)
+
 /** Multiplicateur de cadence de tir d'une arme : Overclocking du joueur qui l'a construite, toile d'araignée. */
 export function fireRateMult(b: Pick<Building, 'boost' | 'web'>): number {
-  return (b.boost ? OVERCLOCK.fireRate : 1) * (b.web > 0 ? WEB.slow : 1)
+  return overclockMult(b.boost) * (b.web > 0 ? WEB.slow : 1)
 }
 
+// ------------------------------------------------------------------ points de vie, prix
+
 export function maxHpOf(kind: BuildKind, level: number, branch: Branch): number {
-  if (kind === 'barricade') return level >= 3 ? BARRICADE_REINFORCED.hp : level === 2 ? BARRICADE_STONE.hp : BUILDS.barricade.hp
   if (kind === 'turret') return turretStats(level, branch).hp
-  return BUILDS[kind].hp
+  return tierOf(kind, level)?.hp ?? BUILDS[kind].hp
 }
 
 export function breakCostOf(b: Pick<Building, 'kind' | 'level'>): number {
-  if (b.kind === 'barricade' && b.level >= 3) return BARRICADE_REINFORCED.breakCost
-  if (b.kind === 'barricade' && b.level === 2) return BARRICADE_STONE.breakCost
-  return BUILDS[b.kind].breakCost
+  return tierOf(b.kind, b.level)?.breakCost ?? BUILDS[b.kind].breakCost
 }
 
 /** Or dépensé pour obtenir ce bâtiment (pose + améliorations) : sert au remboursement et au prix des réparations. */
 export function investedCost(b: Leveled): number {
-  let total = BUILDS[b.kind].cost
-  if (b.kind === 'barricade' && b.level >= 2) total += BARRICADE_STONE.cost
-  if (b.kind === 'barricade' && b.level >= 3) total += BARRICADE_REINFORCED.cost
-  if (b.kind === 'turret') {
-    if (b.level >= 2) total += TURRET_L2_COST
-    if (b.level >= 3) total += TURRET_L3_COST
-    if (b.level > TURRET_PLAIN_MAX && b.branch !== 0) total += TURRET_BRANCHES[b.branch].cost
-  }
+  if (b.kind === 'turret') return turretInvested(b.level, b.branch)
+  const tiers = tiersOf(b.kind)
+  if (!tiers) return BUILDS[b.kind].cost
+  let total = 0
+  for (let l = 1; l <= Math.min(b.level, tiers.length); l++) total += tiers[l - 1].cost
   return total
 }
 
@@ -73,39 +101,31 @@ export interface UpgradeStep {
 
 /** Prochaine amélioration, ou null au niveau maximum. `unlocks` : compétences du joueur qui améliore. */
 export function nextUpgrade(b: Leveled, unlocks: number): UpgradeStep | null {
-  if (b.kind === 'barricade' && b.level === 1) {
-    return { mode: 'direct', cost: BARRICADE_STONE.cost, label: BARRICADE_STONE.name, locked: !hasUnlock(unlocks, 'stone') }
-  }
-  if (b.kind === 'barricade' && b.level === 2) {
-    return { mode: 'direct', cost: BARRICADE_REINFORCED.cost, label: BARRICADE_REINFORCED.name, locked: !hasUnlock(unlocks, 'reinforced') }
-  }
-  if (b.kind === 'turret' && b.level < TURRET_PLAIN_MAX) {
-    return {
-      mode: 'direct',
-      cost: b.level === 1 ? TURRET_L2_COST : TURRET_L3_COST,
-      label: `Niveau ${b.level + 1}`,
-      locked: false
+  if (b.kind === 'turret') {
+    const cost = turretNextCost(b.level, b.branch)
+    if (cost === null) return null
+    if (b.level === TURRET_PLAIN_MAX) {
+      const open = (['double', 'heavy'] as const).filter((id) => hasUnlock(unlocks, id))
+      const cheapest = open.length > 0 ? Math.min(...open.map((id) => TURRET_BRANCHES[id === 'double' ? 1 : 2].levels[0].cost)) : cost
+      return { mode: 'choice', cost: cheapest, label: `Niveau ${TURRET_SPEC_LEVEL} : choisir`, locked: open.length === 0 }
     }
+    return { mode: 'direct', cost, label: `Niveau ${b.level + 1}`, locked: false }
   }
-  if (b.kind === 'turret' && b.level === TURRET_PLAIN_MAX) {
-    const open = (['double', 'heavy'] as const).filter((id) => hasUnlock(unlocks, id))
-    const costs = open.map((id) => TURRET_BRANCHES[id === 'double' ? 1 : 2].cost)
-    const cost = costs.length > 0 ? Math.min(...costs) : Math.min(TURRET_BRANCHES[1].cost, TURRET_BRANCHES[2].cost)
-    return { mode: 'choice', cost, label: `Niveau ${TURRET_SPEC_LEVEL} : choisir`, locked: open.length === 0 }
-  }
-  return null
+  const tiers = tiersOf(b.kind)
+  const next = tiers && b.level < tiers.length ? tiers[b.level] : null
+  if (!next) return null
+  return { mode: 'direct', cost: next.cost, label: next.name, locked: next.unlock !== undefined && !hasUnlock(unlocks, next.unlock) }
 }
 
-/** Compétence qui débloque une branche de tourelle (1 = double canon, 2 = canon lourd). */
+/** Compétence qui débloque une branche de tourelle (1 = double canons, 2 = canon lourd). */
 export const branchUnlocked = (unlocks: number, branch: 1 | 2): boolean => hasUnlock(unlocks, branch === 1 ? 'double' : 'heavy')
 
 export const levelName = (b: Leveled): string => {
-  if (b.kind === 'barricade') {
-    return b.level >= 3 ? BARRICADE_REINFORCED.name : b.level === 2 ? BARRICADE_STONE.name : BUILDS.barricade.name
-  }
-  if (b.kind === 'turret') return b.branch !== 0 ? TURRET_BRANCHES[b.branch].name : `Tourelle niv. ${b.level}`
-  return BUILDS[b.kind].name
+  if (b.kind === 'turret') return b.branch !== 0 ? `${TURRET_BRANCHES[b.branch].name} · niv. ${b.level}` : `Tourelle niv. ${b.level}`
+  return tierOf(b.kind, b.level)?.name ?? BUILDS[b.kind].name
 }
+
+// ------------------------------------------------------------------------- joueur
 
 export interface PlayerStats {
   speed: number

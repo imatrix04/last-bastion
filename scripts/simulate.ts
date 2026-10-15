@@ -3,18 +3,25 @@
 import { actUpgrade, applyTurretBranch, placeBuilding, upgradeBuilding } from '../src/renderer/src/game/build'
 import { acceptRemotePose } from '../src/renderer/src/game/update'
 import { defaultLook } from '../src/renderer/src/game/appearance'
-import { BASE, BUILDS, COLS, ROWS, STEP, TURRET_BRANCHES, type BuildKind } from '../src/renderer/src/game/constants'
+import { BASE, BUILDS, COLS, OVERCLOCK_LEVELS, ROWS, STEP, type BuildKind } from '../src/renderer/src/game/constants'
+import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN, turretLevel } from '../src/renderer/src/game/turrets'
 import { SKIP_WAVE, type InputLike } from '../src/renderer/src/game/controls'
 import { idx, isBaseCell } from '../src/renderer/src/game/grid'
-import { ALL_UNLOCKS, PERKS, emptyPerks, scoreRun, unlockMask, type Loadout } from '../src/renderer/src/game/progress'
+import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, scoreRun, unlockMask, type Loadout } from '../src/renderer/src/game/progress'
 import { createState } from '../src/renderer/src/game/state'
-import { fireRateMult, nextUpgrade, playerStats } from '../src/renderer/src/game/stats'
+import { fireRateMult, maxLevelOf, nextUpgrade, overclockMult, playerStats, spikeStats, turretStats } from '../src/renderer/src/game/stats'
 import type { GameState } from '../src/renderer/src/game/types'
 import { step } from '../src/renderer/src/game/update'
 import { createEnemy } from '../src/renderer/src/game/waves'
 
 /** Compétences débloquées (et améliorations du joueur au rang demandé). */
 const loadout = (unlocks: number, rank = 0): Loadout => ({ unlocks, perks: PERKS.map(() => rank), look: defaultLook(0) })
+/** Les compétences à rangs (Overclocking) au rang demandé. */
+const withOverclock = (unlocks: number, rank: number): Loadout => {
+  const l = loadout(unlocks)
+  l.perks[PERK_INDEX.overclock] = rank
+  return l
+}
 const FULL = loadout(ALL_UNLOCKS)
 
 const TURRET_SPOTS: Array<[number, number]> = [
@@ -52,8 +59,9 @@ function botUpgrade(state: GameState): void {
       upgradeBuilding(state, b)
     } else {
       const branch = ((b.col + b.row + flip++) % 2 === 0 ? 1 : 2) as 1 | 2
-      if (state.gold < TURRET_BRANCHES[branch].cost) continue
-      state.gold -= TURRET_BRANCHES[branch].cost
+      const cost = TURRET_BRANCHES[branch].levels[0].cost
+      if (state.gold < cost) continue
+      state.gold -= cost
       upgradeBuilding(state, b, branch)
     }
   }
@@ -179,23 +187,35 @@ function checkUnlocks(): boolean {
   }
   let ok = true
 
-  // Barricade : pierre puis renforcé, chacun derrière sa compétence
+  // Mur : bois → pierre → bronze → renforcé, chaque niveau derrière sa compétence
   let st = fresh(0)
   const wall = placeBuilding(st, 'barricade', 6, 5)
   actUpgrade(st, st.players[0])
   ok = report('Mur en pierre verrouillé', wall.level === 1 && st.gold === 9999) && ok
   st = fresh(unlockMask(['stone']))
   const w2 = placeBuilding(st, 'barricade', 6, 5)
-  actUpgrade(st, st.players[0])
-  actUpgrade(st, st.players[0])
-  ok = report('Pierre débloquée, renforcé non', w2.level === 2) && ok
-  st = fresh(unlockMask(['stone', 'reinforced']))
+  for (let i = 0; i < 4; i++) actUpgrade(st, st.players[0])
+  ok = report('Pierre débloquée, bronze non', w2.level === 2) && ok
+  st = fresh(unlockMask(['stone', 'bronze']))
   const w3 = placeBuilding(st, 'barricade', 6, 5)
-  actUpgrade(st, st.players[0])
-  actUpgrade(st, st.players[0])
-  ok = report('Mur renforcé débloqué', w3.level === 3 && w3.maxHp > 0) && ok
+  for (let i = 0; i < 4; i++) actUpgrade(st, st.players[0])
+  ok = report('Bronze débloqué, renforcé non', w3.level === 3) && ok
+  st = fresh(unlockMask(['stone', 'bronze', 'reinforced']))
+  const w4 = placeBuilding(st, 'barricade', 6, 5)
+  for (let i = 0; i < 5; i++) actUpgrade(st, st.players[0])
+  ok = report('Mur renforcé (niveau 4, maximum)', w4.level === maxLevelOf('barricade') && w4.level === 4 && w4.maxHp > w3.maxHp) && ok
 
-  // Tourelle : niveaux 2 et 3 libres, puis spécialisation (niveau 4) seulement avec la branche débloquée
+  // Pieux : bois → pierre → renforcé
+  st = fresh(0)
+  const sp0 = placeBuilding(st, 'spikes', 6, 5)
+  actUpgrade(st, st.players[0])
+  ok = report('Pieux en pierre verrouillés', sp0.level === 1) && ok
+  st = fresh(unlockMask(['spikeStone', 'spikeReinforced']))
+  const sp1 = placeBuilding(st, 'spikes', 6, 5)
+  for (let i = 0; i < 4; i++) actUpgrade(st, st.players[0])
+  ok = report('Pieux renforcés (niveau 3, maximum)', sp1.level === 3 && spikeStats(3).dps > spikeStats(1).dps && sp1.maxHp > 220) && ok
+
+  // Tourelle : niveaux 2 et 3 libres, spécialisation (niveau 4) avec la branche débloquée, puis niveaux 5 à 7
   st = fresh(unlockMask(['heavy']))
   const t = placeBuilding(st, 'turret', 6, 5)
   actUpgrade(st, st.players[0])
@@ -206,6 +226,25 @@ function checkUnlocks(): boolean {
   const p = st.players[0]
   ok = report('Double canons verrouillé', !applyTurretBranch(st, 6, 5, 1, p) && t.level === 3) && ok
   ok = report('Canon lourd débloqué (niveau 4)', applyTurretBranch(st, 6, 5, 2, p) && t.level === 4 && t.branch === 2) && ok
+  const d4 = turretStats(4, 2).damage
+  for (let i = 0; i < 5; i++) actUpgrade(st, p)
+  ok = report(`Tourelle jusqu’au niveau ${TURRET_MAX_LEVEL}`, t.level === TURRET_MAX_LEVEL && turretStats(t.level, 2).damage > d4) && ok
+  ok = report('Niveau maximum : plus d’amélioration', nextUpgrade(t, ALL_UNLOCKS) === null) && ok
+  ok =
+    report(
+      'Branches : statistiques différentes',
+      turretStats(7, 1).fireRate > turretStats(7, 2).fireRate && turretStats(7, 2).damage > turretStats(7, 1).damage * 2
+    ) && ok
+  // Les niveaux croissent : chaque niveau est au moins aussi fort que le précédent, dans chaque branche
+  let monotone = true
+  for (const branch of [1, 2] as const) {
+    for (let l = 4; l < TURRET_MAX_LEVEL; l++) {
+      const a = turretLevel(l, branch).stats
+      const b = turretLevel(l + 1, branch).stats
+      if (b.damage * b.fireRate < a.damage * a.fireRate || b.hp < a.hp) monotone = false
+    }
+  }
+  ok = report('Niveaux de branche croissants', monotone && TURRET_PLAIN.length === 3) && ok
   st = fresh(0)
   const t2 = placeBuilding(st, 'turret', 6, 5)
   upgradeBuilding(st, t2)
@@ -213,14 +252,18 @@ function checkUnlocks(): boolean {
   actUpgrade(st, st.players[0])
   ok = report('Aucune branche : pas de pop-up', st.choice === null && t2.level === 3) && ok
 
-  // Overclocking : cadence augmentée pour les tourelles posées par un joueur qui l'a
-  st = fresh(unlockMask(['overclock']))
-  st.players[0].selected = 1
+  // Overclocking : de ×1,2 (rang 1) à ×2 (rang 5), pour les tourelles posées par un joueur qui l'a
+  st = createState(1, [withOverclock(0, 5)])
   st.gold = 9999
-  st.players[0].buildCd = 0
-  const bt = placeBuilding(st, 'turret', 6, 5, true)
+  st.players[0].x = 5 * 40 + 20
+  st.players[0].y = 5 * 40 + 20
+  st.players[0].dirX = 1
+  st.players[0].dirY = 0
+  st.players[0].selected = 1
+  const bt = placeBuilding(st, 'turret', 6, 5, 5)
   const plain = placeBuilding(st, 'turret', 6, 6)
-  ok = report('Overclocking : cadence × bonus', fireRateMult(bt) > 1 && fireRateMult(plain) === 1) && ok
+  ok = report('Overclocking : ×1,2 au rang 1, ×2 au rang 5', overclockMult(1) === 1.2 && overclockMult(5) === 2 && fireRateMult(bt) === 2 && fireRateMult(plain) === 1) && ok
+  ok = report('Overclocking : 5 rangs croissants', OVERCLOCK_LEVELS.length === 5 && OVERCLOCK_LEVELS.every((v, i) => i === 0 || v > OVERCLOCK_LEVELS[i - 1])) && ok
 
   // Améliorations du joueur : rang max = bonus complet
   const maxed = playerStats(PERKS.map((p) => p.costs.length))

@@ -1,5 +1,5 @@
 import { defaultLook, isSkinId, sanitizeLook, type Look, type SkinId } from './appearance'
-import type { EnemyKind } from './constants'
+import type { EnemyKind, TierUnlock } from './constants'
 
 /**
  * Progression entre les parties : des points gagnés à la fin de chaque partie permettent de
@@ -9,8 +9,8 @@ import type { EnemyKind } from './constants'
 
 // ------------------------------------------------------------ compétences à débloquer
 
-export type UnlockId = 'stone' | 'reinforced' | 'double' | 'heavy' | 'overclock'
-export type TreeBranch = 'barricade' | 'turret' | 'tech'
+export type UnlockId = TierUnlock | 'double' | 'heavy'
+export type TreeBranch = 'barricade' | 'spikes' | 'turret' | 'tech'
 
 export interface UnlockDef {
   id: UnlockId
@@ -25,7 +25,10 @@ export interface UnlockDef {
   tier: number
 }
 
-/** L'ordre fixe les bits de `unlockMask` : ne jamais réordonner, seulement ajouter à la fin. */
+/**
+ * L'ordre fixe les bits de `unlockMask` (échangé entre les joueurs en ligne) : ajouter à la fin de préférence.
+ * Les noms et les valeurs des niveaux de mur et de pieux sont dans constants.ts (BARRICADE_TIERS, SPIKE_LEVELS).
+ */
 export const UNLOCKS: readonly UnlockDef[] = [
   {
     id: 'stone',
@@ -36,19 +39,45 @@ export const UNLOCKS: readonly UnlockDef[] = [
     tier: 0
   },
   {
+    id: 'bronze',
+    branch: 'barricade',
+    name: 'Mur en bronze',
+    blurb: 'Un mur de métal : plus solide que la pierre.',
+    cost: 220,
+    requires: 'stone',
+    tier: 1
+  },
+  {
     id: 'reinforced',
     branch: 'barricade',
     name: 'Mur en pierre renforcé',
     blurb: 'Dernier niveau de la barricade : un rempart blindé.',
     cost: 350,
-    requires: 'stone',
+    requires: 'bronze',
+    tier: 2
+  },
+  {
+    id: 'spikeStone',
+    branch: 'spikes',
+    name: 'Pieux en pierre',
+    blurb: 'Les pieux peuvent être taillés dans la pierre : plus de dégâts, plus de ralentissement.',
+    cost: 150,
+    tier: 0
+  },
+  {
+    id: 'spikeReinforced',
+    branch: 'spikes',
+    name: 'Pieux en pierre renforcé',
+    blurb: 'Dernier niveau des pieux : un piège redoutable qui tient longtemps.',
+    cost: 320,
+    requires: 'spikeStone',
     tier: 1
   },
   {
     id: 'double',
     branch: 'turret',
     name: 'Double canons',
-    blurb: 'Choix possible au niveau 4 d’une tourelle : double cadence.',
+    blurb: 'Choix possible au niveau 4 d’une tourelle : la cadence explose, jusqu’au niveau 7.',
     cost: 250,
     tier: 0
   },
@@ -56,19 +85,26 @@ export const UNLOCKS: readonly UnlockDef[] = [
     id: 'heavy',
     branch: 'turret',
     name: 'Canon lourd',
-    blurb: 'Choix possible au niveau 4 d’une tourelle : dégâts triplés.',
+    blurb: 'Choix possible au niveau 4 d’une tourelle : des obus énormes, jusqu’au niveau 7.',
     cost: 250,
-    tier: 0
-  },
-  {
-    id: 'overclock',
-    branch: 'tech',
-    name: 'Overclocking',
-    blurb: 'Toutes tes tourelles (et futures armes de défense) tirent plus vite.',
-    cost: 450,
     tier: 0
   }
 ]
+
+/** Ajoute à une liste de compétences celles qu'elles exigent (une sauvegarde ancienne peut en manquer). */
+export function closeUnlocks(ids: readonly UnlockId[]): UnlockId[] {
+  const out = new Set<UnlockId>(ids)
+  for (let again = true; again; ) {
+    again = false
+    for (const u of UNLOCKS) {
+      if (out.has(u.id) && u.requires && !out.has(u.requires)) {
+        out.add(u.requires)
+        again = true
+      }
+    }
+  }
+  return [...out]
+}
 
 export const UNLOCK_BY_ID: Readonly<Record<UnlockId, UnlockDef>> = Object.fromEntries(UNLOCKS.map((u) => [u.id, u])) as Record<
   UnlockId,
@@ -91,25 +127,42 @@ export const isUnlockId = (v: unknown): v is UnlockId => typeof v === 'string' &
 
 // ------------------------------------------------------------- améliorations du joueur
 
-export type PerkId = 'speed' | 'fireRate' | 'range' | 'damage' | 'bulletSpeed'
+export type PerkId = 'speed' | 'fireRate' | 'range' | 'damage' | 'bulletSpeed' | 'overclock'
 
 export interface PerkDef {
   id: PerkId
+  /** `soldier` : améliore le joueur · `tech` : améliore ses défenses (colonne Technologie). */
+  group: 'soldier' | 'tech'
   name: string
   blurb: string
   /** Prix de chaque rang (la longueur donne le rang maximum). */
   costs: readonly number[]
-  /** Bonus par rang, en fraction de la valeur de base (0,1 = +10 %). */
+  /** Bonus par rang, en fraction de la valeur de base (0,1 = +10 %). Sans objet pour l'Overclocking (voir OVERCLOCK_LEVELS). */
   perRank: number
 }
 
 /** L'ordre fixe la position dans la sauvegarde et dans le message réseau : seulement ajouter à la fin. */
 export const PERKS: readonly PerkDef[] = [
-  { id: 'speed', name: 'Vitesse', blurb: 'Se déplacer plus vite.', costs: [50, 90, 140, 200, 280], perRank: 0.05 },
-  { id: 'fireRate', name: 'Cadence de tir', blurb: 'Tirer plus souvent.', costs: [60, 100, 160, 230, 320], perRank: 0.1 },
-  { id: 'range', name: 'Portée', blurb: 'Toucher plus loin.', costs: [50, 90, 140, 200, 280], perRank: 0.05 },
-  { id: 'damage', name: 'Dégâts', blurb: 'Des balles plus puissantes.', costs: [60, 100, 160, 230, 320], perRank: 0.1 },
-  { id: 'bulletSpeed', name: 'Vitesse des balles', blurb: 'Des balles plus rapides, moins de tirs manqués.', costs: [40, 70, 110, 160, 220], perRank: 0.08 }
+  { id: 'speed', group: 'soldier', name: 'Vitesse', blurb: 'Se déplacer plus vite.', costs: [50, 90, 140, 200, 280], perRank: 0.05 },
+  { id: 'fireRate', group: 'soldier', name: 'Cadence de tir', blurb: 'Tirer plus souvent.', costs: [60, 100, 160, 230, 320], perRank: 0.1 },
+  { id: 'range', group: 'soldier', name: 'Portée', blurb: 'Toucher plus loin.', costs: [50, 90, 140, 200, 280], perRank: 0.05 },
+  { id: 'damage', group: 'soldier', name: 'Dégâts', blurb: 'Des balles plus puissantes.', costs: [60, 100, 160, 230, 320], perRank: 0.1 },
+  {
+    id: 'bulletSpeed',
+    group: 'soldier',
+    name: 'Vitesse des balles',
+    blurb: 'Des balles plus rapides, moins de tirs manqués.',
+    costs: [40, 70, 110, 160, 220],
+    perRank: 0.08
+  },
+  {
+    id: 'overclock',
+    group: 'tech',
+    name: 'Overclocking',
+    blurb: 'Toutes tes tourelles (et futures armes de défense) tirent plus vite : ×1,2 au rang 1, jusqu’à ×2 au rang 5.',
+    costs: [450, 650, 900, 1200, 1600],
+    perRank: 0
+  }
 ]
 
 export const PERK_INDEX: Readonly<Record<PerkId, number>> = Object.fromEntries(PERKS.map((p, i) => [p.id, i])) as Record<PerkId, number>

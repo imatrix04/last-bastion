@@ -1,4 +1,5 @@
-import { ENEMIES, type Branch, type EnemyKind } from './constants'
+import { ENEMIES, type EnemyKind } from './constants'
+import { TURRET_BRANCHES, TURRET_SPEC_LEVEL, type Branch } from './turrets'
 import type { Enemy } from './types'
 
 /** Dessin des ennemis et des tourelles. Les corps sont pré-rendus une fois (canvas hors écran), seules les parties animées sont tracées à chaque image. */
@@ -594,15 +595,18 @@ export interface TurretLook {
   side: number
   /** Rebond d'amélioration (1 → 0). */
   pop: number
-  /** Overclocking : liseré et éclair orange. */
-  boost?: boolean
+  /** Rang d'Overclocking (0 = aucun) : halo orange et éclairs. */
+  boost?: number
   /** Secondes restantes sous une toile d'araignée. */
   web?: number
 }
 
 /** Tourelle centrée en (cx, cy), tuile de 40 px. Sert à la partie et aux aperçus du pop-up de choix. */
 export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: TurretLook, time: number): void {
-  const accent = t.branch === 1 ? '#4dd0e1' : t.branch === 2 ? '#ff9800' : '#80deea'
+  const accent = t.branch !== 0 ? TURRET_BRANCHES[t.branch].accent : '#80deea'
+  // Niveaux de branche : 0 au niveau 4, jusqu'à 3 au niveau 7. Chaque niveau ajoute du blindage et de la lumière.
+  const tier = t.branch !== 0 ? Math.max(0, t.level - TURRET_SPEC_LEVEL) : 0
+  const boost = t.boost ?? 0
   ctx.save()
   ctx.translate(cx, cy)
   const pop = 1 + 0.3 * t.pop
@@ -611,16 +615,16 @@ export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number
   // Socle
   ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
   ctx.fillRect(-16, -13, 34, 34)
-  if (t.boost) {
+  if (boost > 0) {
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
-    drawGlow(ctx, 0, 0, 34, '#ff9100', 0.3 + 0.12 * Math.sin(time * 7))
+    drawGlow(ctx, 0, 0, 34 + boost * 1.5, '#ff9100', 0.24 + boost * 0.03 + 0.12 * Math.sin(time * (6 + boost)))
     ctx.restore()
   }
   if (t.branch !== 0) {
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
-    drawGlow(ctx, 0, 0, 30, accent, 0.28 + 0.1 * Math.sin(time * 4))
+    drawGlow(ctx, 0, 0, 30 + tier * 5, accent, 0.28 + tier * 0.05 + 0.1 * Math.sin(time * (4 + tier)))
     ctx.restore()
   }
   ctx.fillStyle = '#37474f'
@@ -634,6 +638,26 @@ export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number
       for (const sy of [-1, 1]) {
         ctx.beginPath()
         ctx.arc(sx * 13, sy * 13, 1.8, 0, TAU)
+        ctx.fill()
+      }
+    }
+  }
+
+  // Blindage des niveaux de branche : liseré supplémentaire (niveau 5), plaques d'angle (6), couronne lumineuse (7)
+  if (tier >= 1) {
+    ctx.strokeStyle = accent
+    ctx.lineWidth = 1.4
+    ctx.strokeRect(-18.5, -18.5, 37, 37)
+  }
+  if (tier >= 2) {
+    ctx.fillStyle = accent
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        ctx.beginPath()
+        ctx.moveTo(sx * 18, sy * 18)
+        ctx.lineTo(sx * 18, sy * 10)
+        ctx.lineTo(sx * 10, sy * 18)
+        ctx.closePath()
         ctx.fill()
       }
     }
@@ -659,29 +683,32 @@ export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number
   if (t.branch === 1) {
     for (const s of [-1, 1]) {
       const kick = (s === t.side ? t.recoil : t.recoil * 0.25) * 4
+      const len = 18 + tier * 1.5
       ctx.fillStyle = '#b0bec5'
-      ctx.fillRect(2 - kick, s * 4.5 - 2.5, 18, 5)
+      ctx.fillRect(2 - kick, s * 4.5 - 2.5, len, 5)
       ctx.fillStyle = '#37474f'
       ctx.fillRect(2 - kick, s * 4.5 - 2.5, 4, 5)
       ctx.fillStyle = accent
-      ctx.fillRect(16 - kick, s * 4.5 - 2, 4, 4)
+      ctx.fillRect(len - 2 - kick, s * 4.5 - 2, 4, 4)
     }
     ctx.fillStyle = '#546e7a'
     ctx.fillRect(0, -7.5, 5, 15)
   } else if (t.branch === 2) {
     const kick = t.recoil * 7
+    const ext = tier * 1.6
     ctx.fillStyle = '#455a64'
-    ctx.fillRect(-1 - kick, -5.5, 24, 11)
+    ctx.fillRect(-1 - kick, -5.5 - tier * 0.3, 24 + ext, 11 + tier * 0.6)
     ctx.fillStyle = '#cfd8dc'
-    ctx.fillRect(1 - kick, -4, 20, 8)
-    ctx.fillStyle = '#ff9800'
-    ctx.fillRect(7 - kick, -5.5, 3, 11)
-    ctx.fillStyle = '#37474f'
-    ctx.fillRect(18 - kick, -7.5, 6, 15)
-    ctx.fillStyle = '#10171a'
-    ctx.fillRect(20 - kick, -7.5, 1.5, 15)
+    ctx.fillRect(1 - kick, -4, 20 + ext, 8)
     ctx.fillStyle = accent
-    ctx.fillRect(23 - kick, -3, 2, 6)
+    ctx.fillRect(7 - kick, -5.5 - tier * 0.3, 3, 11 + tier * 0.6)
+    if (tier >= 2) ctx.fillRect(13 - kick, -5.5, 2, 11)
+    ctx.fillStyle = '#37474f'
+    ctx.fillRect(18 + ext - kick, -7.5, 6, 15)
+    ctx.fillStyle = '#10171a'
+    ctx.fillRect(20 + ext - kick, -7.5, 1.5, 15)
+    ctx.fillStyle = accent
+    ctx.fillRect(23 + ext - kick, -3, 2, 6)
   } else {
     const kick = t.recoil * 4
     ctx.fillStyle = '#cfd8dc'
@@ -706,21 +733,25 @@ export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number
     ctx.arc(0, 0, 3, 0, TAU)
     ctx.fill()
   }
-  if (t.boost) {
-    // Éclair d'Overclocking dans le coin du socle
-    ctx.fillStyle = '#ffca28'
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(15, -17)
-    ctx.lineTo(10, -9)
-    ctx.lineTo(13.5, -9)
-    ctx.lineTo(11, -2)
-    ctx.lineTo(18, -11)
-    ctx.lineTo(14, -11)
-    ctx.closePath()
-    ctx.fill()
-    ctx.stroke()
+  if (boost > 0) {
+    // Éclairs d'Overclocking dans le coin du socle : un de plus aux rangs 3 et 5
+    const bolts = 1 + (boost >= 3 ? 1 : 0) + (boost >= 5 ? 1 : 0)
+    for (let i = 0; i < bolts; i++) {
+      const dx = -i * 6
+      ctx.fillStyle = boost >= 5 ? '#fff3b0' : '#ffca28'
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(15 + dx, -17)
+      ctx.lineTo(10 + dx, -9)
+      ctx.lineTo(13.5 + dx, -9)
+      ctx.lineTo(11 + dx, -2)
+      ctx.lineTo(18 + dx, -11)
+      ctx.lineTo(14 + dx, -11)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
   }
   if (t.web && t.web > 0) drawWeb(ctx, Math.min(1, t.web))
   ctx.restore()

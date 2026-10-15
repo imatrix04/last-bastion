@@ -515,8 +515,8 @@ table.controls td:first-child {
 }
 .sk-branches {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
-  gap: 1.8em;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.5em;
 }
 .sk-col {
   display: flex;
@@ -1047,6 +1047,15 @@ table.controls td:first-child {
 /* ---------------------------------------------------------------- adaptation */
 
 /* Scène étroite (petite fenêtre) : l'accueil perd son cadre, l'arbre et la boutique passent sur une colonne */
+@container (max-width: 1180px) {
+  .sk-branches {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sk-col.b-turret {
+    grid-column: span 2;
+    order: -1;
+  }
+}
 @container (max-width: 980px) {
   .screen.home {
     grid-template-columns: 1fr;
@@ -1097,4 +1106,11 @@ table.controls td:first-child {
   .screen.shop {
     padding: 1.2em 1.2em 1em;
   }
+}
+
+.pcard .pfoot {
+  margin: 0.2em 0 0;
+  color: var(--muted);
+  font-size: 0.78em;
+  line-height: 1.4;
 }

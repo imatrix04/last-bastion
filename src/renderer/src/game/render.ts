@@ -1,9 +1,10 @@
 import { buildTarget, placementStatus } from './build'
-import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, TURRET_LEVELS, WIDTH } from './constants'
+import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, WIDTH } from './constants'
 import { drawPlayer } from './player'
 import { buildingAt } from './grid'
 import { drawBar, drawEnemy, drawEnemyTrail, drawGlow, drawTurret } from './sprites'
-import { levelName, nextUpgrade } from './stats'
+import { levelName, maxLevelOf, nextUpgrade } from './stats'
+import { TURRET_PLAIN } from './turrets'
 import type { Building, GameState } from './types'
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'
@@ -220,7 +221,8 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number):
   }
   switch (b.kind) {
     case 'barricade': {
-      if (b.level >= 3) drawReinforcedWall(ctx, x, y)
+      if (b.level >= 4) drawReinforcedWall(ctx, x, y)
+      else if (b.level === 3) drawBronzeWall(ctx, x, y)
       else if (b.level === 2) drawStoneWall(ctx, x, y)
       else drawWoodBarricade(ctx, x, y)
       break
@@ -230,36 +232,22 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number):
       break
     }
     case 'spikes': {
-      ctx.fillStyle = 'rgba(30, 20, 15, 0.55)'
-      ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4)
-      for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-          const px = x + 7 + i * 13
-          const py = y + 7 + j * 13
-          ctx.fillStyle = '#b0bec5'
-          ctx.beginPath()
-          ctx.moveTo(px, py - 5)
-          ctx.lineTo(px + 5, py + 5)
-          ctx.lineTo(px - 5, py + 5)
-          ctx.closePath()
-          ctx.fill()
-          ctx.fillStyle = '#eceff1'
-          ctx.fillRect(px - 0.5, py - 4, 1.5, 4)
-        }
-      }
+      drawSpikes(ctx, x, y, b.level)
       break
     }
   }
   if (popped) ctx.restore()
 
-  // Pastilles de niveau
+  // Pastilles de niveau (le pas se resserre pour que 7 niveaux tiennent dans la case)
   if (b.level >= 2) {
+    const step = Math.min(6, 30 / b.level)
+    const max = maxLevelOf(b.kind)
     for (let i = 0; i < b.level; i++) {
-      ctx.fillStyle = '#ffd54a'
+      ctx.fillStyle = b.level >= max ? '#ffffff' : '#ffd54a'
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'
       ctx.lineWidth = 1.2
       ctx.beginPath()
-      ctx.arc(x + 6 + i * 6, y + TILE - 5, 2.3, 0, Math.PI * 2)
+      ctx.arc(x + 6 + i * step, y + TILE - 5, 2.2, 0, Math.PI * 2)
       ctx.fill()
       ctx.stroke()
     }
@@ -267,6 +255,108 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number):
   if (b.hp < b.maxHp) {
     const ratio = b.hp / b.maxHp
     drawBar(ctx, x + 4, y - 5, TILE - 8, 4, ratio, ratio > 0.5 ? '#9ccc65' : ratio > 0.25 ? '#ffb74d' : '#e57373')
+  }
+}
+
+/** Mur en bronze : plaques de métal chaud rivetées, reflets cuivrés. */
+function drawBronzeWall(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.32)'
+  ctx.fillRect(x + 3, y + 6, TILE, TILE)
+  ctx.fillStyle = '#5b3513'
+  ctx.fillRect(x, y, TILE, TILE)
+  const plate = ctx.createLinearGradient(x, y, x + TILE, y + TILE)
+  plate.addColorStop(0, '#e0a05a')
+  plate.addColorStop(0.5, '#b87333')
+  plate.addColorStop(1, '#7d4a1d')
+  ctx.fillStyle = plate
+  for (const [px, py] of [
+    [2, 2],
+    [21, 2],
+    [2, 21],
+    [21, 21]
+  ]) {
+    ctx.fillRect(x + px, y + py, 17, 17)
+  }
+  ctx.fillStyle = 'rgba(255, 240, 200, 0.35)'
+  for (const [px, py] of [
+    [2, 2],
+    [21, 2],
+    [2, 21],
+    [21, 21]
+  ]) {
+    ctx.fillRect(x + px, y + py, 17, 2)
+    ctx.fillRect(x + px, y + py, 2, 17)
+  }
+  ctx.fillStyle = '#3e2410'
+  for (const [px, py] of [
+    [5, 5],
+    [16, 5],
+    [24, 5],
+    [35, 5],
+    [5, 16],
+    [16, 16],
+    [24, 16],
+    [35, 16],
+    [5, 24],
+    [16, 24],
+    [24, 24],
+    [35, 24],
+    [5, 35],
+    [16, 35],
+    [24, 35],
+    [35, 35]
+  ]) {
+    ctx.beginPath()
+    ctx.arc(x + px, y + py, 1.3, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.strokeStyle = '#f0c27a'
+  ctx.lineWidth = 1.2
+  ctx.strokeRect(x + 0.6, y + 0.6, TILE - 1.2, TILE - 1.2)
+}
+
+/** Pieux : bois taillé (1), pierre (2), acier renforcé (3). */
+function drawSpikes(ctx: CanvasRenderingContext2D, x: number, y: number, level: number): void {
+  const style =
+    level >= 3
+      ? { bed: 'rgba(24, 30, 38, 0.8)', body: '#aab6c2', tip: '#f1f5f9', edge: '#4b5563', frame: '#cfd8dc' }
+      : level === 2
+        ? { bed: 'rgba(40, 40, 46, 0.7)', body: '#8d93a0', tip: '#d3d8e2', edge: '#4a4f5c', frame: null }
+        : { bed: 'rgba(30, 20, 15, 0.6)', body: '#a07840', tip: '#e6c88e', edge: '#4a3118', frame: null }
+  ctx.fillStyle = style.bed
+  ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4)
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      const px = x + 7 + i * 13
+      const py = y + 7 + j * 13
+      ctx.fillStyle = style.body
+      ctx.strokeStyle = style.edge
+      ctx.lineWidth = 1.1
+      ctx.beginPath()
+      ctx.moveTo(px, py - 6)
+      ctx.lineTo(px + 5, py + 5)
+      ctx.lineTo(px - 5, py + 5)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      ctx.fillStyle = style.tip
+      ctx.beginPath()
+      ctx.moveTo(px, py - 6)
+      ctx.lineTo(px + 1.8, py - 1)
+      ctx.lineTo(px - 1.8, py - 1)
+      ctx.closePath()
+      ctx.fill()
+      if (level >= 2) {
+        // Base maçonnée
+        ctx.fillStyle = style.edge
+        ctx.fillRect(px - 5.5, py + 5, 11, 2)
+      }
+    }
+  }
+  if (style.frame) {
+    ctx.strokeStyle = style.frame
+    ctx.lineWidth = 2
+    ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE - 4)
   }
 }
 
@@ -381,7 +471,7 @@ function drawGhosts(ctx: CanvasRenderingContext2D, state: GameState): void {
       ctx.strokeStyle = 'rgba(128, 222, 234, 0.45)'
       ctx.lineWidth = 1.5
       ctx.beginPath()
-      ctx.arc(x + TILE / 2, y + TILE / 2, TURRET_LEVELS[0].range, 0, Math.PI * 2)
+      ctx.arc(x + TILE / 2, y + TILE / 2, TURRET_PLAIN[0].stats.range, 0, Math.PI * 2)
       ctx.stroke()
     }
   }

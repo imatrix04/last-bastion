@@ -4,15 +4,13 @@ import {
   COLS,
   ROWS,
   TILE,
-  TURRET_BRANCHES,
-  TURRET_PLAIN_MAX,
-  type Branch,
   type BuildKind
 } from './constants'
 import { addText, burst, ring, smoke, sparks } from './fx'
 import { buildingAt, idx, isBaseCell } from './grid'
-import { hasUnlock } from './progress'
+import { PERK_INDEX } from './progress'
 import { branchUnlocked, investedCost, levelName, maxHpOf, nextUpgrade } from './stats'
+import { TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from './turrets'
 import type { Building, GameState, Player } from './types'
 
 export type PlacementStatus = 'ok' | 'repair' | 'upgrade' | 'poor' | 'invalid' | 'occupied'
@@ -45,7 +43,8 @@ export function placementStatus(state: GameState, p: Player, col: number, row: n
 }
 
 /** Pose un bâtiment sans contrôle ni paiement (utilisé par la construction et les tests). */
-export function placeBuilding(state: GameState, kind: BuildKind, col: number, row: number, boost = false): Building {
+/** `boost` : rang d'Overclocking du joueur qui construit (0 = aucun). */
+export function placeBuilding(state: GameState, kind: BuildKind, col: number, row: number, boost = 0): Building {
   const def = BUILDS[kind]
   const b: Building = {
     kind,
@@ -105,7 +104,7 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
     case 'ok': {
       const kind = BUILD_ORDER[p.selected]
       state.gold -= BUILDS[kind].cost
-      const b = placeBuilding(state, kind, col, row, hasUnlock(p.unlocks, 'overclock'))
+      const b = placeBuilding(state, kind, col, row, p.perks[PERK_INDEX.overclock] ?? 0)
       b.pop = 0.7
       burst(state, cx, cy, '#d7ccc8', 6, 70)
       smoke(state, cx, cy + 8, '#a1887f', 3, 40)
@@ -182,7 +181,7 @@ export function applyTurretBranch(state: GameState, col: number, row: number, br
   if (!b || b.kind !== 'turret' || b.level !== TURRET_PLAIN_MAX) return false
   if (!branchUnlocked(player.unlocks, branch)) return false
   if (Math.hypot(player.x - (col + 0.5) * TILE, player.y - (row + 0.5) * TILE) > PICK_REACH * TILE) return false
-  const cost = TURRET_BRANCHES[branch].cost
+  const cost = TURRET_BRANCHES[branch].levels[0].cost
   if (state.gold < cost) {
     addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, "Pas assez d'or", '#ff8a65')
     return false

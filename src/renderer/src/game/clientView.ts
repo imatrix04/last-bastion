@@ -1,12 +1,13 @@
 import { buildTarget } from './build'
-import { BASE, ENEMIES, HEIGHT, TILE, TURRET_PLAIN_MAX, WIDTH, type Branch } from './constants'
+import { BASE, ENEMIES, HEIGHT, OVERCLOCK_LEVELS, TILE, WIDTH } from './constants'
 import { CONTROLS, type InputLike } from './controls'
 import { skinAt } from './appearance'
 import { addText, burst, decal, muzzle, ring, updateFx, webShot } from './fx'
 import { buildingAt, idx, inBounds } from './grid'
 import { INTERP_DELAY, buildKindAt, enemyKindAt, type Snap } from './netproto'
 import { KILL_KINDS } from './progress'
-import { maxHpOf, nextUpgrade, turretStats } from './stats'
+import { maxLevelOf, maxHpOf, nextUpgrade, turretStats } from './stats'
+import { TURRET_PLAIN_MAX, type Branch } from './turrets'
 import type { Bullet, ChoiceRequest, Enemy, GameState, HudState } from './types'
 import { advanceWebs, decayBuildingFx, movePlayer, nearestEnemy } from './update'
 
@@ -115,7 +116,7 @@ export class ClientView {
       const kind = buildKindAt(kindIndex)
       if (!kind || !inBounds(col, row)) continue
       const i = idx(col, row)
-      const level = Math.min(TURRET_PLAIN_MAX + 1, Math.max(1, Math.round(rawLevel)))
+      const level = Math.min(maxLevelOf(kind), Math.max(1, Math.round(rawLevel)))
       const branch: Branch = rawBranch === 1 || rawBranch === 2 ? rawBranch : 0
       const old = previous[i]
       const same = old && old.kind === kind
@@ -133,7 +134,7 @@ export class ClientView {
         pop: same && old.level < level ? 1 : same ? old.pop : 0,
         recoil: same ? old.recoil : 0,
         side: same ? old.side : 1,
-        boost: rawBoost === 1,
+        boost: Math.min(OVERCLOCK_LEVELS.length, Math.max(0, Math.round(rawBoost))),
         web: Math.max(0, rawWeb / 10)
       }
     }

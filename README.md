@@ -48,9 +48,9 @@ Les joueurs **tirent automatiquement** sur l'ennemi le plus proche et construise
 ## Règles du jeu
 
 - L'or est partagé. Il vient des monstres abattus et de la fin de chaque vague.
-- **Mur en bois** (barricade) : fragile, pas cher. Avec les compétences, **R** le renforce en **mur en pierre**, puis en **mur en pierre renforcé**.
-- **Tourelle** (90) : tire seule, portée 240 px. **R** → niveau 2, **R** → niveau 3 (dégâts ↑ à chaque fois). **R** encore → pop-up de choix à la souris (ou touches 1 / 2) entre deux spécialisations de niveau 4 : **double canon** (+110, cadence ×2, deux tubes en alternance) ou **canon lourd** (+130, dégâts ×3, gros obus, portée accrue). Les cartes comparent vitesse, dégâts, PV et portée.
-- **Pieux** (25) : piège au sol qui blesse et ralentit, s'use à chaque passage.
+- **Mur en bois** (barricade) : fragile, pas cher. Avec les compétences, **R** le fait évoluer : **mur en pierre** → **mur en bronze** → **mur en pierre renforcé** (4 niveaux). Valeurs dans `BARRICADE_TIERS` (`constants.ts`).
+- **Tourelle** : tire seule, **7 niveaux**. **R** → niveau 2, **R** → niveau 3 (communs), **R** encore → pop-up de choix à la souris (ou touches 1 / 2) entre **double canons** (cadence) et **canon lourd** (dégâts et portée) au niveau 4, puis **R** pour monter la branche choisie jusqu'au niveau 7, avec des statistiques propres à chaque branche. Toute la configuration (stats, prix, nom, couleur) est dans `game/turrets.ts`.
+- **Pieux** : piège au sol qui blesse et ralentit, s'use à chaque passage. Avec les compétences, **R** les fait évoluer : **pieux en bois** → **en pierre** → **en pierre renforcé** (3 niveaux, `SPIKE_LEVELS` dans `constants.ts`).
 - La démolition rembourse 50 % de l'or investi (pose + améliorations), proportionnellement aux PV restants.
 - Les ennemis cherchent le chemin le moins coûteux vers la forteresse : ils **contournent** si c'est moins cher, sinon ils **cassent** le point le plus faible. Un labyrinthe bien pensé les fait marcher longtemps sous le feu des tourelles.
 - Les bords de la carte restent libres (couloirs d'apparition, signalés par des chevrons rouges avant chaque vague). De plus en plus de côtés s'ouvrent au fil des vagues.
@@ -71,9 +71,10 @@ Le personnage est dessiné dans `game/player.ts` : corps ombré, visière qui in
 
 Au départ, seul le mur en bois est utilisable et les tourelles s'arrêtent au niveau 2. À la fin de chaque partie on gagne des **points de compétence** à dépenser dans l'écran **Compétences** du menu (aussi accessible depuis l'écran de fin de partie) :
 
-- **Murs** : Mur en pierre → Mur en pierre renforcé (nouveau niveau 3, stats dans `BARRICADE_REINFORCED`).
-- **Tourelles niveau 4** : Double canons et Canon lourd, deux compétences indépendantes. Une carte non débloquée est grisée dans le pop-up de choix.
-- **Technologie** : **Overclocking**, la cadence de toutes tes tourelles (et futures armes de défense) augmente (`OVERCLOCK` dans `constants.ts`). Le bonus s'applique aux armes que **tu** construis ; un éclair orange les signale.
+- **Murs** : Mur en pierre → Mur en bronze → Mur en pierre renforcé (chacun demande le précédent).
+- **Pieux** : Pieux en pierre → Pieux en pierre renforcé.
+- **Tourelles niveau 4 à 7** : Double canons et Canon lourd, deux compétences indépendantes. Une carte non débloquée est grisée dans le pop-up de choix.
+- **Technologie** : **Overclocking**, compétence à **5 rangs** : la cadence de toutes tes tourelles (et futures armes de défense) est multipliée par 1,2 / 1,4 / 1,6 / 1,8 / 2 (`OVERCLOCK_LEVELS` dans `constants.ts`). Le bonus s'applique aux armes que **tu** construis ; un éclair orange les signale (un de plus aux rangs 3 et 5).
 - **Soldat** : 5 améliorations du joueur à 5 rangs chacune (vitesse, cadence de tir, portée, dégâts, vitesse des balles), de plus en plus chères. Valeurs dans `PERKS` (`game/progress.ts`) ; les statistiques de base restent dans `PLAYER`.
 
 Gain : `(Σ kills pondérés + 10 × vague) × (1 + vague / 10)`. Valeur d'un kill : Rôdeur et Coureur 1, Brute et Éclateur 3, Colosse 15, petits Rôdeurs issus d'une division 0,5. Exemple : vague 10 avec 250 kills mélangés ≈ 950 points.
@@ -92,7 +93,8 @@ src/
     ui.css                    interface hors partie (accueil, arbre, boutique) ; styles.css : base et HUD
     components/               Menu, Hud, Overlays, GameCanvas, UpgradePicker (pop-up de choix niveau 3), SkillTree (compétences), Shop (boutique), AvatarCanvas (aperçu du personnage), icons (pictogrammes SVG)
     game/                     le jeu lui-même, sans dépendance à React
-      constants.ts            équilibrage : bâtiments, ennemis, vitesses, coûts
+      constants.ts            équilibrage : bâtiments, murs, pieux, ennemis, vitesses, coûts
+      turrets.ts              configuration complète des tourelles (7 niveaux, 2 branches)
       update.ts               simulation (joueurs, vagues, ennemis, tourelles, tirs)
       progress.ts             compétences, formule de points de fin de partie
       stats.ts                niveaux des bâtiments : PV, stats de tourelle, prix, prochaine amélioration

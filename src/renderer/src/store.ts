@@ -3,7 +3,9 @@ import { DEFAULT_COLORS, SKIN_BY_ID, isHexColor, type Look, type SkinId } from '
 import { BASE } from './game/constants'
 import {
   PERKS,
+  PERK_INDEX,
   UNLOCK_BY_ID,
+  closeUnlocks,
   emptyProgress,
   isUnlockId,
   loadoutOf,
@@ -50,8 +52,13 @@ function loadProgress(): SavedProgress {
     const raw = JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? 'null') as { points?: unknown; unlocked?: unknown; perks?: unknown; skins?: unknown; looks?: unknown } | null
     if (!raw) return emptyProgress()
     const points = typeof raw.points === 'number' && Number.isFinite(raw.points) ? Math.max(0, Math.floor(raw.points)) : 0
-    const unlocked = Array.isArray(raw.unlocked) ? [...new Set(raw.unlocked.filter(isUnlockId))] : []
-    return { points, unlocked, perks: sanitizePerks(raw.perks), skins: sanitizeSkins(raw.skins), looks: sanitizeLooks(raw.looks) }
+    const saved = Array.isArray(raw.unlocked) ? raw.unlocked : []
+    // Une compétence peut en exiger une autre ajoutée depuis (ex. le mur en bronze avant le mur renforcé) : on la rend.
+    const unlocked = closeUnlocks([...new Set(saved.filter(isUnlockId))])
+    const perks = sanitizePerks(raw.perks)
+    // Avant la 1.3, l'Overclocking était une compétence à débloquer : elle devient le rang 1 de la compétence à rangs.
+    if (saved.includes('overclock') && perks[PERK_INDEX.overclock] === 0) perks[PERK_INDEX.overclock] = 1
+    return { points, unlocked, perks, skins: sanitizeSkins(raw.skins), looks: sanitizeLooks(raw.looks) }
   } catch {
     return emptyProgress()
   }

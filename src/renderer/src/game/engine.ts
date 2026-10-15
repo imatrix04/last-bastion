@@ -1,6 +1,7 @@
 import { session, type SessionEvent } from '../net'
 import { applyTurretBranch } from './build'
-import { BASE, HEIGHT, STEP, WIDTH, type Branch } from './constants'
+import { BASE, HEIGHT, STEP, WIDTH } from './constants'
+import type { Branch } from './turrets'
 import { ClientView } from './clientView'
 import { Input } from './input'
 import {

@@ -1,51 +1,62 @@
 import { useState } from 'react'
-import {
-  BARRICADE_REINFORCED,
-  BARRICADE_STONE,
-  BUILDS,
-  OVERCLOCK,
-  PLAYER,
-  TURRET_BRANCHES,
-  TURRET_LEVELS,
-  TURRET_PLAIN_MAX
-} from '../game/constants'
+import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS } from '../game/constants'
 import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/progress'
+import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN, TURRET_PLAIN_MAX } from '../game/turrets'
 import { useStore } from '../store'
 import { IconBack, PERK_ICONS, UNLOCK_ICONS } from './icons'
 
-const LAST = TURRET_LEVELS[TURRET_PLAIN_MAX - 1]
+const LAST = TURRET_PLAIN[TURRET_PLAIN_MAX - 1].stats
 
 type Row = [label: string, value: string]
 
-/** Ce que chaque compétence change, chiffré à partir de constants.ts (donc toujours à jour quand on rééquilibre). */
-const EFFECTS: Record<UnlockId, Row[]> = {
-  stone: [
-    ['Points de vie', `${BUILDS.barricade.hp} → ${BARRICADE_STONE.hp}`],
-    ['Amélioration en jeu', `${BARRICADE_STONE.cost} or`]
-  ],
-  reinforced: [
-    ['Points de vie', `${BARRICADE_STONE.hp} → ${BARRICADE_REINFORCED.hp}`],
-    ['Amélioration en jeu', `${BARRICADE_REINFORCED.cost} or`]
-  ],
-  double: [
-    ['Cadence', `${LAST.fireRate} → ${TURRET_BRANCHES[1].stats.fireRate} tirs/s`],
-    ['Amélioration en jeu', `${TURRET_BRANCHES[1].cost} or`]
-  ],
-  heavy: [
-    ['Dégâts par tir', `${LAST.damage} → ${TURRET_BRANCHES[2].stats.damage}`],
-    ['Portée', `${LAST.range} → ${TURRET_BRANCHES[2].stats.range} px`],
-    ['Amélioration en jeu', `${TURRET_BRANCHES[2].cost} or`]
-  ],
-  overclock: [
-    ['Cadence de tir', `× ${OVERCLOCK.fireRate} (+${Math.round((OVERCLOCK.fireRate - 1) * 100)} %)`],
-    ['S’applique à', 'tes tourelles et futures armes']
+const pct = (v: number): string => `${Math.round(v * 100)} %`
+const slowPct = (slow: number): string => pct(1 - slow)
+const wallRows = (from: number, to: number, cost: number): Row[] => [
+  ['Points de vie', `${from} → ${to}`],
+  ['Amélioration en jeu', `${cost} or`]
+]
+const spikeRows = (i: number): Row[] => {
+  const a = SPIKE_LEVELS[i - 1]
+  const b = SPIKE_LEVELS[i]
+  return [
+    ['Dégâts par seconde', `${a.dps} → ${b.dps}`],
+    ['Ralentissement', `${slowPct(a.slow)} → ${slowPct(b.slow)}`],
+    ['Points de vie', `${a.hp} → ${b.hp}`],
+    ['Amélioration en jeu', `${b.cost} or`]
   ]
 }
+const branchRows = (id: 1 | 2): Row[] => {
+  const lv = TURRET_BRANCHES[id].levels
+  const first = lv[0].stats
+  const top = lv[lv.length - 1].stats
+  return id === 1
+    ? [
+        ['Cadence au niveau 4', `${LAST.fireRate} → ${first.fireRate} tirs/s`],
+        [`Cadence au niveau ${TURRET_MAX_LEVEL}`, `${top.fireRate} tirs/s`],
+        ['Prix des niveaux 4 à 7', lv.map((l) => l.cost).join(' / ') + ' or']
+      ]
+    : [
+        ['Dégâts au niveau 4', `${LAST.damage} → ${first.damage}`],
+        [`Dégâts au niveau ${TURRET_MAX_LEVEL}`, `${top.damage} · portée ${top.range} px`],
+        ['Prix des niveaux 4 à 7', lv.map((l) => l.cost).join(' / ') + ' or']
+      ]
+}
 
-const BRANCH_TITLES: Record<TreeBranch, string> = { barricade: 'Murs', turret: 'Tourelles · niveau 4', tech: 'Technologie' }
+/** Ce que chaque compétence change, chiffré à partir de la configuration (donc toujours à jour quand on rééquilibre). */
+const EFFECTS: Record<UnlockId, Row[]> = {
+  stone: wallRows(BUILDS.barricade.hp, BARRICADE_TIERS[0].hp, BARRICADE_TIERS[0].cost),
+  bronze: wallRows(BARRICADE_TIERS[0].hp, BARRICADE_TIERS[1].hp, BARRICADE_TIERS[1].cost),
+  reinforced: wallRows(BARRICADE_TIERS[1].hp, BARRICADE_TIERS[2].hp, BARRICADE_TIERS[2].cost),
+  spikeStone: spikeRows(1),
+  spikeReinforced: spikeRows(2),
+  double: branchRows(1),
+  heavy: branchRows(2)
+}
+
+const BRANCH_TITLES: Record<TreeBranch, string> = { barricade: 'Murs', spikes: 'Pieux', turret: 'Tourelles · niveau 4 à 7', tech: 'Technologie' }
 
 /** Statistiques de base du joueur et leur unité, pour afficher « actuel → prochain rang ». */
-const BASE_VALUES: Record<PerkId, { base: number; unit: string; digits: number }> = {
+const BASE_VALUES: Record<Exclude<PerkId, 'overclock'>, { base: number; unit: string; digits: number }> = {
   speed: { base: PLAYER.speed, unit: 'px/s', digits: 0 },
   fireRate: { base: PLAYER.fireRate, unit: 'tirs/s', digits: 1 },
   range: { base: PLAYER.range, unit: 'px', digits: 0 },
@@ -137,16 +148,28 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
   const maxed = rank >= max
   const cost = maxed ? 0 : def.costs[rank]
   const missing = cost - points
-  const v = BASE_VALUES[def.id]
-  const fmt = (n: number): string => n.toFixed(v.digits)
-  const at = (r: number): number => v.base * perkMult(PERKS.map((_, i) => (i === index ? r : 0)), def.id)
   const Icon = PERK_ICONS[def.id]
+  // Valeur affichée au rang r : statistique du joueur, ou multiplicateur de cadence pour l'Overclocking
+  let show: (r: number) => string
+  let gain: string
+  if (def.id === 'overclock') {
+    show = (r) => (r === 0 ? 'aucun' : `× ${OVERCLOCK_LEVELS[r - 1].toFixed(1)}`)
+    gain = `× ${OVERCLOCK_LEVELS[max - 1].toFixed(1)} (+${Math.round((OVERCLOCK_LEVELS[max - 1] - 1) * 100)} %)`
+  } else {
+    const v = BASE_VALUES[def.id]
+    const at = (r: number): number => v.base * perkMult(PERKS.map((_, i) => (i === index ? r : 0)), def.id)
+    show = (r) => `${at(r).toFixed(v.digits)} ${v.unit}`
+    gain = `${show(max)} (+${Math.round(def.perRank * max * 100)} %)`
+  }
+  const tech = def.group === 'tech'
   return (
     <>
       <header className="d-head">
         <Icon className="d-ico" />
         <div>
-          <p className="d-kind">Soldat · rang {rank} / {max}</p>
+          <p className="d-kind">
+            {tech ? 'Technologie' : 'Soldat'} · rang {rank} / {max}
+          </p>
           <h3>{def.name}</h3>
         </div>
       </header>
@@ -154,23 +177,17 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
       <dl className="d-stats">
         <div>
           <dt>Actuel</dt>
-          <dd>
-            {fmt(at(rank))} {v.unit}
-          </dd>
+          <dd>{show(rank)}</dd>
         </div>
         {!maxed && (
           <div>
             <dt>Rang suivant</dt>
-            <dd className="up">
-              {fmt(at(rank + 1))} {v.unit}
-            </dd>
+            <dd className="up">{show(rank + 1)}</dd>
           </div>
         )}
         <div>
           <dt>Rang maximum</dt>
-          <dd>
-            {fmt(at(max))} {v.unit} (+{Math.round(def.perRank * max * 100)} %)
-          </dd>
+          <dd>{gain}</dd>
         </div>
       </dl>
       <div className="d-buy">
@@ -178,7 +195,7 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
           <p className="d-status ok">Rang maximum</p>
         ) : (
           <button className={missing > 0 ? '' : 'primary'} disabled={missing > 0} onClick={() => buy(def.id)}>
-            Rang {rank + 1} · {cost} pts{missing > 0 ? ` (il manque ${missing})` : ''}
+            {tech && rank === 0 ? 'Débloquer' : `Rang ${rank + 1}`} · {cost} pts{missing > 0 ? ` (il manque ${missing})` : ''}
           </button>
         )}
       </div>
@@ -191,7 +208,7 @@ export function SkillTree(): React.JSX.Element {
   const close = useStore((s) => s.closeSkills)
   const devAdd = useStore((s) => s.devAddPoints)
   const [sel, setSel] = useState<Sel>({ kind: 'unlock', id: UNLOCKS[0].id })
-  const branches: TreeBranch[] = ['barricade', 'turret', 'tech']
+  const branches: TreeBranch[] = ['barricade', 'spikes', 'turret', 'tech']
 
   return (
     <div className="screen sk">
@@ -215,6 +232,14 @@ export function SkillTree(): React.JSX.Element {
               return (
                 <section key={b} className={`sk-col b-${b}`}>
                   <h3 className="sk-label">{BRANCH_TITLES[b]}</h3>
+                  {b === 'tech' &&
+                    PERKS.map((p, i) =>
+                      p.group === 'tech' ? (
+                        <div key={p.id} className="sk-tier">
+                          <PerkTile def={p} index={i} selected={sel.kind === 'perk' && sel.id === p.id} onSelect={() => setSel({ kind: 'perk', id: p.id })} />
+                        </div>
+                      ) : null
+                    )}
                   {tiers.map((t, i) => {
                     const nodes = defs.filter((u) => u.tier === t)
                     return (
@@ -233,9 +258,11 @@ export function SkillTree(): React.JSX.Element {
           <section className="sk-perks">
             <h3 className="sk-label">Soldat · améliorer le joueur</h3>
             <div className="perk-row">
-              {PERKS.map((p, i) => (
-                <PerkTile key={p.id} def={p} index={i} selected={sel.kind === 'perk' && sel.id === p.id} onSelect={() => setSel({ kind: 'perk', id: p.id })} />
-              ))}
+              {PERKS.map((p, i) =>
+                p.group === 'soldier' ? (
+                  <PerkTile key={p.id} def={p} index={i} selected={sel.kind === 'perk' && sel.id === p.id} onSelect={() => setSel({ kind: 'perk', id: p.id })} />
+                ) : null
+              )}
             </div>
           </section>
         </div>

@@ -1,6 +1,48 @@
 {
   "releases": [
     {
+      "version": "1.3.0",
+      "date": "2026-10-15",
+      "added": [
+        "Les tourelles montent jusqu'au niveau 7 : après le choix du niveau 4 (double canons ou canon lourd), on peut les améliorer trois fois de plus, avec des statistiques propres à chaque branche",
+        "Double canons : la cadence grimpe à chaque niveau (jusqu'à 6,8 tirs/s au niveau 7). Canon lourd : dégâts et portée augmentent (jusqu'à 130 dégâts et 290 px au niveau 7)",
+        "Les tourelles de branche gagnent en blindage et en lumière à chaque niveau (liseré, plaques d'angle, canons plus longs) ; les pastilles de niveau se resserrent pour tenir jusqu'à 7 et deviennent blanches au niveau maximum",
+        "Pieux évolutifs en 3 niveaux (R pour améliorer) : pieux en bois, pieux en pierre et pieux en pierre renforcé, avec plus de dégâts, un ralentissement plus fort et plus de points de vie, et chacun son aspect",
+        "Nouveau mur : le mur en bronze, entre le mur en pierre et le mur en pierre renforcé, avec ses plaques de métal rivetées",
+        "Overclocking évolutif : 5 rangs, de ×1,2 à ×2 sur la cadence de tir de tes tourelles, avec un éclair orange de plus aux rangs 3 et 5",
+        "Nouvelles compétences dans l'arbre : Mur en bronze, Pieux en pierre, Pieux en pierre renforcé, et l'Overclocking qui s'améliore par rangs (colonne Technologie)",
+        "Les cartes du choix de tourelle affichent aussi ce que la branche donne au niveau 7"
+      ],
+      "changed": [
+        "Les murs ont maintenant 4 niveaux : bois, pierre, bronze, pierre renforcé. Le mur en pierre renforcé demande désormais le mur en bronze (les joueurs qui avaient déjà le renforcé reçoivent le bronze automatiquement)",
+        "L'Overclocking n'est plus une compétence unique : ceux qui l'avaient débloqué gardent le rang 1",
+        "L'arbre de compétences passe à quatre colonnes (Murs, Pieux, Tourelles, Technologie) et se réorganise sur les petites fenêtres",
+        "Les pieux s'améliorent en pierre puis en pierre renforcé : plus de PV (de 220 à 520) et de dégâts (de 30 à 62 par seconde)",
+        "Protocole réseau en version 7 : l'hôte et l'invité doivent avoir la même version du jeu"
+      ],
+      "fixed": []
+    },
+    {
+      "version": "1.2.1",
+      "date": "2026-10-15",
+      "added": [
+        "Boutique dans le menu : des skins s'achètent avec les points de compétence et la couleur du personnage est libre et gratuite (palette, sélecteur complet ou code HEX), pour le Joueur 1 et le Joueur 2 au même clavier",
+        "Premier skin : les oreilles de chat, rose avec un dégradé bordeaux, qui frémissent (420 points)",
+        "Personnage retravaillé : corps ombré, visière qui montre la visée, arme à ta couleur, halo, anneau qui tourne et traînée de lumière quand il court",
+        "Affichage de la latence en jeu en ligne, chez l'hôte comme chez l'invité",
+        "En ligne, chaque joueur voit la couleur et le skin de l'autre"
+      ],
+      "changed": [
+        "Nouvelle interface du menu : accueil en liste numérotée avec ton personnage en vedette, fenêtre des commandes, arbre de compétences avec pictogrammes et panneau de détail, le tout adapté à la taille de la fenêtre",
+        "En ligne, l'état du jeu est envoyé 30 fois par seconde et affiché avec un léger retard pour interpoler entre deux états, ce qui lisse les mouvements ; le joueur invité décide de la position de son personnage, vérifiée par l'hôte",
+        "La fenêtre de l'hôte n'est plus ralentie quand elle est masquée ou en arrière-plan"
+      ],
+      "fixed": [
+        "Petits lags et retours en arrière du personnage chez le joueur qui se connecte à une partie en ligne",
+        "Envoi irrégulier des états du jeu par l'hôte (intervalles tantôt de 50 ms, tantôt de 66 ms)"
+      ]
+    },
+    {
       "version": "1.2.0",
       "date": "2026-10-15",
       "added": [

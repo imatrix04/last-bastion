@@ -1,11 +1,12 @@
-import { BUILD_ORDER, type Branch, type BuildKind, type EnemyKind } from './constants'
+import { BUILD_ORDER, type BuildKind, type EnemyKind } from './constants'
+import type { Branch } from './turrets'
 import { CONTROLS, SKIP_WAVE } from './controls'
 import { isHexColor, skinIndex } from './appearance'
 import { KILL_KINDS } from './progress'
 import type { FxEvent, GameState } from './types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 6
+export const PROTO_VERSION = 7
 export const NET_PORT = 7777
 /** Fréquence d'envoi de l'état du jeu par l'hôte : un état tous les 2 pas de simulation (60 Hz). */
 export const SNAPSHOT_HZ = 30
@@ -88,7 +89,7 @@ export interface Snap {
   enemies: number[][]
   /** [x, y, vx, vy, style] (style : index dans BULLET_STYLES) */
   bullets: number[][]
-  /** [type, col, row, pv, niveau, branche, overclocking 0/1, toile restante en dixièmes de seconde] */
+  /** [type, col, row, pv, niveau, branche, rang d'overclocking 0 à 5, toile restante en dixièmes de seconde] */
   buildings: number[][]
   fx: FxEvent[]
 }
@@ -97,7 +98,7 @@ const r1 = (v: number): number => Math.round(v * 10) / 10
 
 export function encodeSnap(state: GameState): Snap {
   const buildings: number[][] = []
-  for (const b of state.grid) if (b) buildings.push([BUILD_ORDER.indexOf(b.kind), b.col, b.row, Math.ceil(b.hp), b.level, b.branch, b.boost ? 1 : 0, Math.round(b.web * 10)])
+  for (const b of state.grid) if (b) buildings.push([BUILD_ORDER.indexOf(b.kind), b.col, b.row, Math.ceil(b.hp), b.level, b.branch, b.boost, Math.round(b.web * 10)])
 
   return {
     t: 'snap',

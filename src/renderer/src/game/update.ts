@@ -11,7 +11,6 @@ import {
   PLAYER,
   PREP_TIME,
   ROWS,
-  SPIKES,
   TILE,
   WEB,
   WIDTH
@@ -21,7 +20,7 @@ import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot }
 import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
 import { computeFlow, nextCell } from './pathing'
 import { killIndex } from './progress'
-import { fireRateMult, isWeapon, playerStats, turretStats } from './stats'
+import { fireRateMult, isWeapon, playerStats, spikeStats, tierOf, turretStats } from './stats'
 import type { Building, Enemy, GameState, Player } from './types'
 import { composeWave, createEnemy, pickGates, spawnEnemy, spawnInterval, waveScale } from './waves'
 
@@ -95,8 +94,7 @@ function damageEnemy(e: Enemy, amount: number): void {
 
 /** Couleur des éclats d'un bâtiment : bois, pierre ou métal. */
 function debrisColor(b: Building): string {
-  if (b.kind === 'barricade') return b.level >= 2 ? '#a9afbd' : '#9c6a35'
-  return b.kind === 'turret' ? '#78909c' : '#b0bec5'
+  return tierOf(b.kind, b.level)?.debris ?? '#78909c'
 }
 
 function damageBuilding(state: GameState, b: Building, amount: number): void {
@@ -429,7 +427,7 @@ function updateEnemies(state: GameState, dt: number): void {
 
     let speed = def.speed
     const here = state.grid[idx(col, row)]
-    if (here && here.kind === 'spikes') speed *= SPIKES.slow
+    if (here && here.kind === 'spikes') speed *= spikeStats(here.level).slow
     const tx = (next.col + 0.5) * TILE
     const ty = (next.row + 0.5) * TILE
     const dx = tx - e.x
@@ -578,9 +576,10 @@ function updateSpikes(state: GameState, dt: number): void {
     const row = clamp(Math.floor(e.y / TILE), 0, ROWS - 1)
     const b = state.grid[idx(col, row)]
     if (!b || b.kind !== 'spikes') continue
-    e.hp -= SPIKES.dps * dt
+    const spikes = spikeStats(b.level)
+    e.hp -= spikes.dps * dt
     e.flash = Math.max(e.flash, 0.05)
-    damageBuilding(state, b, SPIKES.wearPerSec * dt)
+    damageBuilding(state, b, spikes.wearPerSec * dt)
   }
 }
 

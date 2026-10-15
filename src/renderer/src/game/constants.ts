@@ -1,3 +1,5 @@
+import { TURRET_BREAK_COST, TURRET_PLACE_COST, TURRET_PLAIN } from './turrets'
+
 // Monde : grille de 32 x 18 cases de 40 px => 1280 x 720
 export const TILE = 40
 export const COLS = 32
@@ -40,68 +42,58 @@ export interface BuildDef {
   breakCost: number
 }
 
+/** Niveaux des pieux : bois, pierre, pierre renforcé. Le niveau 1 se paie à la pose. */
+export interface SpikeLevel {
+  name: string
+  cost: number
+  hp: number
+  /** Dégâts par seconde aux ennemis qui marchent dessus. */
+  dps: number
+  /** Usure du piège par seconde et par ennemi dessus. */
+  wearPerSec: number
+  /** Multiplicateur de vitesse des ennemis dessus (0,65 = 35 % plus lents). */
+  slow: number
+  unlock?: TierUnlock
+  debris: string
+}
+export const SPIKE_LEVELS: readonly SpikeLevel[] = [
+  { name: 'Pieux en bois', cost: 45, hp: 220, dps: 30, wearPerSec: 14, slow: 0.65, debris: '#b08a55' },
+  { name: 'Pieux en pierre', cost: 60, hp: 380, dps: 44, wearPerSec: 12, slow: 0.55, unlock: 'spikeStone', debris: '#a9afbd' },
+  { name: 'Pieux en pierre renforcé', cost: 90, hp: 550, dps: 62, wearPerSec: 9, slow: 0.45, unlock: 'spikeReinforced', debris: '#cfd8dc' }
+]
+
 export const BUILDS: Record<BuildKind, BuildDef> = {
   barricade: { kind: 'barricade', name: 'Mur en bois', cost: 15, hp: 110, solid: true, breakCost: 5 },
-  turret: { kind: 'turret', name: 'Tourelle', cost: 120, hp: 180, solid: true, breakCost: 12 },
-  spikes: { kind: 'spikes', name: 'Pieux', cost: 45, hp: 220, solid: false, breakCost: 0 }
+  turret: { kind: 'turret', name: 'Tourelle', cost: TURRET_PLACE_COST, hp: TURRET_PLAIN[0].stats.hp, solid: true, breakCost: TURRET_BREAK_COST },
+  spikes: { kind: 'spikes', name: 'Pieux', cost: SPIKE_LEVELS[0].cost, hp: SPIKE_LEVELS[0].hp, solid: false, breakCost: 0 }
 }
 export const BUILD_ORDER: BuildKind[] = ['barricade', 'turret', 'spikes']
 
-/** Spécialisation d'une tourelle (niveau 4) : 0 = aucune, 1 = double canon, 2 = canon lourd. */
-export type Branch = 0 | 1 | 2
+/** Compétences (progress.ts) qui débloquent un niveau de mur ou de pieux. */
+export type TierUnlock = 'stone' | 'bronze' | 'reinforced' | 'spikeStone' | 'spikeReinforced'
 
-/** La barricade se renforce en mur de pierre (niveau 2), compétence « Mur en pierre ». */
-export const BARRICADE_STONE = { name: 'Mur en pierre', cost: 45, hp: 320, breakCost: 14 }
-/** Puis en mur de pierre renforcé (niveau 3), compétence « Mur de pierre renforcé ». Valeurs de départ, à ajuster. */
-export const BARRICADE_REINFORCED = { name: 'Mur en pierre renforcé', cost: 75, hp: 580, breakCost: 26 }
-
-export interface TurretStats {
-  damage: number
-  /** Tirs par seconde. */
-  fireRate: number
-  range: number
-  hp: number
-  bulletSpeed: number
-}
-
-/** Niveaux 1 à 3 (indice = niveau - 1). Le niveau 4 dépend de la branche choisie (voir TURRET_BRANCHES). */
-export const TURRET_LEVELS: TurretStats[] = [
-  { damage: 13, fireRate: 2.2, range: 220, hp: 180, bulletSpeed: 560 },
-  { damage: 19, fireRate: 2.2, range: 220, hp: 250, bulletSpeed: 560 },
-  { damage: 26, fireRate: 2.4, range: 220, hp: 350, bulletSpeed: 560 }
-]
-/** Prix pour passer la tourelle du niveau 1 au niveau 2, puis du niveau 2 au niveau 3. */
-export const TURRET_L2_COST = 150
-export const TURRET_L3_COST = 250
-/** Dernier niveau « simple » : à ce niveau l'amélioration suivante est le choix de branche (niveau suivant = spécialisation). */
-export const TURRET_PLAIN_MAX = TURRET_LEVELS.length
-
-export interface TurretBranchDef {
+/**
+ * Niveaux de mur à partir du niveau 2, dans l'ordre. Le niveau 1 est le mur en bois (BUILDS.barricade).
+ * Pour changer l'ordre ou en ajouter : modifier ce tableau, et la chaîne `requires` des compétences dans progress.ts.
+ */
+export interface WallTier {
   name: string
-  blurb: string
-  /** Prix pour passer du dernier niveau simple à la spécialisation. */
+  /** Prix pour passer au niveau précédent → celui-ci. */
   cost: number
-  stats: TurretStats
+  hp: number
+  breakCost: number
+  unlock: TierUnlock
+  /** Couleur des éclats quand il est touché. */
+  debris: string
 }
+export const BARRICADE_TIERS: readonly WallTier[] = [
+  { name: 'Mur en pierre', cost: 45, hp: 320, breakCost: 14, unlock: 'stone', debris: '#a9afbd' },
+  { name: 'Mur en bronze', cost: 60, hp: 600, breakCost: 19, unlock: 'bronze', debris: '#c47a3a' },
+  { name: 'Mur en pierre renforcé', cost: 80, hp: 910, breakCost: 26, unlock: 'reinforced', debris: '#cfd8dc' }
+]
 
-const LAST = TURRET_LEVELS[TURRET_PLAIN_MAX - 1]
-export const TURRET_BRANCHES: Record<1 | 2, TurretBranchDef> = {
-  1: {
-    name: 'Double canons',
-    blurb: 'Double canons : double cadence.',
-    cost: 370,
-    stats: { ...LAST, fireRate: LAST.fireRate * 2, hp: 410 }
-  },
-  2: {
-    name: 'Canon lourd',
-    blurb: 'Un obus massif : dégâts triplés, portée accrue.',
-    cost: 420,
-    stats: { ...LAST, damage: LAST.damage * 3, range: 250, hp: 460, bulletSpeed: 640 }
-  }
-}
-
-/** Compétence « Overclocking » : multiplie la cadence de tir de toutes les armes de défense construites par le joueur qui l'a. */
-export const OVERCLOCK = { fireRate: 1.3 }
+/** Overclocking : multiplicateur de cadence de tir selon le rang de la compétence (1 à 5), de ×1,2 à ×2. */
+export const OVERCLOCK_LEVELS: readonly number[] = [1.2, 1.4, 1.6, 1.8, 2]
 
 /** Toile de l'araignée : posée sur une arme de défense, elle réduit sa cadence de tir. */
 export const WEB = {
@@ -118,8 +110,6 @@ export const WEB = {
   /** Multiplicateur de cadence sous la toile. */
   slow: 0.4
 }
-
-export const SPIKES = { dps: 30, wearPerSec: 14, slow: 0.65 }
 
 /** Apparence des projectiles : 0 joueur, 1 tourelle, 2 obus lourd. */
 export const BULLET_STYLES: ReadonlyArray<{ color: string; radius: number }> = [
