@@ -1,3 +1,4 @@
+import type { Look } from './appearance'
 import type { Branch, BuildKind, EnemyKind } from './constants'
 
 export interface Vec {
@@ -19,6 +20,10 @@ export interface Player {
   unlocks: number
   /** Rangs des améliorations du joueur (ordre de PERKS dans progress.ts). */
   perks: number[]
+  /** Apparence : couleur libre et skin. */
+  look: Look
+  /** Hôte en ligne : ce joueur est piloté à distance (sa position vient du réseau). */
+  remote?: boolean
   shootCd: number
   buildCd: number
 }
@@ -182,6 +187,10 @@ export interface HudState {
   kills: number
   /** Objet de construction sélectionné par joueur. */
   selected: number[]
+  /** Latence réseau en ms (en ligne), 0 si inconnue. */
+  ping: number
+  /** Couleur de chaque joueur (pour l'interface). */
+  colors: string[]
 }
 
 export interface RunResult {

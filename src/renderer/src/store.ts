@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { DEFAULT_COLORS, SKIN_BY_ID, isHexColor, type Look, type SkinId } from './game/appearance'
 import { BASE } from './game/constants'
 import {
   PERKS,
@@ -6,7 +7,9 @@ import {
   emptyProgress,
   isUnlockId,
   loadoutOf,
+  sanitizeLooks,
   sanitizePerks,
+  sanitizeSkins,
   type PerkId,
   type SavedProgress,
   type UnlockId
@@ -14,7 +17,7 @@ import {
 import type { ChoiceRequest, HudState, RunResult } from './game/types'
 import { session } from './net'
 
-export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover' | 'skills'
+export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover' | 'skills' | 'shop'
 /** local : une machine · host : héberge la partie en ligne · client : a rejoint la partie d'un hôte */
 export type Mode = 'local' | 'host' | 'client'
 
@@ -44,11 +47,11 @@ function saveBest(wave: number): void {
 
 function loadProgress(): SavedProgress {
   try {
-    const raw = JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? 'null') as { points?: unknown; unlocked?: unknown; perks?: unknown } | null
+    const raw = JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? 'null') as { points?: unknown; unlocked?: unknown; perks?: unknown; skins?: unknown; looks?: unknown } | null
     if (!raw) return emptyProgress()
     const points = typeof raw.points === 'number' && Number.isFinite(raw.points) ? Math.max(0, Math.floor(raw.points)) : 0
     const unlocked = Array.isArray(raw.unlocked) ? [...new Set(raw.unlocked.filter(isUnlockId))] : []
-    return { points, unlocked, perks: sanitizePerks(raw.perks) }
+    return { points, unlocked, perks: sanitizePerks(raw.perks), skins: sanitizeSkins(raw.skins), looks: sanitizeLooks(raw.looks) }
   } catch {
     return emptyProgress()
   }
@@ -87,7 +90,9 @@ const initialHud: HudState = {
   baseMax: BASE.maxHp,
   enemies: 0,
   kills: 0,
-  selected: [0, 0]
+  selected: [0, 0],
+  ping: 0,
+  colors: [DEFAULT_COLORS[0], DEFAULT_COLORS[1]]
 }
 
 interface Store {
@@ -125,6 +130,12 @@ interface Store {
   buyUnlock: (id: UnlockId) => boolean
   /** Achète le rang suivant d'une amélioration du joueur. */
   buyPerk: (id: PerkId) => boolean
+  openShop: () => void
+  closeShop: () => void
+  /** Achète un skin avec des points de compétence. */
+  buySkin: (id: SkinId) => boolean
+  /** Change la couleur et/ou le skin d'un emplacement de joueur (0 = joueur 1, 1 = joueur 2 au même clavier). */
+  setLook: (slot: 0 | 1, change: Partial<Look>) => void
   /** Développement uniquement : ajoute des points pour tester. */
   devAddPoints: (n: number) => void
   openChoice: (request: ChoiceRequest) => void
@@ -259,6 +270,33 @@ export const useStore = create<Store>()((set, get) => ({
     saveProgress(next)
     set({ progress: next })
     return true
+  },
+  openShop: () => {
+    if (get().screen === 'menu') set({ screen: 'shop' })
+  },
+  closeShop: () => {
+    if (get().screen === 'shop') set({ screen: 'menu' })
+  },
+  buySkin: (id) => {
+    const { progress } = get()
+    const def = SKIN_BY_ID[id]
+    if (!def || progress.skins.includes(id) || progress.points < def.price) return false
+    const next = { ...progress, points: progress.points - def.price, skins: [...progress.skins, id] }
+    saveProgress(next)
+    set({ progress: next })
+    return true
+  },
+  setLook: (slot, change) => {
+    const { progress } = get()
+    const current = progress.looks[slot]
+    const color = change.color !== undefined && isHexColor(change.color) ? change.color.toLowerCase() : current.color
+    // Un skin ne s'équipe que s'il a été acheté.
+    const skin = change.skin !== undefined && progress.skins.includes(change.skin) ? change.skin : current.skin
+    const looks: [Look, Look] = [progress.looks[0], progress.looks[1]]
+    looks[slot] = { color, skin }
+    const next = { ...progress, looks }
+    saveProgress(next)
+    set({ progress: next })
   },
   devAddPoints: (n) => {
     const next = { ...get().progress, points: get().progress.points + n }

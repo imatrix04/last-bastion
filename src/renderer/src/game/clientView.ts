@@ -1,33 +1,65 @@
 import { buildTarget } from './build'
 import { BASE, ENEMIES, HEIGHT, TILE, TURRET_PLAIN_MAX, WIDTH, type Branch } from './constants'
 import { CONTROLS, type InputLike } from './controls'
+import { skinAt } from './appearance'
 import { addText, burst, decal, muzzle, ring, updateFx, webShot } from './fx'
 import { buildingAt, idx, inBounds } from './grid'
-import { buildKindAt, enemyKindAt, type Snap } from './netproto'
+import { INTERP_DELAY, buildKindAt, enemyKindAt, type Snap } from './netproto'
 import { KILL_KINDS } from './progress'
 import { maxHpOf, nextUpgrade, turretStats } from './stats'
-import type { ChoiceRequest, Enemy, GameState, HudState } from './types'
+import type { Bullet, ChoiceRequest, Enemy, GameState, HudState } from './types'
 import { advanceWebs, decayBuildingFx, movePlayer, nearestEnemy } from './update'
 
 /** Le joueur distant contrôle toujours le joueur 2 (rose). */
 export const LOCAL_ID = 1
 
-interface ViewEnemy extends Enemy {
-  /** Position reçue en dernier : l'ennemi affiché s'en rapproche en douceur. */
-  tx: number
-  ty: number
+/** Position envoyée à l'hôte : c'est le joueur distant qui décide où se trouve son personnage, l'hôte vérifie. */
+export interface Pose {
+  x: number
+  y: number
+  dirX: number
+  dirY: number
 }
 
+/** Un état reçu de l'hôte, daté avec le temps de simulation de l'hôte (régulier, contrairement à l'arrivée des paquets). */
+interface Stamped {
+  t: number
+  snap: Snap
+  enemies: Map<number, number[]>
+  fxDone: boolean
+}
+
+const MAX_SNAPS = 12
+/** Intervalle minimal entre deux envois de position (s). */
+const POSE_EVERY = 1 / 30
+/** Après ce temps immobile, on se recale doucement sur l'hôte s'il n'est pas d'accord avec notre position. */
+const SETTLE_AFTER = 0.6
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
+
 /**
- * Côté joueur distant : il ne simule rien. Il reçoit l'état de l'hôte (apply), l'affiche avec un peu de
- * lissage, et ne calcule que son propre déplacement (prédiction) pour que son personnage réponde sans attendre le réseau.
+ * Côté joueur distant : il ne simule rien. Il reçoit l'état de l'hôte (apply), l'affiche avec un léger retard
+ * (INTERP_DELAY) en interpolant entre deux états connus, ce qui efface les à-coups du réseau.
+ * Son propre personnage est prédit localement (même code que l'hôte) et sa position est envoyée à l'hôte.
  */
 export class ClientView {
   gameOver = false
-  private enemies = new Map<number, ViewEnemy>()
-  private partner = { x: 0, y: 0 }
+  /** Latence aller-retour mesurée (ms), 0 si inconnue. Renseignée par le moteur. */
+  rtt = 0
+  private enemies = new Map<number, Enemy>()
+  private snaps: Stamped[] = []
+  /** Écart entre l'horloge locale et le temps de simulation de l'hôte (s). */
+  private offset = 0
+  /** Gigue moyenne du réseau (s) : retard d'arrivée des paquets par rapport au plus rapide. */
+  private jitter = 0
+  /** Retard d'affichage courant (s) : suit la gigue, mais lentement pour ne pas déformer le temps. */
+  private delay = INTERP_DELAY
   private ready = false
   private moving = false
+  private stillFor = 0
+  private poseNeeded = false
+  private lastPose = 0
+  private hostPose = { x: 0, y: 0 }
   private queued = 0
 
   constructor(private state: GameState) {}
@@ -39,6 +71,15 @@ export class ClientView {
 
   apply(s: Snap): void {
     const st = this.state
+    const now = performance.now() / 1000
+
+    // Horloge : on retient l'écart le plus favorable (paquet le plus rapide) et on le laisse dériver lentement vers le haut.
+    const sample = now - s.ts
+    if (!this.ready) this.offset = sample
+    else this.offset = sample < this.offset ? sample : this.offset + (sample - this.offset) * 0.02
+    this.jitter += (Math.max(0, sample - this.offset) - this.jitter) * 0.05
+
+    // Ce qui n'a pas besoin d'être interpolé s'affiche tout de suite.
     st.gold = s.gold
     st.baseHp = s.baseHp
     st.wave = s.wave
@@ -51,84 +92,23 @@ export class ClientView {
     this.queued = s.queued
     if (s.over === 1) this.gameOver = true
 
-    // Joueurs
     for (let i = 0; i < s.players.length && i < st.players.length; i++) {
-      const [x, y, aim, selected, dirX, dirY] = s.players[i]
       const p = st.players[i]
-      p.selected = selected
-      p.aim = aim
+      p.selected = s.players[i][3]
+      const look = s.looks[i]
+      if (i !== LOCAL_ID && look && look[0]) p.look = { color: look[0], skin: skinAt(look[1]) }
       if (i === LOCAL_ID) {
-        // Mon personnage : je fais confiance à ma prédiction pendant que je bouge,
-        // et je me recale sur l'hôte à l'arrêt ou en cas de grosse divergence.
-        const err = Math.hypot(x - p.x, y - p.y)
-        if (!this.ready || err > 96) {
-          p.x = x
-          p.y = y
-        } else if (!this.moving && err > 0.5) {
-          p.x += (x - p.x) * 0.35
-          p.y += (y - p.y) * 0.35
-        }
-      } else {
+        this.hostPose.x = s.players[i][0]
+        this.hostPose.y = s.players[i][1]
+        p.aim = s.players[i][2]
         if (!this.ready) {
-          p.x = x
-          p.y = y
+          p.x = s.players[i][0]
+          p.y = s.players[i][1]
         }
-        this.partner.x = x
-        this.partner.y = y
-        p.dirX = dirX
-        p.dirY = dirY
       }
     }
 
-    // Ennemis
-    const seen = new Set<number>()
-    const list: ViewEnemy[] = []
-    for (const [id, kindIndex, x, y, hp, maxHp, flags] of s.enemies) {
-      const kind = enemyKindAt(kindIndex)
-      if (!kind) continue
-      seen.add(id)
-      let e = this.enemies.get(id)
-      if (!e) {
-        e = {
-          id,
-          kind,
-          x,
-          y,
-          radius: ENEMIES[kind].radius,
-          hp,
-          maxHp,
-          attackCd: 0,
-          flash: 0,
-          attacking: false,
-          face: Math.atan2(HEIGHT / 2 - y, WIDTH / 2 - x),
-          age: 0,
-          minion: false,
-          abilityCd: 0,
-          cast: 0,
-          webCol: 0,
-          webRow: 0,
-          lx: x,
-          ly: y,
-          checkT: 0,
-          stuck: false,
-          tx: x,
-          ty: y
-        }
-        this.enemies.set(id, e)
-      }
-      e.tx = x
-      e.ty = y
-      e.hp = hp
-      e.maxHp = maxHp
-      e.flash = (flags & 1) !== 0 ? 0.08 : 0
-      e.attacking = (flags & 2) !== 0
-      e.cast = (flags & 4) !== 0 ? 0.1 : 0
-      list.push(e)
-    }
-    for (const id of this.enemies.keys()) if (!seen.has(id)) this.enemies.delete(id)
-    st.enemies = list
-
-    // Bâtiments (on garde l'angle et les animations des tourelles, recalculés ici à chaque image)
+    // Bâtiments (on garde l'angle et les animations des tourelles, recalculés à chaque image)
     const previous = st.grid.slice()
     st.grid.fill(null)
     for (const [kindIndex, col, row, hp, rawLevel, rawBranch, rawBoost, rawWeb] of s.buildings) {
@@ -158,18 +138,16 @@ export class ClientView {
       }
     }
 
-    // Tirs : repartent de la position reçue et avancent à leur vitesse jusqu'au prochain état
-    st.bullets = s.bullets.map(([x, y, vx, vy, style]) => ({
-      x,
-      y,
-      vx,
-      vy,
-      life: 0.25,
-      damage: 0,
-      style: style >= 0 && style <= 2 ? Math.round(style) : 0
-    }))
+    // Ennemis, joueur partenaire, tirs et effets sont mis en file et rejoués à l'heure de l'hôte.
+    const byId = new Map<number, number[]>()
+    for (const row of s.enemies) byId.set(row[0], row)
+    this.snaps.push({ t: s.ts, snap: s, enemies: byId, fxDone: false })
+    if (this.snaps.length > MAX_SNAPS) this.snaps.shift()
+    this.ready = true
+  }
 
-    // Effets (particules, textes flottants) joués par l'hôte
+  private playFx(s: Snap): void {
+    const st = this.state
     for (const ev of s.fx) {
       switch (ev[0]) {
         case 'b':
@@ -193,8 +171,6 @@ export class ClientView {
           break
       }
     }
-
-    this.ready = true
   }
 
   /** Une tourelle vient de tirer (flash de bouche reçu) : recul, et canon qui a tiré pour le double canon. */
@@ -211,7 +187,7 @@ export class ClientView {
   }
 
   /**
-   * Si le joueur local vise une tourelle de niveau 2 qu'il peut s'offrir, l'interface doit proposer le choix de branche
+   * Si le joueur local vise une tourelle de niveau 3 qu'il peut s'offrir, l'interface doit proposer le choix de branche
    * (le pop-up est de son côté ; l'hôte ne reçoit que sa décision).
    */
   choiceRequest(): ChoiceRequest | null {
@@ -224,53 +200,159 @@ export class ClientView {
     return { player: LOCAL_ID, col, row }
   }
 
+  /** Position à envoyer à l'hôte (au plus 30 fois par seconde en mouvement, plus une dernière à l'arrêt), sinon null. */
+  poseDue(): Pose | null {
+    if (!this.ready) return null
+    const now = performance.now() / 1000
+    if (!this.moving && !this.poseNeeded) return null
+    if (this.moving && now - this.lastPose < POSE_EVERY) return null
+    this.lastPose = now
+    this.poseNeeded = this.moving
+    const p = this.state.players[LOCAL_ID]
+    return { x: p.x, y: p.y, dirX: p.dirX, dirY: p.dirY }
+  }
+
   /** Appelé à chaque image avec le temps écoulé. */
   update(dt: number, input: InputLike): void {
     const st = this.state
     st.time += dt
     if (!this.ready) return
 
-    // Prédiction : mon déplacement est calculé tout de suite, avec exactement le même code que l'hôte.
+    const now = performance.now() / 1000
+    // Plus le réseau est irrégulier, plus on affiche en retard (de 0,1 s à 0,25 s), avec une variation lente (3 % de vitesse au plus).
+    const wanted = Math.min(0.25, Math.max(INTERP_DELAY, 0.07 + 2.5 * this.jitter))
+    this.delay += Math.max(-dt * 0.03, Math.min(dt * 0.03, wanted - this.delay))
+    const rt = now - this.offset - this.delay
+
+    // --- Mon personnage : prédiction locale (même code que l'hôte), l'hôte suit ma position.
+    const me = st.players[LOCAL_ID]
     const c = CONTROLS[0]
     const ix = (input.isDown(c.right) ? 1 : 0) - (input.isDown(c.left) ? 1 : 0)
     const iy = (input.isDown(c.down) ? 1 : 0) - (input.isDown(c.up) ? 1 : 0)
+    const wasMoving = this.moving
     this.moving = ix !== 0 || iy !== 0
-    if (this.moving) movePlayer(st, st.players[LOCAL_ID], ix, iy, dt)
+    if (this.moving) {
+      movePlayer(st, me, ix, iy, dt)
+      this.stillFor = 0
+    } else {
+      this.stillFor += dt
+      if (wasMoving) this.poseNeeded = true
+    }
+    // L'hôte peut refuser une position (mur apparu, par exemple) : à l'arrêt on se recale doucement, en cas de gros écart tout de suite.
+    const err = Math.hypot(this.hostPose.x - me.x, this.hostPose.y - me.y)
+    if (err > 200) {
+      me.x = this.hostPose.x
+      me.y = this.hostPose.y
+    } else if (!this.moving && this.stillFor > SETTLE_AFTER && err > 8) {
+      const k = 1 - Math.exp(-dt * 8)
+      me.x += (this.hostPose.x - me.x) * k
+      me.y += (this.hostPose.y - me.y) * k
+    }
 
-    // Lissage entre deux états reçus
-    const k = 1 - Math.exp(-dt * 18)
-    const kTurn = 1 - Math.exp(-dt * 12)
-    for (const e of this.enemies.values()) {
-      const dx = e.tx - e.x
-      const dy = e.ty - e.y
-      e.age += dt
-      if (Math.hypot(dx, dy) > 0.6) {
-        const d = Math.atan2(Math.sin(Math.atan2(dy, dx) - e.face), Math.cos(Math.atan2(dy, dx) - e.face))
-        e.face += d * kTurn
+    // --- Quel couple d'états encadre l'heure à afficher ?
+    const snaps = this.snaps
+    let ia = 0
+    while (ia + 1 < snaps.length && snaps[ia + 1].t <= rt) ia++
+    const a = snaps[ia]
+    const b = snaps[ia + 1] ?? a
+    const alpha = b === a ? 0 : Math.min(1, Math.max(0, (rt - a.t) / (b.t - a.t)))
+    if (ia > 1) snaps.splice(0, ia - 1)
+
+    // Effets de chaque état, joués quand leur heure est venue
+    for (const s of snaps) {
+      if (s.t > rt) break
+      if (!s.fxDone) {
+        s.fxDone = true
+        this.playFx(s.snap)
       }
-      e.x += dx * k
-      e.y += dy * k
     }
+
+    // --- Ennemis : position interpolée entre a et b ; un ennemi absent de b (mort) reste affiché jusqu'à b.
+    const kTurn = 1 - Math.exp(-dt * 12)
+    const list: Enemy[] = []
+    const seen = new Set<number>()
+    for (const [id, ra] of a.enemies) {
+      const kind = enemyKindAt(ra[1])
+      if (!kind) continue
+      const rb = b.enemies.get(id)
+      const x = rb ? lerp(ra[2], rb[2], alpha) : ra[2]
+      const y = rb ? lerp(ra[3], rb[3], alpha) : ra[3]
+      let e = this.enemies.get(id)
+      if (!e) {
+        e = {
+          id,
+          kind,
+          x,
+          y,
+          radius: ENEMIES[kind].radius,
+          hp: ra[4],
+          maxHp: ra[5],
+          attackCd: 0,
+          flash: 0,
+          attacking: false,
+          face: Math.atan2(HEIGHT / 2 - y, WIDTH / 2 - x),
+          age: 0,
+          minion: false,
+          abilityCd: 0,
+          cast: 0,
+          webCol: 0,
+          webRow: 0,
+          lx: x,
+          ly: y,
+          checkT: 0,
+          stuck: false
+        }
+        this.enemies.set(id, e)
+      }
+      const dx = x - e.x
+      const dy = y - e.y
+      if (Math.hypot(dx, dy) > 0.2) {
+        const target = Math.atan2(dy, dx)
+        e.face += Math.atan2(Math.sin(target - e.face), Math.cos(target - e.face)) * kTurn
+      }
+      e.x = x
+      e.y = y
+      e.age += dt
+      e.hp = ra[4]
+      e.maxHp = ra[5]
+      e.flash = (ra[6] & 1) !== 0 ? 0.08 : 0
+      e.attacking = (ra[6] & 2) !== 0
+      e.cast = (ra[6] & 4) !== 0 ? 0.1 : 0
+      list.push(e)
+      seen.add(id)
+    }
+    for (const id of this.enemies.keys()) if (!seen.has(id)) this.enemies.delete(id)
+    st.enemies = list
+
+    // --- Joueur partenaire (l'hôte), interpolé de la même façon
     const partner = st.players[1 - LOCAL_ID]
-    partner.x += (this.partner.x - partner.x) * k
-    partner.y += (this.partner.y - partner.y) * k
-
-    for (const b of st.bullets) {
-      b.x += b.vx * dt
-      b.y += b.vy * dt
-      b.life -= dt
+    const pa = a.snap.players[1 - LOCAL_ID]
+    const pb = b.snap.players[1 - LOCAL_ID]
+    if (pa) {
+      partner.x = pb ? lerp(pa[0], pb[0], alpha) : pa[0]
+      partner.y = pb ? lerp(pa[1], pb[1], alpha) : pa[1]
+      partner.aim = pa[2]
+      partner.dirX = pa[4]
+      partner.dirY = pa[5]
     }
-    st.bullets = st.bullets.filter((b) => b.life > 0)
 
-    // Les tourelles visent localement (même règle que l'hôte : l'ennemi le plus proche à portée)
-    for (const b of st.grid) {
-      if (!b) continue
-      decayBuildingFx(b, dt)
-      if (b.kind !== 'turret') continue
-      const cx = (b.col + 0.5) * TILE
-      const cy = (b.row + 0.5) * TILE
-      const target = nearestEnemy(st, cx, cy, turretStats(b.level, b.branch).range)
-      if (target) b.angle = Math.atan2(target.y - cy, target.x - cx)
+    // --- Tirs : position exacte à l'heure affichée (position reçue + vitesse × temps écoulé depuis cet état)
+    const elapsed = Math.min(0.25, Math.max(0, rt - a.t))
+    const bullets: Bullet[] = []
+    for (const [x, y, vx, vy, style] of a.snap.bullets) {
+      bullets.push({ x: x + vx * elapsed, y: y + vy * elapsed, vx, vy, life: 1, damage: 0, style: style >= 0 && style <= 2 ? Math.round(style) : 0 })
+    }
+    st.bullets = bullets
+
+    // --- Les tourelles visent localement (même règle que l'hôte : l'ennemi le plus proche à portée)
+    for (const bd of st.grid) {
+      if (!bd) continue
+      decayBuildingFx(bd, dt)
+      if (bd.kind !== 'turret') continue
+      const cx = (bd.col + 0.5) * TILE
+      const cy = (bd.row + 0.5) * TILE
+      const target = nearestEnemy(st, cx, cy, turretStats(bd.level, bd.branch).range)
+      if (target) bd.angle = Math.atan2(target.y - cy, target.x - cx)
     }
 
     advanceWebs(st, dt, false)
@@ -288,7 +370,10 @@ export class ClientView {
       baseMax: BASE.maxHp,
       enemies: this.enemies.size + this.queued,
       kills: st.kills,
-      selected: st.players.map((p) => p.selected)
+      selected: st.players.map((p) => p.selected),
+      ping: Math.round(this.rtt),
+      colors: st.players.map((p) => p.look.color)
     }
   }
 }
+

@@ -18,7 +18,7 @@ import {
 } from './constants'
 import { CONTROLS, SKIP_WAVE, type InputLike } from './controls'
 import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot } from './fx'
-import { distToRect, idx, isBaseCell, resolveTiles } from './grid'
+import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
 import { computeFlow, nextCell } from './pathing'
 import { killIndex } from './progress'
 import { fireRateMult, isWeapon, playerStats, turretStats } from './stats'
@@ -150,6 +150,25 @@ export function movePlayer(state: GameState, p: Player, ix: number, iy: number, 
   resolveTiles(state, p, PLAYER.radius)
 }
 
+/**
+ * Position annoncée par le joueur distant. On lui fait confiance tant que c'est plausible : pas de téléportation
+ * lointaine, pas dans un mur. Sinon on l'ignore, et son snapshot le recalera sur la position de l'hôte.
+ */
+export function acceptRemotePose(state: GameState, p: Player, x: number, y: number, dirX: number, dirY: number): boolean {
+  const px = clamp(x, PLAYER.radius, WIDTH - PLAYER.radius)
+  const py = clamp(y, PLAYER.radius, HEIGHT - PLAYER.radius)
+  if (Math.hypot(px - p.x, py - p.y) > 200) return false
+  if (isSolidCell(state, Math.floor(px / TILE), Math.floor(py / TILE))) return false
+  p.x = px
+  p.y = py
+  // Direction de construction : cardinale, jamais nulle
+  if ((dirX !== 0) !== (dirY !== 0)) {
+    p.dirX = dirX
+    p.dirY = dirY
+  }
+  return true
+}
+
 function updatePlayers(state: GameState, dt: number, input: InputLike): void {
   for (const p of state.players) {
     const c = CONTROLS[p.id]
@@ -157,7 +176,9 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
     // Déplacement
     const ix = (input.isDown(c.right) ? 1 : 0) - (input.isDown(c.left) ? 1 : 0)
     const iy = (input.isDown(c.down) ? 1 : 0) - (input.isDown(c.up) ? 1 : 0)
-    movePlayer(state, p, ix, iy, dt)
+    // Joueur distant (côté hôte) : sa position arrive du réseau, on l'empêche seulement de rester dans un mur apparu entre-temps.
+    if (p.remote) resolveTiles(state, p, PLAYER.radius)
+    else movePlayer(state, p, ix, iy, dt)
 
     // Choix de l'objet à construire
     c.slots.forEach((code, i) => {

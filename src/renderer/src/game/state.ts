@@ -5,15 +5,15 @@ import { KILL_KINDS, emptyLoadout, type Loadout } from './progress'
 import { pickGates } from './waves'
 
 function makePlayer(id: 0 | 1, x: number, y: number, loadout: Loadout): Player {
-  return { id, x, y, dirX: 0, dirY: 1, aim: Math.PI / 2, selected: 0, unlocks: loadout.unlocks, perks: loadout.perks.slice(), shootCd: 0, buildCd: 0 }
+  return { id, x, y, dirX: 0, dirY: 1, aim: Math.PI / 2, selected: 0, unlocks: loadout.unlocks, perks: loadout.perks.slice(), look: { ...loadout.look }, shootCd: 0, buildCd: 0 }
 }
 
 /** `loadouts` : compétences et améliorations de chaque joueur ; un joueur sans valeur n'a rien débloqué. */
 export function createState(playerCount: 1 | 2, loadouts: Loadout[] = []): GameState {
   const cx = (BASE.col + BASE.cols / 2) * TILE
   const below = (BASE.row + BASE.rows) * TILE + 56
-  const players = [makePlayer(0, cx - 30, below, loadouts[0] ?? emptyLoadout())]
-  if (playerCount === 2) players.push(makePlayer(1, cx + 30, below, loadouts[1] ?? loadouts[0] ?? emptyLoadout()))
+  const players = [makePlayer(0, cx - 30, below, loadouts[0] ?? emptyLoadout(0))]
+  if (playerCount === 2) players.push(makePlayer(1, cx + 30, below, loadouts[1] ?? emptyLoadout(1)))
 
   const state: GameState = {
     time: 0,

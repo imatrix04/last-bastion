@@ -1,4 +1,5 @@
 import { NET_PORT, PROTO_VERSION } from './game/netproto'
+import { skinAt, skinIndex, sanitizeLook } from './game/appearance'
 import { emptyLoadout, sanitizeMask, sanitizePerks, type Loadout } from './game/progress'
 
 /** Évènements de la session de jeu en ligne, tels que les voit le reste de l'application. */
@@ -20,7 +21,7 @@ class Session {
   /** Hôte : un joueur 2 compatible est connecté. */
   peerReady = false
   /** Hôte : compétences et améliorations du joueur distant (annoncées à la poignée de main). */
-  peerLoadout: Loadout = emptyLoadout()
+  peerLoadout: Loadout = emptyLoadout(1)
   private listeners = new Set<Listener>()
   private unbind: (() => void) | null = null
 
@@ -46,7 +47,7 @@ class Session {
   }
 
   /** `loadout` : compétences et améliorations du joueur qui rejoint, envoyées à l'hôte. */
-  async join(address: string, loadout: Loadout = emptyLoadout()): Promise<JoinResult> {
+  async join(address: string, loadout: Loadout = emptyLoadout(0)): Promise<JoinResult> {
     const net = window.api?.net
     if (!net) return { ok: false, error: "Le jeu en ligne nécessite l'application Electron." }
     this.reset()
@@ -54,7 +55,7 @@ class Session {
     const result = await net.join(address)
     if (result.ok) {
       this.role = 'client'
-      this.send({ t: 'hello', v: PROTO_VERSION, u: loadout.unlocks, k: loadout.perks })
+      this.send({ t: 'hello', v: PROTO_VERSION, u: loadout.unlocks, k: loadout.perks, l: [loadout.look.color, skinIndex(loadout.look.skin)] })
     }
     return result
   }
@@ -72,7 +73,7 @@ class Session {
   private reset(): void {
     this.role = null
     this.peerReady = false
-    this.peerLoadout = emptyLoadout()
+    this.peerLoadout = emptyLoadout(1)
   }
 
   private bind(): void {
@@ -106,7 +107,12 @@ class Session {
         setTimeout(() => void window.api?.net.kick(), 300)
         return
       }
-      this.peerLoadout = { unlocks: sanitizeMask(msg.u), perks: sanitizePerks(msg.k) }
+      const l = Array.isArray(msg.l) ? msg.l : []
+      this.peerLoadout = {
+        unlocks: sanitizeMask(msg.u),
+        perks: sanitizePerks(msg.k),
+        look: sanitizeLook({ color: l[0], skin: skinAt(l[1]) }, 1)
+      }
       if (!this.peerReady) {
         this.peerReady = true
         this.emit({ type: 'ready' })

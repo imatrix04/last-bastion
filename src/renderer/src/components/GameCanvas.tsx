@@ -16,7 +16,7 @@ export function GameCanvas(): React.JSX.Element {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const game = new Game(canvas, playerCount, mode, loadoutOf(useStore.getState().progress), {
+    const game = new Game(canvas, playerCount, mode, [loadoutOf(useStore.getState().progress, 0), loadoutOf(useStore.getState().progress, 1)], {
       onHud: (hud) => useStore.getState().setHud(hud),
       onGameOver: (result) => useStore.getState().endGame(result),
       onChoice: (request) => useStore.getState().openChoice(request)

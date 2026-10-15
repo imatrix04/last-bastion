@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
-import { PLAYER_COLORS, TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from '../game/constants'
+import { DEFAULT_COLORS } from '../game/appearance'
+import { TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from '../game/constants'
 import { gameBridge } from '../game/gameBridge'
 import { drawTurret } from '../game/sprites'
 import { unlockMask } from '../game/progress'
@@ -63,6 +64,7 @@ function StatRow({ label, from, to, unit }: { label: string; from: number; to: n
 /** Pop-up de choix de la spécialisation (niveau 4) d'une tourelle : deux cartes comparées à la tourelle actuelle, choix à la souris. */
 export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JSX.Element {
   const gold = useStore((s) => s.hud.gold)
+  const color = useStore((s) => s.hud.colors[request.player]) ?? DEFAULT_COLORS[request.player]
   const unlocked = useStore((s) => s.progress.unlocked)
   const mask = unlockMask(unlocked)
   const close = useStore((s) => s.closeChoice)
@@ -87,7 +89,7 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
 
   return (
     <div className="screen overlay" onClick={close}>
-      <div className="picker" onClick={(e) => e.stopPropagation()} style={{ '--pc': PLAYER_COLORS[request.player] } as CSSProperties}>
+      <div className="picker" onClick={(e) => e.stopPropagation()} style={{ '--pc': color } as CSSProperties}>
         <h2>
           <span className="who">J{request.player + 1}</span> Spécialiser la tourelle · niveau {TURRET_SPEC_LEVEL}
         </h2>

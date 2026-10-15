@@ -1,13 +1,18 @@
 import { BUILD_ORDER, type Branch, type BuildKind, type EnemyKind } from './constants'
 import { CONTROLS, SKIP_WAVE } from './controls'
+import { isHexColor, skinIndex } from './appearance'
 import { KILL_KINDS } from './progress'
 import type { FxEvent, GameState } from './types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 4
+export const PROTO_VERSION = 6
 export const NET_PORT = 7777
-/** Fréquence d'envoi de l'état du jeu par l'hôte. */
-export const SNAPSHOT_HZ = 20
+/** Fréquence d'envoi de l'état du jeu par l'hôte : un état tous les 2 pas de simulation (60 Hz). */
+export const SNAPSHOT_HZ = 30
+/** Nombre de pas de simulation entre deux états envoyés. */
+export const SNAPSHOT_STEPS = 2
+/** L'invité affiche le monde avec ce retard (s) pour pouvoir interpoler entre deux états reçus : 3 états à 30 Hz. */
+export const INTERP_DELAY = 0.1
 
 // ------------------------------------------------------------------- entrées
 
@@ -59,6 +64,8 @@ const MAX_FX = 200
 /** État du jeu tel que le reçoit le joueur distant (chiffres arrondis, tableaux plats). */
 export interface Snap {
   t: 'snap'
+  /** Temps de simulation de l'hôte (s) : régulier, c'est lui qui date l'état. */
+  ts: number
   gold: number
   baseHp: number
   wave: number
@@ -75,6 +82,8 @@ export interface Snap {
   kstats: number[]
   /** [x, y, angle de tir, objet sélectionné, dirX, dirY] */
   players: number[][]
+  /** Apparence de chaque joueur : [couleur « #rrggbb », index du skin] */
+  looks: Array<[string, number]>
   /** [id, type, x, y, pv, pvMax, drapeaux : 1 = flash de dégâts, 2 = attaque en cours, 4 = crache une toile] */
   enemies: number[][]
   /** [x, y, vx, vy, style] (style : index dans BULLET_STYLES) */
@@ -92,6 +101,7 @@ export function encodeSnap(state: GameState): Snap {
 
   return {
     t: 'snap',
+    ts: Math.round(state.time * 1000) / 1000,
     gold: Math.floor(state.gold),
     baseHp: Math.ceil(state.baseHp),
     wave: state.wave,
@@ -103,6 +113,7 @@ export function encodeSnap(state: GameState): Snap {
     over: state.gameOver ? 1 : 0,
     shake: r1(state.shake),
     gates: state.gates.map((g) => [Math.round(g.x), Math.round(g.y)]),
+    looks: state.players.map((p): [string, number] => [p.look.color, skinIndex(p.look.skin)]),
     players: state.players.map((p) => [r1(p.x), r1(p.y), Math.round(p.aim * 100) / 100, p.selected, p.dirX, p.dirY]),
     enemies: state.enemies.map((e) => [e.id, ENEMY_KINDS.indexOf(e.kind), r1(e.x), r1(e.y), Math.ceil(e.hp), e.maxHp, (e.flash > 0 ? 1 : 0) | (e.attacking ? 2 : 0) | (e.cast > 0 ? 4 : 0)]),
     bullets: state.bullets.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy), b.style]),
@@ -148,6 +159,16 @@ function decodeFx(v: unknown): FxEvent[] {
   return out
 }
 
+function decodeLooks(v: unknown): Array<[string, number]> {
+  if (!Array.isArray(v)) return []
+  const out: Array<[string, number]> = []
+  for (const l of v.slice(0, 2)) {
+    if (Array.isArray(l) && isHexColor(l[0]) && isNum(l[1])) out.push([l[0].toLowerCase(), Math.round(l[1])])
+    else out.push(['', 0])
+  }
+  return out
+}
+
 /** Valide un message reçu du réseau ; renvoie null s'il est inutilisable. */
 export function decodeSnap(raw: Record<string, unknown>): Snap | null {
   if (raw.t !== 'snap') return null
@@ -155,6 +176,7 @@ export function decodeSnap(raw: Record<string, unknown>): Snap | null {
   if (players.length < 2) return null
   return {
     t: 'snap',
+    ts: num(raw.ts),
     gold: num(raw.gold),
     baseHp: num(raw.baseHp),
     wave: num(raw.wave),
@@ -167,6 +189,7 @@ export function decodeSnap(raw: Record<string, unknown>): Snap | null {
     shake: clamp(num(raw.shake), 0, 1),
     gates: rows(raw.gates, 2, 8),
     players,
+    looks: decodeLooks(raw.looks),
     enemies: rows(raw.enemies, 7, MAX_ENEMIES),
     bullets: rows(raw.bullets, 5, MAX_BULLETS),
     buildings: rows(raw.buildings, 8, MAX_BUILDINGS),
@@ -182,4 +205,20 @@ export function decodePick(raw: Record<string, unknown>): { col: number; row: nu
   if (!isNum(c) || !isNum(r) || !Number.isInteger(c) || !Number.isInteger(r)) return null
   if (b !== 1 && b !== 2) return null
   return { col: c, row: r, branch: b }
+}
+
+// ----------------------------------------------------- position, mesure de latence
+
+/** Position du joueur distant, décidée chez lui (l'hôte vérifie avant d'accepter). */
+export function decodePose(raw: Record<string, unknown>): { x: number; y: number; dirX: number; dirY: number } | null {
+  const { x, y, dx, dy } = raw
+  if (!isNum(x) || !isNum(y)) return null
+  const dir = (v: unknown): number => (v === -1 || v === 1 ? v : 0)
+  return { x, y, dirX: dir(dx), dirY: dir(dy) }
+}
+
+/** Mesure de latence : l'invité envoie son horloge `c` et la latence qu'il a mesurée `r` (ms), l'hôte renvoie `c` tel quel. */
+export function decodePing(raw: Record<string, unknown>): { c: number; r: number } | null {
+  if (!isNum(raw.c)) return null
+  return { c: raw.c, r: clamp(num(raw.r), 0, 5000) }
 }

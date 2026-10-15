@@ -1,6 +1,8 @@
 // Simulation sans interface : vérifie que la logique de jeu tient la route.
 // Usage : npm run sim
 import { actUpgrade, applyTurretBranch, placeBuilding, upgradeBuilding } from '../src/renderer/src/game/build'
+import { acceptRemotePose } from '../src/renderer/src/game/update'
+import { defaultLook } from '../src/renderer/src/game/appearance'
 import { BASE, BUILDS, COLS, ROWS, STEP, TURRET_BRANCHES, type BuildKind } from '../src/renderer/src/game/constants'
 import { SKIP_WAVE, type InputLike } from '../src/renderer/src/game/controls'
 import { idx, isBaseCell } from '../src/renderer/src/game/grid'
@@ -12,7 +14,7 @@ import { step } from '../src/renderer/src/game/update'
 import { createEnemy } from '../src/renderer/src/game/waves'
 
 /** Compétences débloquées (et améliorations du joueur au rang demandé). */
-const loadout = (unlocks: number, rank = 0): Loadout => ({ unlocks, perks: PERKS.map(() => rank) })
+const loadout = (unlocks: number, rank = 0): Loadout => ({ unlocks, perks: PERKS.map(() => rank), look: defaultLook(0) })
 const FULL = loadout(ALL_UNLOCKS)
 
 const TURRET_SPOTS: Array<[number, number]> = [
@@ -241,6 +243,18 @@ function checkUnlocks(): boolean {
     if (sp.cast > 0) sawCast = true
   }
   ok = report('Araignée : toile sur la tourelle', sawCast && tw.web > 0 && fireRateMult(tw) < 1) && ok
+
+  // Joueur distant : sa position est acceptée si plausible, refusée si c'est une téléportation ou un mur
+  st = fresh(0)
+  const rp = st.players[1] ?? st.players[0]
+  const x0 = rp.x
+  const y0 = rp.y
+  const near = acceptRemotePose(st, rp, x0 + 6, y0, 1, 0)
+  const far = acceptRemotePose(st, rp, x0 + 600, y0, 1, 0)
+  placeBuilding(st, 'barricade', 8, 8)
+  const inWall = acceptRemotePose(st, rp, 8 * 40 + 20, 8 * 40 + 20, 1, 0)
+  ok = report('Position distante : plausible acceptée', near && Math.abs(rp.x - (x0 + 6)) < 0.01 && rp.dirX === 1) && ok
+  ok = report('Position distante : téléportation / mur refusés', !far && !inWall) && ok
 
   // Points : (kills pondérés + 10 × vague) × (1 + vague / 10)
   const score = scoreRun([100, 20, 5, 1, 4, 40, 3], 10)

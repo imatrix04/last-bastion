@@ -1,9 +1,10 @@
 import { buildTarget, placementStatus } from './build'
-import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, PLAYER, PLAYER_COLORS, ROWS, TILE, TURRET_LEVELS, WIDTH } from './constants'
+import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, TURRET_LEVELS, WIDTH } from './constants'
+import { drawPlayer } from './player'
 import { buildingAt } from './grid'
 import { drawBar, drawEnemy, drawEnemyTrail, drawGlow, drawTurret } from './sprites'
 import { levelName, nextUpgrade } from './stats'
-import type { Building, GameState, Player } from './types'
+import type { Building, GameState } from './types'
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'
 
@@ -93,7 +94,7 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
   drawGhosts(ctx, state)
   for (const e of state.enemies) drawEnemyTrail(ctx, e)
   for (const e of state.enemies) drawEnemy(ctx, e, state.time)
-  for (const p of state.players) drawPlayer(ctx, p)
+  for (const p of state.players) drawPlayer(ctx, p, state.time)
   drawGhostLabels(ctx, state)
   drawBullets(ctx, state)
   drawWebShots(ctx, state)
@@ -373,7 +374,7 @@ function drawGhosts(ctx: CanvasRenderingContext2D, state: GameState): void {
     ctx.setLineDash([6, 4])
     ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2)
     ctx.setLineDash([])
-    ctx.fillStyle = PLAYER_COLORS[p.id]
+    ctx.fillStyle = p.look.color
     ctx.fillRect(x + 1, y + 1, 9, 4)
 
     if (BUILD_ORDER[p.selected] === 'turret' && status === 'ok') {
@@ -415,41 +416,6 @@ function drawGhostLabels(ctx: CanvasRenderingContext2D, state: GameState): void 
     ctx.fillStyle = color
     ctx.fillText(text, lx, ly)
   }
-}
-
-function drawPlayer(ctx: CanvasRenderingContext2D, p: Player): void {
-  const color = PLAYER_COLORS[p.id]
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-  ctx.beginPath()
-  ctx.ellipse(p.x + 2, p.y + PLAYER.radius - 2, 11, 5, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.save()
-  ctx.translate(p.x, p.y)
-  ctx.rotate(p.aim)
-  ctx.fillStyle = '#37474f'
-  ctx.fillRect(6, -3.5, 17, 7)
-  ctx.fillStyle = '#90a4ae'
-  ctx.fillRect(19, -2.5, 4, 5)
-  ctx.restore()
-
-  ctx.fillStyle = color
-  ctx.strokeStyle = '#10202a'
-  ctx.lineWidth = 3
-  ctx.beginPath()
-  ctx.arc(p.x, p.y, PLAYER.radius, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)'
-  ctx.beginPath()
-  ctx.arc(p.x - 4, p.y - 4, 4, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.font = `bold 11px ${FONT}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#10202a'
-  ctx.fillText(`J${p.id + 1}`, p.x + 1, p.y + 2)
 }
 
 function drawDecals(ctx: CanvasRenderingContext2D, state: GameState): void {

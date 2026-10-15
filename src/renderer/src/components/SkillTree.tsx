@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useState } from 'react'
 import {
   BARRICADE_REINFORCED,
   BARRICADE_STONE,
@@ -11,94 +11,125 @@ import {
 } from '../game/constants'
 import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/progress'
 import { useStore } from '../store'
+import { IconBack, PERK_ICONS, UNLOCK_ICONS } from './icons'
 
 const LAST = TURRET_LEVELS[TURRET_PLAIN_MAX - 1]
 
-/** Ce que la compétence change, chiffré à partir de constants.ts (donc toujours à jour quand on rééquilibre). */
-const DETAILS: Record<UnlockId, { glyph: string; color: string; lines: string[] }> = {
-  stone: { glyph: '▦', color: '#a9afbd', lines: [`PV ${BUILDS.barricade.hp} → ${BARRICADE_STONE.hp}`, `Amélioration : ${BARRICADE_STONE.cost} or`] },
-  reinforced: {
-    glyph: '▣',
-    color: '#cfd8dc',
-    lines: [`PV ${BARRICADE_STONE.hp} → ${BARRICADE_REINFORCED.hp}`, `Amélioration : ${BARRICADE_REINFORCED.cost} or`]
-  },
-  double: {
-    glyph: '◉◉',
-    color: '#4dd0e1',
-    lines: [`Cadence ${LAST.fireRate} → ${TURRET_BRANCHES[1].stats.fireRate} tirs/s`, `Amélioration : ${TURRET_BRANCHES[1].cost} or`]
-  },
-  heavy: {
-    glyph: '◎',
-    color: '#ff9800',
-    lines: [`Dégâts ${LAST.damage} → ${TURRET_BRANCHES[2].stats.damage}`, `Amélioration : ${TURRET_BRANCHES[2].cost} or`]
-  },
-  overclock: {
-    glyph: '⚡',
-    color: '#ffca28',
-    lines: [`Cadence × ${OVERCLOCK.fireRate} (+${Math.round((OVERCLOCK.fireRate - 1) * 100)} %)`, 'Tourelles construites par toi']
-  }
+type Row = [label: string, value: string]
+
+/** Ce que chaque compétence change, chiffré à partir de constants.ts (donc toujours à jour quand on rééquilibre). */
+const EFFECTS: Record<UnlockId, Row[]> = {
+  stone: [
+    ['Points de vie', `${BUILDS.barricade.hp} → ${BARRICADE_STONE.hp}`],
+    ['Amélioration en jeu', `${BARRICADE_STONE.cost} or`]
+  ],
+  reinforced: [
+    ['Points de vie', `${BARRICADE_STONE.hp} → ${BARRICADE_REINFORCED.hp}`],
+    ['Amélioration en jeu', `${BARRICADE_REINFORCED.cost} or`]
+  ],
+  double: [
+    ['Cadence', `${LAST.fireRate} → ${TURRET_BRANCHES[1].stats.fireRate} tirs/s`],
+    ['Amélioration en jeu', `${TURRET_BRANCHES[1].cost} or`]
+  ],
+  heavy: [
+    ['Dégâts par tir', `${LAST.damage} → ${TURRET_BRANCHES[2].stats.damage}`],
+    ['Portée', `${LAST.range} → ${TURRET_BRANCHES[2].stats.range} px`],
+    ['Amélioration en jeu', `${TURRET_BRANCHES[2].cost} or`]
+  ],
+  overclock: [
+    ['Cadence de tir', `× ${OVERCLOCK.fireRate} (+${Math.round((OVERCLOCK.fireRate - 1) * 100)} %)`],
+    ['S’applique à', 'tes tourelles et futures armes']
+  ]
 }
 
 const BRANCH_TITLES: Record<TreeBranch, string> = { barricade: 'Murs', turret: 'Tourelles · niveau 4', tech: 'Technologie' }
 
-/** Valeur de base et unité de chaque statistique du joueur, pour afficher « actuel → prochain rang ». */
+/** Statistiques de base du joueur et leur unité, pour afficher « actuel → prochain rang ». */
 const BASE_VALUES: Record<PerkId, { base: number; unit: string; digits: number }> = {
   speed: { base: PLAYER.speed, unit: 'px/s', digits: 0 },
   fireRate: { base: PLAYER.fireRate, unit: 'tirs/s', digits: 1 },
   range: { base: PLAYER.range, unit: 'px', digits: 0 },
-  damage: { base: PLAYER.damage, unit: '', digits: 1 },
+  damage: { base: PLAYER.damage, unit: 'dégâts', digits: 1 },
   bulletSpeed: { base: PLAYER.bulletSpeed, unit: 'px/s', digits: 0 }
 }
 
-function Node({ def }: { def: UnlockDef }): React.JSX.Element {
+type Sel = { kind: 'unlock'; id: UnlockId } | { kind: 'perk'; id: PerkId }
+
+function Tile({ def, selected, onSelect }: { def: UnlockDef; selected: boolean; onSelect: () => void }): React.JSX.Element {
+  const progress = useStore((s) => s.progress)
+  const owned = progress.unlocked.includes(def.id)
+  const blocked = def.requires !== undefined && !progress.unlocked.includes(def.requires)
+  const state = owned ? 'owned' : blocked ? 'blocked' : progress.points >= def.cost ? 'ready' : 'poor'
+  const Icon = UNLOCK_ICONS[def.id]
+  return (
+    <button className={`node ${state}${selected ? ' sel' : ''}`} onClick={onSelect} aria-pressed={selected}>
+      <Icon className="node-ico" />
+      <span className="node-name">{def.name}</span>
+      <span className="node-cost">{owned ? 'Acquis' : blocked ? 'Verrouillé' : `${def.cost} pts`}</span>
+    </button>
+  )
+}
+
+function PerkTile({ def, index, selected, onSelect }: { def: PerkDef; index: number; selected: boolean; onSelect: () => void }): React.JSX.Element {
+  const rank = useStore((s) => s.progress.perks[index] ?? 0)
+  const points = useStore((s) => s.progress.points)
+  const max = def.costs.length
+  const state = rank >= max ? 'owned' : points >= def.costs[rank] ? 'ready' : 'poor'
+  const Icon = PERK_ICONS[def.id]
+  return (
+    <button className={`node perk ${state}${selected ? ' sel' : ''}`} onClick={onSelect} aria-pressed={selected}>
+      <Icon className="node-ico" />
+      <span className="node-name">{def.name}</span>
+      <span className="pips" aria-label={`Rang ${rank} sur ${max}`}>
+        {Array.from({ length: max }, (_, i) => (
+          <i key={i} className={i < rank ? 'on' : ''} />
+        ))}
+      </span>
+    </button>
+  )
+}
+
+function UnlockDetail({ def }: { def: UnlockDef }): React.JSX.Element {
   const progress = useStore((s) => s.progress)
   const buy = useStore((s) => s.buyUnlock)
   const owned = progress.unlocked.includes(def.id)
   const blockedBy = def.requires && !progress.unlocked.includes(def.requires) ? UNLOCK_BY_ID[def.requires] : null
   const missing = def.cost - progress.points
-  const d = DETAILS[def.id]
-  const state = owned ? 'owned' : blockedBy ? 'blocked' : missing > 0 ? 'poor' : 'ready'
-
-  return (
-    <div className={`snode ${state}`} style={{ '--nc': d.color } as CSSProperties}>
-      <div className="sglyph">{d.glyph}</div>
-      <div className="sname">{def.name}</div>
-      <p className="sblurb">{def.blurb}</p>
-      <ul className="sdetails">
-        {d.lines.map((l) => (
-          <li key={l}>{l}</li>
-        ))}
-      </ul>
-      {owned ? (
-        <div className="sstatus">✔ Débloqué</div>
-      ) : blockedBy ? (
-        <div className="sstatus lock">🔒 Requiert : {blockedBy.name}</div>
-      ) : (
-        <button className={missing > 0 ? '' : 'primary'} disabled={missing > 0} onClick={() => buy(def.id)}>
-          Débloquer · {def.cost}
-          {missing > 0 ? ` (il manque ${missing})` : ''}
-        </button>
-      )}
-    </div>
-  )
-}
-
-/** Un niveau de l'arbre : une ou plusieurs compétences côte à côte, reliées au niveau précédent. */
-function Tier({ nodes, first }: { nodes: UnlockDef[]; first: boolean }): React.JSX.Element {
+  const Icon = UNLOCK_ICONS[def.id]
   return (
     <>
-      {!first && <div className="slink" />}
-      <div className="stier">
-        {nodes.map((n) => (
-          <Node key={n.id} def={n} />
+      <header className="d-head">
+        <Icon className="d-ico" />
+        <div>
+          <p className="d-kind">{BRANCH_TITLES[def.branch]}</p>
+          <h3>{def.name}</h3>
+        </div>
+      </header>
+      <p className="d-text">{def.blurb}</p>
+      <dl className="d-stats">
+        {EFFECTS[def.id].map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
         ))}
+      </dl>
+      <div className="d-buy">
+        {owned ? (
+          <p className="d-status ok">Compétence acquise</p>
+        ) : blockedBy ? (
+          <p className="d-status lock">Requiert « {blockedBy.name} »</p>
+        ) : (
+          <button className={missing > 0 ? '' : 'primary'} disabled={missing > 0} onClick={() => buy(def.id)}>
+            Débloquer · {def.cost} pts{missing > 0 ? ` (il manque ${missing})` : ''}
+          </button>
+        )}
       </div>
     </>
   )
 }
 
-/** Une amélioration du joueur : plusieurs rangs, chacun plus cher que le précédent. */
-function Perk({ def, index }: { def: PerkDef; index: number }): React.JSX.Element {
+function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.Element {
   const points = useStore((s) => s.progress.points)
   const rank = useStore((s) => s.progress.perks[index] ?? 0)
   const buy = useStore((s) => s.buyPerk)
@@ -108,100 +139,119 @@ function Perk({ def, index }: { def: PerkDef; index: number }): React.JSX.Elemen
   const missing = cost - points
   const v = BASE_VALUES[def.id]
   const fmt = (n: number): string => n.toFixed(v.digits)
-  const perks = (r: number): number[] => PERKS.map((_, i) => (i === index ? r : 0))
-  const current = v.base * perkMult(perks(rank), def.id)
-  const next = v.base * perkMult(perks(rank + 1), def.id)
-  const unit = v.unit ? ` ${v.unit}` : ''
-
+  const at = (r: number): number => v.base * perkMult(PERKS.map((_, i) => (i === index ? r : 0)), def.id)
+  const Icon = PERK_ICONS[def.id]
   return (
-    <div className={`perk ${maxed ? 'owned' : missing > 0 ? 'poor' : 'ready'}`}>
-      <div className="sname">{def.name}</div>
-      <div className="pips" aria-label={`Rang ${rank} sur ${max}`}>
-        {Array.from({ length: max }, (_, i) => (
-          <span key={i} className={i < rank ? 'on' : ''} />
-        ))}
-      </div>
-      <p className="sblurb">{def.blurb}</p>
-      <div className="sdetails">
+    <>
+      <header className="d-head">
+        <Icon className="d-ico" />
+        <div>
+          <p className="d-kind">Soldat · rang {rank} / {max}</p>
+          <h3>{def.name}</h3>
+        </div>
+      </header>
+      <p className="d-text">{def.blurb}</p>
+      <dl className="d-stats">
+        <div>
+          <dt>Actuel</dt>
+          <dd>
+            {fmt(at(rank))} {v.unit}
+          </dd>
+        </div>
+        {!maxed && (
+          <div>
+            <dt>Rang suivant</dt>
+            <dd className="up">
+              {fmt(at(rank + 1))} {v.unit}
+            </dd>
+          </div>
+        )}
+        <div>
+          <dt>Rang maximum</dt>
+          <dd>
+            {fmt(at(max))} {v.unit} (+{Math.round(def.perRank * max * 100)} %)
+          </dd>
+        </div>
+      </dl>
+      <div className="d-buy">
         {maxed ? (
-          <>
-            {fmt(current)}
-            {unit} (+{Math.round(def.perRank * max * 100)} %)
-          </>
+          <p className="d-status ok">Rang maximum</p>
         ) : (
-          <>
-            {fmt(current)} → <b>{fmt(next)}</b>
-            {unit}
-          </>
+          <button className={missing > 0 ? '' : 'primary'} disabled={missing > 0} onClick={() => buy(def.id)}>
+            Rang {rank + 1} · {cost} pts{missing > 0 ? ` (il manque ${missing})` : ''}
+          </button>
         )}
       </div>
-      {maxed ? (
-        <div className="sstatus">✔ Rang max</div>
-      ) : (
-        <button className={missing > 0 ? '' : 'primary'} disabled={missing > 0} onClick={() => buy(def.id)}>
-          Rang {rank + 1} · {cost}
-          {missing > 0 ? ` (manque ${missing})` : ''}
-        </button>
-      )}
-    </div>
+    </>
   )
 }
 
 export function SkillTree(): React.JSX.Element {
   const points = useStore((s) => s.progress.points)
-  const owned = useStore((s) => s.progress.unlocked.length)
   const close = useStore((s) => s.closeSkills)
   const devAdd = useStore((s) => s.devAddPoints)
+  const [sel, setSel] = useState<Sel>({ kind: 'unlock', id: UNLOCKS[0].id })
   const branches: TreeBranch[] = ['barricade', 'turret', 'tech']
 
   return (
-    <div className="screen skills">
-      <div className="panel wide">
-        <div className="skills-head">
-          <h2>Compétences</h2>
-          <div className="chip gold">
-            <span className="coin" />
-            <b>{points}</b>
-            <span className="muted">points</span>
+    <div className="screen sk">
+      <header className="sk-head">
+        <button className="back" onClick={close}>
+          <IconBack /> Menu
+        </button>
+        <h2>Compétences</h2>
+        <div className="sk-points" aria-label={`${points} points`}>
+          <b>{points}</b>
+          <span>points</span>
+        </div>
+      </header>
+
+      <div className="sk-body">
+        <div className="sk-graph">
+          <div className="sk-branches">
+            {branches.map((b) => {
+              const defs = UNLOCKS.filter((u) => u.branch === b)
+              const tiers = [...new Set(defs.map((u) => u.tier))].sort((x, y) => x - y)
+              return (
+                <section key={b} className={`sk-col b-${b}`}>
+                  <h3 className="sk-label">{BRANCH_TITLES[b]}</h3>
+                  {tiers.map((t, i) => {
+                    const nodes = defs.filter((u) => u.tier === t)
+                    return (
+                      <div key={t} className={`sk-tier${nodes.length > 1 ? ' fork' : ''}${i > 0 ? ' linked' : ''}`}>
+                        {nodes.map((n) => (
+                          <Tile key={n.id} def={n} selected={sel.kind === 'unlock' && sel.id === n.id} onSelect={() => setSel({ kind: 'unlock', id: n.id })} />
+                        ))}
+                      </div>
+                    )
+                  })}
+                </section>
+              )
+            })}
           </div>
-        </div>
-        <p className="hint">
-          Les points se gagnent à la fin de chaque partie (vague atteinte, monstres abattus : les gros rapportent plus). {owned}/{UNLOCKS.length}{' '}
-          compétences débloquées.
-        </p>
 
-        <div className="sbranches">
-          {branches.map((b) => {
-            const defs = UNLOCKS.filter((u) => u.branch === b)
-            const tiers = [...new Set(defs.map((u) => u.tier))].sort((x, y) => x - y)
-            return (
-              <div key={b} className={`sbranch b-${b}`}>
-                <h3>{BRANCH_TITLES[b]}</h3>
-                {tiers.map((t, i) => (
-                  <Tier key={t} nodes={defs.filter((u) => u.tier === t)} first={i === 0} />
-                ))}
-              </div>
-            )
-          })}
+          <section className="sk-perks">
+            <h3 className="sk-label">Soldat · améliorer le joueur</h3>
+            <div className="perk-row">
+              {PERKS.map((p, i) => (
+                <PerkTile key={p.id} def={p} index={i} selected={sel.kind === 'perk' && sel.id === p.id} onSelect={() => setSel({ kind: 'perk', id: p.id })} />
+              ))}
+            </div>
+          </section>
         </div>
 
-        <h3 className="sperks-title">Soldat · améliorer le joueur</h3>
-        <div className="sperks">
-          {PERKS.map((p, i) => (
-            <Perk key={p.id} def={p} index={i} />
-          ))}
-        </div>
-
-        <div className="footer">
-          {import.meta.env.DEV ? (
-            <button className="link" onClick={() => devAdd(500)}>
+        <aside className="sk-detail" aria-live="polite">
+          {sel.kind === 'unlock' ? (
+            <UnlockDetail def={UNLOCK_BY_ID[sel.id]} />
+          ) : (
+            <PerkDetail def={PERKS[PERKS.findIndex((p) => p.id === sel.id)]} index={PERKS.findIndex((p) => p.id === sel.id)} />
+          )}
+          {import.meta.env.DEV && (
+            <button className="link dev" onClick={() => devAdd(500)}>
               +500 points (dev)
             </button>
-          ) : (
-            <span />
           )}
-          <button onClick={close}>Retour</button>
-        </div>
+        </aside>
       </div>
     </div>
   )

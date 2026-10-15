@@ -23,7 +23,7 @@
         "Économie revue : 60 or au départ ; mur en bois 15 or, tourelle 120 or (niveau 2 : 150, niveau 3 : 250, double canons : 370, canon lourd : 420), pieux 45 or",
         "Défenses rééquilibrées : mur en bois 110 PV, mur en pierre 45 or / 320 PV, mur renforcé 75 or / 580 PV ; tourelles niveau 1 à 3 de 12, 18 puis 24 dégâts (portée 220)",
         "Le joueur est plus lent (vitesse 150) et tire plus lentement mais plus fort (2,5 tirs/s, 12 dégâts, portée 250), à compenser avec les améliorations",
-        "Protocole réseau en version 4 : l'hôte et l'invité doivent avoir la même version du jeu"
+        "Protocole réseau en version 5 : l'hôte et l'invité doivent avoir la même version du jeu"
       ],
       "fixed": []
     },

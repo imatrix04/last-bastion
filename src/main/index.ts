@@ -18,7 +18,9 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Le jeu simule et envoie l'état à l'autre joueur : pas question que la fenêtre soit ralentie en arrière-plan ou masquée.
+      backgroundThrottling: false
     }
   })
 

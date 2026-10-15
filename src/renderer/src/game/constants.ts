@@ -66,9 +66,9 @@ export interface TurretStats {
 
 /** Niveaux 1 à 3 (indice = niveau - 1). Le niveau 4 dépend de la branche choisie (voir TURRET_BRANCHES). */
 export const TURRET_LEVELS: TurretStats[] = [
-  { damage: 12, fireRate: 2.2, range: 220, hp: 180, bulletSpeed: 560 },
-  { damage: 18, fireRate: 2.2, range: 220, hp: 250, bulletSpeed: 560 },
-  { damage: 24, fireRate: 2.4, range: 220, hp: 350, bulletSpeed: 560 }
+  { damage: 13, fireRate: 2.2, range: 220, hp: 180, bulletSpeed: 560 },
+  { damage: 19, fireRate: 2.2, range: 220, hp: 250, bulletSpeed: 560 },
+  { damage: 26, fireRate: 2.4, range: 220, hp: 350, bulletSpeed: 560 }
 ]
 /** Prix pour passer la tourelle du niveau 1 au niveau 2, puis du niveau 2 au niveau 3. */
 export const TURRET_L2_COST = 150
@@ -148,5 +148,5 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   brute: { name: 'Brute', hp: 370, speed: 40, radius: 15, damage: 38, interval: 1.3, reward: 24, color: '#ba68c8' },
   splitter: { name: 'Éclateur', hp: 230, speed: 46, radius: 14, damage: 25, interval: 1.2, reward: 12, color: '#26c6a2' },
   spider: { name: 'Araignée', hp: 190, speed: 72, radius: 15, damage: 14, interval: 0.9, reward: 22, color: '#9c2a4a' },
-  boss: { name: 'Colosse', hp: 1500, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 180, color: '#e53935' }
+  boss: { name: 'Colosse', hp: 1300, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 180, color: '#e53935' }
 }

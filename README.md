@@ -26,7 +26,7 @@ Dans le menu : un joueur clique sur **Héberger une partie** (il est le Joueur 1
 - Même réseau (même box ou Wi-Fi) : l'adresse affichée dans la salle d'attente suffit (port 7777).
 - À distance : soit redirection du port TCP 7777 de la box de l'hôte vers son PC, soit un VPN privé (Tailscale, ZeroTier, Radmin VPN) et on utilise l'adresse du VPN.
 - Windows demande d'autoriser le jeu dans le pare-feu la première fois que l'on héberge : accepter (réseaux privés).
-- L'hôte fait tourner toute la simulation et envoie l'état 20 fois par seconde ; l'invité envoie ses touches. Si l'invité se déconnecte, la partie continue et il peut se reconnecter. Seul l'hôte peut relancer une partie après un game over.
+- L'hôte fait tourner toute la simulation et envoie l'état 30 fois par seconde, daté avec son temps de simulation ; l'invité l'affiche avec un léger retard (0,1 à 0,25 s selon la gigue du réseau) en interpolant entre deux états, ce qui lisse les à-coups. L'invité décide de la position de son propre personnage (l'hôte vérifie qu'elle est plausible) : pas de retour en arrière. La latence mesurée s'affiche en haut à droite chez les deux joueurs. Si l'invité se déconnecte, la partie continue et il peut se reconnecter. Seul l'hôte peut relancer une partie après un game over.
 
 ## Commandes
 
@@ -57,6 +57,16 @@ Les joueurs **tirent automatiquement** sur l'ennemi le plus proche et construise
 - Ennemis : Rôdeur, Coureur (rapide), Brute (costaud), **Araignée** (dès la vague 6 : se dresse puis crache une toile sur une tourelle à portée, qui tire 3 fois moins vite pendant 6 s), **Éclateur** (dès la vague 4 : à sa mort il se divise en 4 Rôdeurs), Colosse (boss toutes les 5 vagues). À deux, les vagues sont 1,6 fois plus nombreuses.
 - Le meilleur score (vague atteinte) est sauvegardé en local.
 
+## Boutique et personnalisation
+
+L'écran **Boutique** (menu principal) permet de personnaliser le personnage de chaque emplacement (Joueur 1 et Joueur 2 au même clavier) :
+
+- **Couleur** : gratuite et libre. Palette d'un clic, sélecteur complet ou code HEX.
+- **Skins** : achetés avec les points de compétence. Premier skin : **Oreilles de chat** (300 points), rose avec dégradé bordeaux, oreilles qui frémissent. Les skins sont définis dans `game/appearance.ts` (ajouter à la fin de `SKINS`, dessiner l'accessoire dans `game/player.ts`).
+- En ligne, chacun joue avec l'apparence de son emplacement « Joueur 1 » et chaque joueur voit celle de l'autre.
+
+Le personnage est dessiné dans `game/player.ts` : corps ombré, visière qui indique la visée, arme, halo, anneau qui tourne, traînée quand il court.
+
 ## Compétences (progression entre les parties)
 
 Au départ, seul le mur en bois est utilisable et les tourelles s'arrêtent au niveau 2. À la fin de chaque partie on gagne des **points de compétence** à dépenser dans l'écran **Compétences** du menu (aussi accessible depuis l'écran de fin de partie) :
@@ -78,14 +88,17 @@ src/
   main/net.ts                 serveur / client WebSocket (jeu en ligne), exposé par IPC
   preload/index.ts            API minimale exposée au renderer (contextBridge)
   renderer/src/
-    App.tsx, store.ts         écrans (menu / jeu / pause / game over), état zustand
-    components/               Menu, Hud, Overlays, GameCanvas, UpgradePicker (pop-up de choix niveau 3), SkillTree (compétences)
+    App.tsx, store.ts         écrans (menu / compétences / boutique / jeu / pause / game over), état zustand
+    ui.css                    interface hors partie (accueil, arbre, boutique) ; styles.css : base et HUD
+    components/               Menu, Hud, Overlays, GameCanvas, UpgradePicker (pop-up de choix niveau 3), SkillTree (compétences), Shop (boutique), AvatarCanvas (aperçu du personnage), icons (pictogrammes SVG)
     game/                     le jeu lui-même, sans dépendance à React
       constants.ts            équilibrage : bâtiments, ennemis, vitesses, coûts
       update.ts               simulation (joueurs, vagues, ennemis, tourelles, tirs)
       progress.ts             compétences, formule de points de fin de partie
       stats.ts                niveaux des bâtiments : PV, stats de tourelle, prix, prochaine amélioration
       sprites.ts              dessin des ennemis animés et des tourelles (corps pré-rendus), lueurs
+      player.ts               dessin du personnage (couleur libre, skins), aperçu animé
+      appearance.ts           couleur et skins : données, palette, validation (réseau et sauvegarde)
       pathing.ts              champ de distance vers la forteresse (les murs ont un coût)
       build.ts                construire / réparer / améliorer / démolir
       waves.ts                composition des vagues et points d'apparition

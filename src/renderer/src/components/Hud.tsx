@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
-import { BUILD_ORDER, BUILDS, PLAYER_COLORS } from '../game/constants'
+import { DEFAULT_COLORS } from '../game/appearance'
+import { BUILD_ORDER, BUILDS } from '../game/constants'
 import { CONTROLS, SKIP_WAVE } from '../game/controls'
 import { useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
@@ -54,17 +55,18 @@ export function Hud(): React.JSX.Element {
 
       {mode === 'host' && (
         <div className={`chip net-status ${peerOnline ? 'on' : 'off'}`}>
-          {peerOnline ? 'Joueur 2 connecté' : 'Joueur 2 déconnecté : il peut se reconnecter'}
+          {peerOnline ? `Joueur 2 connecté${hud.ping > 0 ? ` · ${hud.ping} ms` : ''}` : 'Joueur 2 déconnecté : il peut se reconnecter'}
         </div>
       )}
+      {mode === 'client' && hud.ping > 0 && <div className={`chip net-status ${hud.ping < 120 ? 'on' : 'off'}`}>Latence {hud.ping} ms</div>}
 
       <div className="hud-bottom">
         {mode === 'local' ? (
           Array.from({ length: playerCount }, (_, i) => (
-            <BuildBar key={i} index={i} keyIndex={i} selected={hud.selected[i] ?? 0} gold={hud.gold} />
+            <BuildBar key={i} index={i} keyIndex={i} selected={hud.selected[i] ?? 0} gold={hud.gold} color={hud.colors[i] ?? DEFAULT_COLORS[i]} />
           ))
         ) : (
-          <BuildBar index={myIndex} keyIndex={0} selected={hud.selected[myIndex] ?? 0} gold={hud.gold} />
+          <BuildBar index={myIndex} keyIndex={0} selected={hud.selected[myIndex] ?? 0} gold={hud.gold} color={hud.colors[myIndex] ?? DEFAULT_COLORS[myIndex]} />
         )}
       </div>
     </div>
@@ -76,18 +78,20 @@ function BuildBar({
   index,
   keyIndex,
   selected,
-  gold
+  gold,
+  color
 }: {
   index: number
   keyIndex: number
   selected: number
   gold: number
+  color: string
 }): React.JSX.Element {
   const label = useKeyLabels()
   const c = CONTROLS[keyIndex]
 
   return (
-    <div className="buildbar" style={{ '--pc': PLAYER_COLORS[index] } as CSSProperties}>
+    <div className="buildbar" style={{ '--pc': color } as CSSProperties}>
       <div className="who">J{index + 1}</div>
       <div className="slots">
         {BUILD_ORDER.map((kind, i) => {

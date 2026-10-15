@@ -1,3 +1,4 @@
+import { defaultLook, isSkinId, sanitizeLook, type Look, type SkinId } from './appearance'
 import type { EnemyKind } from './constants'
 
 /**
@@ -125,13 +126,14 @@ export const sanitizePerks = (v: unknown): number[] =>
 /** Multiplicateur appliqué à une statistique de base du joueur. */
 export const perkMult = (perks: readonly number[], id: PerkId): number => 1 + (perks[PERK_INDEX[id]] ?? 0) * PERKS[PERK_INDEX[id]].perRank
 
-/** Tout ce qu'un joueur apporte en partie : compétences débloquées (bits) et rangs d'améliorations. */
+/** Tout ce qu'un joueur apporte en partie : compétences débloquées (bits), rangs d'améliorations et apparence. */
 export interface Loadout {
   unlocks: number
   perks: number[]
+  look: Look
 }
 
-export const emptyLoadout = (): Loadout => ({ unlocks: 0, perks: emptyPerks() })
+export const emptyLoadout = (slot = 0): Loadout => ({ unlocks: 0, perks: emptyPerks(), look: defaultLook(slot) })
 
 // -------------------------------------------------------------------------- gains
 
@@ -183,8 +185,30 @@ export interface SavedProgress {
   unlocked: UnlockId[]
   /** Rang de chaque amélioration du joueur, dans l'ordre de PERKS. */
   perks: number[]
+  /** Skins achetés (le skin « aucun » est toujours disponible). */
+  skins: SkinId[]
+  /** Apparence de chaque emplacement : joueur 1 et joueur 2 (même clavier). La couleur est libre. */
+  looks: [Look, Look]
 }
 
-export const emptyProgress = (): SavedProgress => ({ points: 0, unlocked: [], perks: emptyPerks() })
+export const emptyProgress = (): SavedProgress => ({
+  points: 0,
+  unlocked: [],
+  perks: emptyPerks(),
+  skins: ['none'],
+  looks: [defaultLook(0), defaultLook(1)]
+})
 
-export const loadoutOf = (p: SavedProgress): Loadout => ({ unlocks: unlockMask(p.unlocked), perks: sanitizePerks(p.perks) })
+export const sanitizeSkins = (v: unknown): SkinId[] => [...new Set<SkinId>(['none', ...(Array.isArray(v) ? v.filter(isSkinId) : [])])]
+
+export const sanitizeLooks = (v: unknown): [Look, Look] => {
+  const a = Array.isArray(v) ? v : []
+  return [sanitizeLook(a[0], 0), sanitizeLook(a[1], 1)]
+}
+
+/** Ce qu'apporte l'emplacement de joueur `slot` (0 = joueur 1, 1 = joueur 2 au même clavier). */
+export const loadoutOf = (p: SavedProgress, slot = 0): Loadout => ({
+  unlocks: unlockMask(p.unlocked),
+  perks: sanitizePerks(p.perks),
+  look: p.looks[slot] ?? p.looks[0]
+})
