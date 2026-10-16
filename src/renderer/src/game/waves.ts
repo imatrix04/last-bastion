@@ -1,5 +1,5 @@
 import { WAVES } from './config/config'
-import { ENEMIES, HEIGHT, TILE, WIDTH, type EnemyKind } from './config/constants'
+import { ENEMIES, HEIGHT, TILE, WIDTH, isBossKind, type EnemyKind } from './config/constants'
 import { smoke } from './fx'
 import type { Enemy, GameState, Vec } from './types'
 
@@ -30,7 +30,9 @@ export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   for (let i = 0; i < splitters; i++) list.push('splitter')
   for (let i = 0; i < spiders; i++) list.push('spider')
   shuffle(list)
-  for (let i = 0; i < bosses; i++) list.push('boss')
+  // Aux vagues multiples de 10, le Colosse est remplacé par sa version enragée.
+  const bossKind: EnemyKind = wave % WAVES.rageBoss.every === 0 ? 'rageboss' : 'boss'
+  for (let i = 0; i < bosses; i++) list.push(bossKind)
   return list
 }
 
@@ -108,5 +110,5 @@ export function spawnEnemy(state: GameState, kind: EnemyKind, gateIndex = Math.f
   const x = onHorizontalEdge ? Math.max(def.radius, Math.min(WIDTH - def.radius, gate.x + jitter)) : gate.x
   const y = onHorizontalEdge ? gate.y : Math.max(def.radius, Math.min(HEIGHT - def.radius, gate.y + jitter))
   state.enemies.push(createEnemy(state, kind, x, y))
-  smoke(state, x, y, '#8d6e63', kind === 'boss' ? 8 : 3, 50)
+  smoke(state, x, y, '#8d6e63', isBossKind(kind) ? 8 : 3, 50)
 }

@@ -1,5 +1,5 @@
 import { defaultLook, isSkinId, sanitizeLook, type Look, type SkinId } from './appearance'
-import { ABILITY_SLOTS, PERK_BALANCE, SCORE, TURRET_LIMIT, UNLOCK_COST } from './config'
+import { ABILITY_SLOTS, PERK_BALANCE, SCORE, SPIKE_LIMIT, TURRET_LIMIT, UNLOCK_COST } from './config'
 import type { EnemyKind, TierUnlock } from './constants'
 
 /**
@@ -146,7 +146,7 @@ export const isUnlockId = (v: unknown): v is UnlockId => typeof v === 'string' &
 
 // ------------------------------------------------------------- améliorations du joueur
 
-export type PerkId = 'speed' | 'fireRate' | 'range' | 'damage' | 'bulletSpeed' | 'overclock' | 'precision' | 'turrets' | 'fireBullets'
+export type PerkId = 'speed' | 'fireRate' | 'range' | 'damage' | 'bulletSpeed' | 'overclock' | 'precision' | 'turrets' | 'fireBullets' | 'spikes'
 
 export interface PerkDef {
   id: PerkId
@@ -192,6 +192,13 @@ export const PERKS: readonly PerkDef[] = [
     name: 'Balles enflammées',
     blurb: 'Capacité active : tes balles enflamment les monstres touchés, qui brûlent pendant 3 secondes. Le rang 1 la débloque ; les rangs suivants allongent sa durée, raccourcissent sa recharge et renforcent la brûlure.',
     costs: PERK_BALANCE.fireBullets.costs, perRank: PERK_BALANCE.fireBullets.perRank
+  },
+  {
+    id: 'spikes',
+    group: 'tech',
+    name: 'Pieux',
+    blurb: `Un pieu de plus par rang : ${SPIKE_LIMIT.base} de base, jusqu'à ${SPIKE_LIMIT.base + SPIKE_LIMIT.perRank * PERK_BALANCE.spikes.costs.length} au rang maximum.`,
+    costs: PERK_BALANCE.spikes.costs, perRank: PERK_BALANCE.spikes.perRank
   }
 ]
 
@@ -233,6 +240,9 @@ export const sanitizePerks = (v: unknown): number[] =>
 export const perkMult = (perks: readonly number[], id: PerkId): number => 1 + (perks[PERK_INDEX[id]] ?? 0) * PERKS[PERK_INDEX[id]].perRank
 
 /** Nombre de tourelles qu'un joueur peut poser, selon le rang de l'amélioration « Tourelles ». */
+/** Nombre de pieux qu'un joueur peut poser, selon le rang de l'amélioration « Pieux ». */
+export const spikeCap = (perks: readonly number[]): number => SPIKE_LIMIT.base + (perks[PERK_INDEX.spikes] ?? 0) * SPIKE_LIMIT.perRank
+
 export const turretCap = (perks: readonly number[]): number => TURRET_LIMIT.base + (perks[PERK_INDEX.turrets] ?? 0) * TURRET_LIMIT.perRank
 
 /** Tout ce qu'un joueur apporte en partie : compétences débloquées (bits), rangs d'améliorations et apparence. */
@@ -249,7 +259,7 @@ export const emptyLoadout = (slot = 0): Loadout => ({ unlocks: 0, perks: emptyPe
 // -------------------------------------------------------------------------- gains
 
 /** Ordre des compteurs de kills (partagé avec le réseau). `minion` : petits issus d'une division. */
-export const KILL_KINDS = ['grunt', 'runner', 'brute', 'boss', 'splitter', 'minion', 'spider'] as const
+export const KILL_KINDS = ['grunt', 'runner', 'brute', 'boss', 'splitter', 'minion', 'spider', 'rageboss'] as const
 export type KillKind = (typeof KILL_KINDS)[number]
 
 export const killIndex = (kind: EnemyKind, minion: boolean): number => (minion ? 5 : KILL_KINDS.indexOf(kind))

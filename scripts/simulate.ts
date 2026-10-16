@@ -1,6 +1,6 @@
 // Simulation sans interface : vérifie que la logique de jeu tient la route.
 // Usage : npm run sim
-import { actPlace, actUpgrade, applyTurretBranch, placeBuilding, placementStatus, turretsOwned, upgradeBuilding } from '../src/renderer/src/game/build'
+import { actPlace, actUpgrade, applyTurretBranch, placeBuilding, placementStatus, spikesOwned, turretsOwned, upgradeBuilding } from '../src/renderer/src/game/build'
 import { acceptRemotePose } from '../src/renderer/src/game/update'
 import { defaultLook } from '../src/renderer/src/game/config/appearance'
 import { BASE, BUILDS, ENEMIES, START_GOLD, BUILD_ORDER, COLS, OVERCLOCK_LEVELS, ROWS, STEP, type BuildKind } from '../src/renderer/src/game/config/constants'
@@ -9,12 +9,12 @@ import { CONTROLS, SKIP_WAVE, type InputLike } from '../src/renderer/src/game/co
 import { idx, isBaseCell } from '../src/renderer/src/game/grid'
 import { biomeIndex } from '../src/renderer/src/game/biomes'
 import { ABILITY_CONFIG, BIOMES } from '../src/renderer/src/game/config/config'
-import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, sanitizeAbilities, scoreRun, turretCap, unlockMask, type Loadout } from '../src/renderer/src/game/config/progress'
+import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, sanitizeAbilities, scoreRun, spikeCap, turretCap, unlockMask, type Loadout } from '../src/renderer/src/game/config/progress'
 import { createState } from '../src/renderer/src/game/state'
 import { fireRateMult, maxLevelOf, nextUpgrade, overclockMult, playerStats, spikeStats, turretStats } from '../src/renderer/src/game/stats'
 import type { GameState } from '../src/renderer/src/game/types'
 import { step } from '../src/renderer/src/game/update'
-import { createEnemy } from '../src/renderer/src/game/waves'
+import { composeWave, createEnemy } from '../src/renderer/src/game/waves'
 
 /** Compétences débloquées (et améliorations du joueur au rang demandé). */
 const loadout = (unlocks: number, rank = 0): Loadout => ({ unlocks, perks: PERKS.map(() => rank), abilities: [], look: defaultLook(0) })
@@ -404,6 +404,21 @@ function checkUnlocks(): boolean {
     ok = report('Gain d’un monstre partagé en deux', Math.abs(a.gold - g0[0] - reward / 2) < 1e-6 && Math.abs(b.gold - g0[1] - reward / 2) < 1e-6) && ok
   }
 
+  // Pieux limités par joueur : 3 de base, +1 par rang de l'amélioration « Pieux », jusqu'à 8
+  {
+    const lo = loadout(0)
+    const st = createState(1, [lo])
+    const p = st.players[0]
+    p.gold = 9999
+    p.selected = BUILD_ORDER.indexOf('spikes')
+    for (let c = 10; c < 13; c++) placeBuilding(st, 'spikes', c, 3, 0, 0)
+    ok = report('Pieux : limite de 3 de base', spikeCap(p.perks) === 3 && spikesOwned(st, 0) === 3 && placementStatus(st, p, 10, 4) === 'limit') && ok
+    p.perks[PERK_INDEX.spikes] = 2
+    ok = report('Pieux : +1 par rang', spikeCap(p.perks) === 5 && placementStatus(st, p, 10, 4) === 'ok') && ok
+    p.perks[PERK_INDEX.spikes] = PERKS[PERK_INDEX.spikes].costs.length
+    ok = report('Pieux : 8 au maximum', spikeCap(p.perks) === 8) && ok
+  }
+
   // Réparation : 50 % des PV par action, puis 3 s de recharge sur la case
   {
     const st = createState(1, [loadout(0)])
@@ -425,6 +440,18 @@ function checkUnlocks(): boolean {
     for (let i = 0; i < 190; i++) step(st, STEP, idle)
     actPlace(st, p, true)
     ok = report('Réparation : plafonnée aux PV max', w.hp <= w.maxHp) && ok
+  }
+
+  // Colosse enragé : à la place du Colosse aux vagues multiples de 10
+  {
+    const count = (list: string[], kind: string): number => list.filter((k) => k === kind).length
+    const w5 = composeWave(5, 1)
+    const w10 = composeWave(10, 1)
+    const w20 = composeWave(20, 1)
+    ok = report('Colosse enragé : vague 5 = Colosse normal', count(w5, 'boss') === 1 && count(w5, 'rageboss') === 0) && ok
+    ok = report('Colosse enragé : vague 10 = enragé', count(w10, 'rageboss') === 1 && count(w10, 'boss') === 0) && ok
+    ok = report('Colosse enragé : 2 à la vague 20', count(w20, 'rageboss') === 2) && ok
+    ok = report('Colosse enragé : plus fort que le Colosse', ENEMIES.rageboss.hp > ENEMIES.boss.hp && ENEMIES.rageboss.damage > ENEMIES.boss.damage && ENEMIES.rageboss.speed > ENEMIES.boss.speed) && ok
   }
 
   // Biomes : un nouveau biome toutes les 5 vagues, le dernier se prolonge

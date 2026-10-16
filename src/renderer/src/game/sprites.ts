@@ -1,4 +1,4 @@
-import { ENEMIES, type EnemyKind } from './config/constants'
+import { ENEMIES, isBossKind, type EnemyKind } from './config/constants'
 import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_SPEC_LEVEL, turretForm, type Branch } from './config/turrets'
 import type { Enemy } from './types'
 
@@ -244,18 +244,55 @@ const paintSpider: Painter = (g, r, white) => {
   }
 }
 
+/** Colosse enragé : plus sombre, plus de pointes, cornes recourbées et pointes orange incandescentes. */
+const paintRageBoss: Painter = (g, r, white) => {
+  const n = 14
+  g.strokeStyle = ink(white)
+  g.lineWidth = 2.4
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU
+    g.fillStyle = tint(i % 2 === 0 ? '#ffab91' : '#cfd8dc', white)
+    triangle(
+      g,
+      Math.cos(a - 0.15) * 0.95 * r,
+      Math.sin(a - 0.15) * 0.95 * r,
+      Math.cos(a) * (i % 2 === 0 ? 1.65 : 1.35) * r,
+      Math.sin(a) * (i % 2 === 0 ? 1.65 : 1.35) * r,
+      Math.cos(a + 0.15) * 0.95 * r,
+      Math.sin(a + 0.15) * 0.95 * r
+    )
+    g.fill()
+    g.stroke()
+  }
+  shaded(g, 0, 0, r, r, '#d84315', '#8e0000', '#2b0000', white, 4)
+  g.strokeStyle = tint('rgba(0, 0, 0, 0.5)', white)
+  g.lineWidth = 3.5
+  g.beginPath()
+  g.arc(0, 0, r * 0.68, 0, TAU)
+  g.stroke()
+  g.fillStyle = tint('#eceff1', white)
+  g.strokeStyle = ink(white)
+  g.lineWidth = 2
+  for (const s of [-1, 1]) {
+    triangle(g, 0.5 * r, s * 0.4 * r, 1.45 * r, s * 1.05 * r, 0.9 * r, s * 0.2 * r)
+    g.fill()
+    g.stroke()
+  }
+}
+
 const PAINTERS: Record<EnemyKind, Painter> = {
   spider: paintSpider,
   grunt: paintGrunt,
   runner: paintRunner,
   brute: paintBrute,
   splitter: paintSplitter,
-  boss: paintBoss
+  boss: paintBoss,
+  rageboss: paintRageBoss
 }
 
 const spriteCache = new Map<string, HTMLCanvasElement>()
 
-const visualRadius = (e: Enemy): number => (e.kind === 'boss' ? e.radius * 1.5 : e.radius)
+const visualRadius = (e: Enemy): number => (isBossKind(e.kind) ? e.radius * 1.5 : e.radius)
 const spriteHalf = (r: number): number => Math.ceil(r * 1.7)
 
 function enemySprite(kind: EnemyKind, r: number, white: boolean): HTMLCanvasElement {
@@ -372,13 +409,15 @@ function drawLimbs(ctx: CanvasRenderingContext2D, e: Enemy, r: number, ph: numbe
       }
       break
     }
-    case 'boss': {
-      const reach = atk ? 0.3 * Math.abs(Math.sin(ph * 1.3)) : 0
+    case 'boss':
+    case 'rageboss': {
+      const rage = e.kind === 'rageboss'
+      const reach = atk ? (rage ? 0.45 : 0.3) * Math.abs(Math.sin(ph * (rage ? 1.9 : 1.3))) : 0
       for (const s of [-1, 1]) {
         const hx = (1.05 + reach + 0.1 * Math.sin(ph + (s > 0 ? Math.PI : 0))) * r
         const hy = s * 0.95 * r
-        limb(ctx, 0.1 * r, s * 0.85 * r, hx, hy, 0.4 * r, '#9b1c1c', white)
-        fist(ctx, hx, hy, 0.3 * r, '#c62828', white)
+        limb(ctx, 0.1 * r, s * 0.85 * r, hx, hy, 0.4 * r, rage ? '#5d0000' : '#9b1c1c', white)
+        fist(ctx, hx, hy, rage ? 0.38 * r : 0.3 * r, rage ? '#b71c1c' : '#c62828', white)
       }
       break
     }
@@ -450,16 +489,18 @@ function drawFront(ctx: CanvasRenderingContext2D, e: Enemy, r: number, ph: numbe
       }
       break
     }
-    case 'boss': {
+    case 'boss':
+    case 'rageboss': {
       if (white) break
+      const rage = e.kind === 'rageboss'
       ctx.save()
       ctx.globalCompositeOperation = 'lighter'
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
-      for (let i = 0; i < 5; i++) {
-        const a = 0.9 + i * 1.25
-        const pulse = 0.5 + 0.4 * Math.sin(t * 3 + i * 1.3)
-        ctx.strokeStyle = `rgba(255, 171, 64, ${pulse})`
+      for (let i = 0; i < (rage ? 8 : 5); i++) {
+        const a = 0.9 + i * (rage ? 0.8 : 1.25)
+        const pulse = 0.5 + 0.4 * Math.sin(t * (rage ? 6 : 3) + i * 1.3)
+        ctx.strokeStyle = rage ? `rgba(255, 82, 82, ${pulse})` : `rgba(255, 171, 64, ${pulse})`
         ctx.lineWidth = 2.4
         ctx.beginPath()
         ctx.moveTo(Math.cos(a) * 0.1 * r, Math.sin(a) * 0.1 * r)
@@ -468,9 +509,9 @@ function drawFront(ctx: CanvasRenderingContext2D, e: Enemy, r: number, ph: numbe
         ctx.lineTo(Math.cos(a + 0.05) * 0.85 * r, Math.sin(a + 0.05) * 0.85 * r)
         ctx.stroke()
       }
-      for (const s of [-1, 1]) drawGlow(ctx, 0.62 * r, s * 0.28 * r, 0.5 * r, '#ffeb3b', 0.8)
+      for (const s of [-1, 1]) drawGlow(ctx, 0.62 * r, s * 0.28 * r, 0.5 * r, rage ? '#ff1744' : '#ffeb3b', 0.8)
       ctx.restore()
-      ctx.fillStyle = '#ffeb3b'
+      ctx.fillStyle = rage ? '#ffffff' : '#ffeb3b'
       for (const s of [-1, 1]) {
         ctx.beginPath()
         ctx.ellipse(0.62 * r, s * 0.28 * r, 0.12 * r, 0.07 * r, s * 0.4, 0, TAU)
@@ -555,11 +596,12 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, t: number): v
   ctx.ellipse(e.x + 2, e.y + r - 2, r * 0.9 * grow, r * 0.4 * grow, 0, 0, TAU)
   ctx.fill()
 
-  // Aura du Colosse
-  if (e.kind === 'boss') {
+  // Aura du Colosse (plus large, plus vive et plus rapide chez le Colosse enragé)
+  if (isBossKind(e.kind)) {
+    const rage = e.kind === 'rageboss'
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
-    drawGlow(ctx, e.x, e.y, r * 2.3 * grow, '#e53935', 0.3 + 0.12 * Math.sin(t * 3))
+    drawGlow(ctx, e.x, e.y, r * (rage ? 2.9 : 2.3) * grow, rage ? '#ff1744' : '#e53935', (rage ? 0.4 : 0.3) + 0.12 * Math.sin(t * (rage ? 6 : 3)))
     ctx.restore()
   }
 
@@ -599,7 +641,7 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, t: number): v
 
   if (e.burnT > 0) drawFlames(ctx, e.x, e.y, r, t, e.id)
 
-  if (e.hp < e.maxHp || e.kind === 'boss') {
+  if (e.hp < e.maxHp || isBossKind(e.kind)) {
     const w = Math.max(18, r * 2)
     const ratio = e.hp / e.maxHp
     drawBar(ctx, e.x - w / 2, e.y - r - 11, w, 4, ratio, ratio > 0.5 ? '#ef5350' : ratio > 0.25 ? '#ff7043' : '#ffb300')

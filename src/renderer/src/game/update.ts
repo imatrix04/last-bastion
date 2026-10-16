@@ -8,6 +8,7 @@ import {
   COLS,
   ENEMIES,
   HEIGHT,
+  isBossKind,
   PLAYER,
   PREP_TIME,
   ROWS,
@@ -542,16 +543,17 @@ function updateEnemies(state: GameState, dt: number): void {
 /** Effets de mort : gerbe, tache au sol, onde de choc pour les gros. */
 function deathFx(state: GameState, e: Enemy): void {
   const def = ENEMIES[e.kind]
-  const big = e.kind === 'boss' ? 1.5 : 1
-  burst(state, e.x, e.y, def.color, e.kind === 'boss' ? 34 : 8 + Math.round(e.radius / 2), 130 * big)
+  const boss = isBossKind(e.kind)
+  const big = e.kind === 'rageboss' ? 2 : boss ? 1.5 : 1
+  burst(state, e.x, e.y, def.color, boss ? (e.kind === 'rageboss' ? 50 : 34) : 8 + Math.round(e.radius / 2), 130 * big)
   sparks(state, e.x, e.y, '#fff3e0', 3, 150)
-  smoke(state, e.x, e.y, '#6d5d4b', e.kind === 'boss' ? 8 : 2, 50)
+  smoke(state, e.x, e.y, '#6d5d4b', boss ? 8 : 2, 50)
   decal(state, e.x, e.y, def.color, e.radius * 1.5 * big)
   if (e.kind === 'brute' || e.kind === 'splitter') ring(state, e.x, e.y, def.color, 52)
-  if (e.kind === 'boss') {
-    ring(state, e.x, e.y, '#ffcdd2', 130)
-    ring(state, e.x, e.y, def.color, 80)
-    state.shake = Math.min(1, state.shake + 0.7)
+  if (boss) {
+    ring(state, e.x, e.y, '#ffcdd2', 130 * big / 1.5)
+    ring(state, e.x, e.y, def.color, 80 * big / 1.5)
+    state.shake = Math.min(1, state.shake + (e.kind === 'rageboss' ? 1 : 0.7))
   }
 }
 

@@ -1,6 +1,22 @@
 {
   "releases": [
     {
+      "version": "1.4.6",
+      "date": "2026-10-16",
+      "added": [
+        "Nouveau boss, le Colosse enragé : la version énervée du Colosse, qui apparaît toutes les 10 vagues à sa place (vagues 10, 20, 30…, un de plus tous les 10 niveaux). Il a 3600 PV, avance plus vite, frappe plus fort et plus souvent, et rapporte 600 or",
+        "Le Colosse enragé a sa propre apparence : corps sombre, pointes plus nombreuses et plus longues, cornes recourbées, yeux rouge vif, fissures qui pulsent et large aura rouge. Sa mort déclenche des ondes de choc plus grandes et un tremblement d'écran maximal",
+        "Nouvelle amélioration Pieux (5 rangs, colonne Technologie, de 120 à 700 points) : un pieu de plus par rang, de 3 à 8 pieux posables par joueur"
+      ],
+      "changed": [
+        "Les pieux sont limités par joueur : 3 de base, jusqu'à 8 avec l'amélioration Pieux. Poser un pieu au-delà de la limite affiche « Limite : N pieux ». Ceux déjà posés ne sont pas retirés",
+        "Le ralentissement des pieux est réduit : de −35 % à −20 % (bois), de −45 % à −28 % (pierre) et de −55 % à −35 % (pierre renforcé), pour qu'un couloir de pieux ne suffise plus à tenir seul",
+        "Les points de fin de partie comptent le Colosse enragé : 45 points par monstre abattu",
+        "Protocole réseau en version 15 : l'hôte et l'invité doivent avoir la même version du jeu"
+      ],
+      "fixed": []
+    },
+    {
       "version": "1.4.5",
       "date": "2026-10-16",
       "added": [

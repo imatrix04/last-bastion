@@ -109,7 +109,7 @@ export const BULLET_STYLES: ReadonlyArray<{ color: string; radius: number }> = [
   { color: '#ff5722', radius: 4 }
 ]
 
-export type EnemyKind = 'grunt' | 'runner' | 'brute' | 'splitter' | 'boss' | 'spider'
+export type EnemyKind = 'grunt' | 'runner' | 'brute' | 'splitter' | 'boss' | 'spider' | 'rageboss'
 
 export interface EnemyDef {
   name: string
@@ -124,3 +124,6 @@ export interface EnemyDef {
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = ENEMY_STATS
+
+/** Les deux Colosses : ils apparaissent seuls ou presque à certaines vagues et ont leurs effets de mort et leur barre de vie permanente. */
+export const isBossKind = (kind: EnemyKind): boolean => kind === 'boss' || kind === 'rageboss'

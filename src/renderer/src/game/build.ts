@@ -9,7 +9,7 @@ import {
 import { GAME } from './config/config'
 import { addText, burst, ring, smoke, sparks } from './fx'
 import { buildingAt, distToRect, idx, isBaseCell } from './grid'
-import { PERK_INDEX, turretCap } from './config/progress'
+import { PERK_INDEX, spikeCap, turretCap } from './config/progress'
 import { branchUnlocked, investedCost, levelName, maxHpOf, nextUpgrade } from './stats'
 import { TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from './config/turrets'
 import type { Building, GameState, Player } from './types'
@@ -27,6 +27,11 @@ export function buildTarget(p: Player): { col: number; row: number } {
 /** On laisse libres le bord de la carte (couloirs d'apparition) et la forteresse. */
 export function isBuildable(col: number, row: number): boolean {
   return col >= 1 && row >= 1 && col <= COLS - 2 && row <= ROWS - 2 && !isBaseCell(col, row)
+}
+
+/** Pieux encore debout posés par ce joueur. */
+export function spikesOwned(state: GameState, owner: number): number {
+  return state.grid.reduce((n, b) => (b && b.kind === 'spikes' && b.owner === owner ? n + 1 : n), 0)
 }
 
 /** Tourelles encore debout posées par ce joueur. */
@@ -50,6 +55,7 @@ export function placementStatus(state: GameState, p: Player, col: number, row: n
   // Un mur ou une tourelle ne se pose pas sur un monstre : il resterait coincé dedans et ne pourrait plus attaquer.
   if (BUILDS[BUILD_ORDER[p.selected]].solid && enemyOnTile(state, col, row)) return 'invalid'
   if (BUILD_ORDER[p.selected] === 'turret' && turretsOwned(state, p.id) >= turretCap(p.perks)) return 'limit'
+  if (BUILD_ORDER[p.selected] === 'spikes' && spikesOwned(state, p.id) >= spikeCap(p.perks)) return 'limit'
   return p.gold >= BUILDS[BUILD_ORDER[p.selected]].cost ? 'ok' : 'poor'
 }
 
@@ -158,7 +164,10 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
       if (press) addText(state, p.x, p.y - 24, "Pas assez d'or", '#ff8a65')
       return false
     case 'limit':
-      if (press) addText(state, p.x, p.y - 24, `Limite : ${turretCap(p.perks)} tourelles`, '#ff8a65')
+      if (press) {
+        const spikes = BUILD_ORDER[p.selected] === 'spikes'
+        addText(state, p.x, p.y - 24, spikes ? `Limite : ${spikeCap(p.perks)} pieux` : `Limite : ${turretCap(p.perks)} tourelles`, '#ff8a65')
+      }
       return false
     case 'invalid':
       if (press) addText(state, p.x, p.y - 24, 'Impossible ici', '#ff8a65')

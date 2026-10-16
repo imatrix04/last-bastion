@@ -6,7 +6,7 @@ import { KILL_KINDS } from './progress'
 import type { FxEvent, GameState } from '../types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 13
+export const PROTO_VERSION = 15
 export const NET_PORT = 7777
 /** Fréquence d'envoi de l'état du jeu par l'hôte : un état tous les 2 pas de simulation (60 Hz). */
 export const SNAPSHOT_HZ = 30
@@ -55,7 +55,7 @@ export function decodeInput(raw: Record<string, unknown>): { d: Action[]; p: Act
 
 // ----------------------------------------------------------------- snapshots
 
-const ENEMY_KINDS: readonly EnemyKind[] = ['grunt', 'runner', 'brute', 'boss', 'splitter', 'spider']
+const ENEMY_KINDS: readonly EnemyKind[] = ['grunt', 'runner', 'brute', 'boss', 'splitter', 'spider', 'rageboss']
 
 export const enemyKindAt = (i: number): EnemyKind | undefined => ENEMY_KINDS[i]
 export const buildKindAt = (i: number): BuildKind | undefined => BUILD_ORDER[i]

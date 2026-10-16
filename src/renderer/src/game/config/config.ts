@@ -88,6 +88,8 @@ export const WAVES = {
   spiders: { from: 11, base: 1, perWave: 0.7 },
   /** Un Colosse toutes les `every` vagues, et `vague / per` Colosses (arrondi au-dessus). */
   boss: { every: 5, per: 10 },
+  /** Aux vagues multiples de `every`, le Colosse est remplacé par sa version enragée (même nombre). */
+  rageBoss: { every: 10 },
   /** PV des monstres : ×(1 + (vague − 1) × hpGrowth). */
   hpGrowth: 0.1,
   /** Intervalle d'apparition PAR ENTRÉE : max(min, base − vague × perWave) secondes. */
@@ -116,26 +118,27 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyDef> = {
   brute: { name: 'Brute', hp: 370, speed: 40, radius: 15, damage: 38, interval: 1.3, reward: 36, color: '#ba68c8' },
   splitter: { name: 'Éclateur', hp: 230, speed: 46, radius: 14, damage: 25, interval: 1.2, reward: 16, color: '#26c6a2' },
   spider: { name: 'Araignée', hp: 190, speed: 72, radius: 15, damage: 14, interval: 0.9, reward: 24, color: '#9c2a4a' },
+  rageboss: { name: 'Colosse enragé', hp: 3600, speed: 40, radius: 21, damage: 140, interval: 1.1, reward: 600, color: '#8e0000' },
   boss: { name: 'Colosse', hp: 1300, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 220, color: '#e53935' }
 }
 
 // ───────────────────────────────────────────────────────────── 5. CONSTRUCTIONS
 
 /** Mur en bois (niveau 1 de la barricade). */
-export const WALL_BASE = { cost: 15, hp: 150, breakCost: 5 }
+export const WALL_BASE = { cost: 15, hp: 170, breakCost: 5 }
 
 /** Niveaux de mur à partir du niveau 2 (débloqués par l'arbre de compétences). cost : prix pour atteindre ce niveau. */
 export const WALL_TIERS: readonly WallTier[] = [
-  { name: 'Mur en pierre', cost: 45, hp: 320, breakCost: 14, unlock: 'stone', debris: '#a9afbd' },
-  { name: 'Mur en bronze', cost: 60, hp: 600, breakCost: 19, unlock: 'bronze', debris: '#c47a3a' },
-  { name: 'Mur en pierre renforcé', cost: 80, hp: 910, breakCost: 26, unlock: 'reinforced', debris: '#cfd8dc' }
+  { name: 'Mur en pierre', cost: 45, hp: 350, breakCost: 14, unlock: 'stone', debris: '#a9afbd' },
+  { name: 'Mur en bronze', cost: 60, hp: 670, breakCost: 19, unlock: 'bronze', debris: '#c47a3a' },
+  { name: 'Mur en pierre renforcé', cost: 80, hp: 940, breakCost: 26, unlock: 'reinforced', debris: '#cfd8dc' }
 ]
 
 /** Pieux. dps : dégâts/s aux ennemis dessus · wearPerSec : usure · slow : multiplicateur de vitesse (0,65 = −35 %). */
 export const SPIKE_TIERS: readonly SpikeLevel[] = [
-  { name: 'Pieux en bois', cost: 45, hp: 220, dps: 30, wearPerSec: 14, slow: 0.65, debris: '#b08a55' },
-  { name: 'Pieux en pierre', cost: 60, hp: 380, dps: 44, wearPerSec: 12, slow: 0.55, unlock: 'spikeStone', debris: '#a9afbd' },
-  { name: 'Pieux en pierre renforcé', cost: 90, hp: 550, dps: 62, wearPerSec: 9, slow: 0.45, unlock: 'spikeReinforced', debris: '#cfd8dc' }
+  { name: 'Pieux en bois', cost: 45, hp: 220, dps: 30, wearPerSec: 14, slow: 0.75, debris: '#b08a55' },
+  { name: 'Pieux en pierre', cost: 60, hp: 380, dps: 44, wearPerSec: 12, slow: 0.7, unlock: 'spikeStone', debris: '#a9afbd' },
+  { name: 'Pieux en pierre renforcé', cost: 90, hp: 550, dps: 62, wearPerSec: 9, slow: 0.6, unlock: 'spikeReinforced', debris: '#cfd8dc' }
 ]
 
 // ───────────────────────────────────────────────────────────── 6. TOURELLES
@@ -161,11 +164,14 @@ export const TURRET_EVOLVE_AT = 8
 /** Tourelles posables par joueur : `base`, plus `perRank` par rang de l'amélioration « Tourelles » (arbre de compétences). */
 export const TURRET_LIMIT = { base: 3, perRank: 1 }
 
+/** Pieux posables par joueur : `base`, plus `perRank` par rang de l'amélioration « Pieux » (arbre de compétences). */
+export const SPIKE_LIMIT = { base: 3, perRank: 1 }
+
 /** Niveaux 1 à 3. */
 export const TURRET_LEVELS_PLAIN: readonly TurretLevel[] = [
   { cost: TURRET_COSTS.place, stats: { damage: 13, fireRate: 2.2, range: 220, hp: 180, bulletSpeed: 560 } },
   { cost: 150, stats: { damage: 19, fireRate: 2.2, range: 220, hp: 250, bulletSpeed: 560 } },
-  { cost: 250, stats: { damage: 26, fireRate: 2.4, range: 220, hp: 350, bulletSpeed: 560 } }
+  { cost: 225, stats: { damage: 26, fireRate: 2.4, range: 220, hp: 350, bulletSpeed: 560 } }
 ]
 
 /** Branches : name / blurb / accent (texte et couleur) + `levels` = niveaux 4 à 10. */
@@ -176,14 +182,14 @@ export const TURRET_BRANCH_CONFIG: Record<1 | 2, TurretBranchDef> = {
     accent: '#4dd0e1',
     levels: [
       // Niveaux 4 à 7 : double canons
-      { cost: 370, stats: { damage: 26, fireRate: 4.8, range: 220, hp: 410, bulletSpeed: 560 } },
-      { cost: 480, stats: { damage: 30, fireRate: 5.4, range: 230, hp: 480, bulletSpeed: 580 } },
+      { cost: 350, stats: { damage: 26, fireRate: 4.8, range: 220, hp: 410, bulletSpeed: 560 } },
+      { cost: 470, stats: { damage: 30, fireRate: 5.4, range: 230, hp: 480, bulletSpeed: 580 } },
       { cost: 600, stats: { damage: 36, fireRate: 6.0, range: 240, hp: 560, bulletSpeed: 590 } },
-      { cost: 780, stats: { damage: 44, fireRate: 7.0, range: 250, hp: 660, bulletSpeed: 600 } },
+      { cost: 760, stats: { damage: 44, fireRate: 7.0, range: 250, hp: 660, bulletSpeed: 600 } },
       // Niveaux 8 à 10 : Minigun
-      { cost: 1100, stats: { damage: 55, fireRate: 12, range: 255, hp: 780, bulletSpeed: 640 } },
-      { cost: 1500, stats: { damage: 62, fireRate: 14, range: 262, hp: 890, bulletSpeed: 650 } },
-      { cost: 1900, stats: { damage: 75, fireRate: 16, range: 270, hp: 1020, bulletSpeed: 660 } }
+      { cost: 1000, stats: { damage: 55, fireRate: 12, range: 255, hp: 780, bulletSpeed: 640 } },
+      { cost: 1400, stats: { damage: 62, fireRate: 14, range: 262, hp: 890, bulletSpeed: 650 } },
+      { cost: 1800, stats: { damage: 75, fireRate: 16, range: 270, hp: 1020, bulletSpeed: 660 } }
     ]
   },
   2: {
@@ -192,10 +198,10 @@ export const TURRET_BRANCH_CONFIG: Record<1 | 2, TurretBranchDef> = {
     accent: '#ff9800',
     levels: [
       // Niveaux 4 à 7 : canon lourd
-      { cost: 420, stats: { damage: 78, fireRate: 2.4, range: 250, hp: 460, bulletSpeed: 640 } },
-      { cost: 540, stats: { damage: 92, fireRate: 2.4, range: 262, hp: 540, bulletSpeed: 660 } },
-      { cost: 680, stats: { damage: 112, fireRate: 2.5, range: 275, hp: 630, bulletSpeed: 680 } },
-      { cost: 850, stats: { damage: 136, fireRate: 2.6, range: 290, hp: 760, bulletSpeed: 700 } },
+      { cost: 400, stats: { damage: 78, fireRate: 2.4, range: 250, hp: 460, bulletSpeed: 640 } },
+      { cost: 520, stats: { damage: 92, fireRate: 2.4, range: 262, hp: 540, bulletSpeed: 660 } },
+      { cost: 660, stats: { damage: 112, fireRate: 2.5, range: 275, hp: 630, bulletSpeed: 680 } },
+      { cost: 830, stats: { damage: 136, fireRate: 2.6, range: 290, hp: 760, bulletSpeed: 700 } },
       // Niveaux 8 à 10 : Canon explosif (l'obus explose à l'impact et touche tout autour)
       { cost: 1200, stats: { damage: 175, fireRate: 2.8, range: 295, hp: 880, bulletSpeed: 550, splash: 70 } },
       { cost: 1700, stats: { damage: 204, fireRate: 2.8, range: 300, hp: 1050, bulletSpeed: 600, splash: 82 } },
@@ -261,7 +267,9 @@ export const PERK_BALANCE = {
   precision: { costs: [50, 90, 140, 200, 280], perRank: 0.2 },
  turrets: { costs: [180, 350, 500, 800, 1200], perRank: 0 },
   // Capacité active « Balles enflammées » : le rang 1 la débloque, les suivants l'améliorent (voir ABILITY_CONFIG).
-  fireBullets: { costs: [350, 180, 320, 450, 720], perRank: 0 }
+  fireBullets: { costs: [350, 180, 320, 450, 720], perRank: 0 },
+  // Nombre de pieux posables : 3 de base, +1 par rang (voir SPIKE_LIMIT).
+  spikes: { costs: [120, 200, 320, 480, 700], perRank: 0 }
 }
 
 /** Capacités actives : touches 1 à 3 du joueur, jusqu'à ABILITY_SLOTS équipées par partie. */
@@ -292,7 +300,7 @@ export const ABILITY_CONFIG = {
  * `minion` : petits issus de la division d'un Éclateur.
  */
 export const SCORE = {
-  killPoints: { grunt: 1, runner: 1, brute: 3, splitter: 3, boss: 15, minion: 0.5, spider: 4 },
+  killPoints: { grunt: 1, runner: 1, brute: 3, splitter: 3, boss: 15, minion: 0.5, spider: 4, rageboss: 45 },
   /** Points par vague atteinte. */
   wavePoints: 10,
   /** Chaque vague atteinte augmente le total de 10 % : tenir longtemps est récompensé. */

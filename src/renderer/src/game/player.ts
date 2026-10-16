@@ -62,14 +62,18 @@ function drawHeartTrail(ctx: CanvasRenderingContext2D, pts: Pt[], r: number, t: 
     const sway = Math.sin(age * 7 + slot * 1.7) * r * 0.28
     const x = q.x + sway
     const y = q.y - r * 0.2 - k * r * 2.4
-    const s = r * 0.24 * (0.55 + 0.45 * Math.min(1, age * 6)) * (1 - 0.35 * k)
+    const s = r * 0.31 * (0.55 + 0.45 * Math.min(1, age * 6)) * (1 - 0.25 * k)
     ctx.save()
-    ctx.globalAlpha = Math.pow(1 - k, 1.3)
+    ctx.globalAlpha = Math.pow(1 - k, 0.9)
     ctx.translate(x, y)
     ctx.rotate(Math.sin(age * 5 + slot) * 0.35)
     heart(ctx, 0, 0, s)
     ctx.fillStyle = HEART_COLORS[slot % HEART_COLORS.length]
     ctx.fill()
+    // Liseré clair : le bordeaux reste lisible sur le fond sombre
+    ctx.strokeStyle = 'rgba(255, 214, 230, 0.7)'
+    ctx.lineWidth = 0.9
+    ctx.stroke()
     // Reflet sur le lobe gauche
     ctx.fillStyle = 'rgba(255, 255, 255, 0.55)'
     ctx.beginPath()

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS } from '../game/config/constants'
-import { ABILITY_CONFIG, TURRET_LIMIT } from '../game/config/config'
+import { ABILITY_CONFIG, SPIKE_LIMIT, TURRET_LIMIT } from '../game/config/config'
 import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/config/progress'
 import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_EVOLVE_LEVEL, TURRET_MAX_LEVEL, TURRET_PLAIN, TURRET_PLAIN_MAX, TURRET_SPEC_LEVEL } from '../game/config/turrets'
 import { useStore } from '../store'
@@ -76,7 +76,7 @@ const EFFECTS: Record<UnlockId, Row[]> = {
 const BRANCH_TITLES: Record<TreeBranch, string> = { barricade: 'Murs', spikes: 'Pieux', turret: 'Tourelles · niveau 4 à 10', tech: 'Technologie' }
 
 /** Statistiques de base du joueur et leur unité, pour afficher « actuel → prochain rang ». */
-const BASE_VALUES: Record<Exclude<PerkId, 'overclock' | 'precision' | 'turrets' | 'fireBullets'>, { base: number; unit: string; digits: number }> = {
+const BASE_VALUES: Record<Exclude<PerkId, 'overclock' | 'precision' | 'turrets' | 'fireBullets' | 'spikes'>, { base: number; unit: string; digits: number }> = {
   speed: { base: PLAYER.speed, unit: 'px/s', digits: 0 },
   fireRate: { base: PLAYER.fireRate, unit: 'tirs/s', digits: 1 },
   range: { base: PLAYER.range, unit: 'px', digits: 0 },
@@ -174,6 +174,9 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
   let gain: string
   if (def.id === 'turrets') {
     show = (r) => `${TURRET_LIMIT.base + r} tourelles`
+    gain = show(max)
+  } else if (def.id === 'spikes') {
+    show = (r) => `${SPIKE_LIMIT.base + r * SPIKE_LIMIT.perRank} pieux`
     gain = show(max)
   } else if (def.id === 'fireBullets') {
     const stats = (r: number): string => {

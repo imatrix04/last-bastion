@@ -189,5 +189,6 @@ export const PERK_ICONS: Record<PerkId, (p: P) => React.JSX.Element> = {
   overclock: IconBolt,
   fireBullets: IconFlame,
   turrets: IconTurrets,
+  spikes: IconSpikes,
   precision: IconPrecision
 }
