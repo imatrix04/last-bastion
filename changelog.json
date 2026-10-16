@@ -1,7 +1,7 @@
 {
   "releases": [
     {
-      "version": "1.4.0",
+      "version": "1.4.1",
       "date": "2026-10-16",
       "added": [
         "Nouvelle amélioration du soldat, la Précision (5 rangs) : tes balles anticipent le déplacement des monstres et visent là où ils seront, de 20 % d'anticipation au rang 1 à l'interception complète au rang 5, avec une dispersion réduite jusqu'à moitié",
