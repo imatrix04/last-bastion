@@ -1,4 +1,6 @@
+import { biomeOf } from './biomes'
 import { buildTarget, placementStatus } from './build'
+import type { BiomeDecor, BiomeDef } from './config/config'
 import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, WIDTH } from './config/constants'
 import { drawPlayer } from './player'
 import { buildingAt } from './grid'
@@ -9,8 +11,8 @@ import type { Building, GameState } from './types'
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'
 
-/** Fond pré-rendu : damier d'herbe, brins, couloirs d'apparition sur les bords. */
-export function createBackground(scale: number): HTMLCanvasElement {
+/** Fond pré-rendu d'un biome : damier, taches, décor propre au biome, couloirs d'apparition sur les bords. */
+export function createBackground(scale: number, biome: BiomeDef): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(WIDTH * scale)
   canvas.height = Math.round(HEIGHT * scale)
@@ -26,30 +28,32 @@ export function createBackground(scale: number): HTMLCanvasElement {
 
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
-      g.fillStyle = (row + col) % 2 === 0 ? '#1f3324' : '#1c2f21'
+      g.fillStyle = (row + col) % 2 === 0 ? biome.tileA : biome.tileB
       g.fillRect(col * TILE, row * TILE, TILE, TILE)
     }
   }
   // Grandes taches de teinte pour casser l'uniformité du damier
   for (let i = 0; i < 46; i++) {
-    g.fillStyle = rnd() < 0.5 ? 'rgba(60, 100, 60, 0.07)' : 'rgba(8, 20, 12, 0.1)'
+    g.fillStyle = rnd() < 0.5 ? biome.patchLight : biome.patchDark
     g.beginPath()
     g.arc(rnd() * WIDTH, rnd() * HEIGHT, 30 + rnd() * 70, 0, Math.PI * 2)
     g.fill()
   }
   for (let i = 0; i < 320; i++) {
-    g.fillStyle = rnd() < 0.5 ? '#27412b' : '#162419'
+    g.fillStyle = rnd() < 0.5 ? biome.speckA : biome.speckB
     g.fillRect(rnd() * WIDTH, rnd() * HEIGHT, 2, 3)
   }
   for (let i = 0; i < 70; i++) {
-    g.fillStyle = rnd() < 0.5 ? 'rgba(160, 170, 160, 0.16)' : 'rgba(110, 120, 110, 0.14)'
+    g.fillStyle = rnd() < 0.5 ? biome.pebbleA : biome.pebbleB
     g.beginPath()
     g.ellipse(rnd() * WIDTH, rnd() * HEIGHT, 1.5 + rnd() * 2.5, 1 + rnd() * 1.5, rnd() * 3, 0, Math.PI * 2)
     g.fill()
   }
 
-  // Bord de carte : terre battue, c'est par là que viennent les monstres
-  g.fillStyle = 'rgba(70, 40, 30, 0.45)'
+  drawBiomeDecor(g, biome.decor, rnd)
+
+  // Bord de carte : c'est par là que viennent les monstres
+  g.fillStyle = biome.edge
   g.fillRect(0, 0, WIDTH, TILE)
   g.fillRect(0, HEIGHT - TILE, WIDTH, TILE)
   g.fillRect(0, TILE, TILE, HEIGHT - 2 * TILE)
@@ -68,16 +72,186 @@ export function createBackground(scale: number): HTMLCanvasElement {
   }
   g.stroke()
 
-  // Vignettage
+  // Vignettage : plus le biome est dur, plus il se referme sur les bords
   const vignette = g.createRadialGradient(WIDTH / 2, HEIGHT / 2, HEIGHT * 0.45, WIDTH / 2, HEIGHT / 2, WIDTH * 0.62)
   vignette.addColorStop(0, 'rgba(0, 0, 0, 0)')
-  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.45)')
+  vignette.addColorStop(1, `rgba(0, 0, 0, ${biome.vignette})`)
   g.fillStyle = vignette
   g.fillRect(0, 0, WIDTH, HEIGHT)
+  if (biome.tint) {
+    g.fillStyle = biome.tint
+    g.fillRect(0, 0, WIDTH, HEIGHT)
+  }
   return canvas
 }
 
-export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: CanvasImageSource): void {
+/** Éléments de décor qui donnent son identité à chaque biome. */
+function drawBiomeDecor(g: CanvasRenderingContext2D, decor: BiomeDecor, rnd: () => number): void {
+  const crack = (x: number, y: number, len: number, angle: number, color: string, width: number): void => {
+    g.strokeStyle = color
+    g.lineWidth = width
+    g.lineJoin = 'round'
+    g.beginPath()
+    g.moveTo(x, y)
+    for (let s = 0; s < len; s++) {
+      angle += (rnd() - 0.5) * 1.1
+      x += Math.cos(angle) * (8 + rnd() * 10)
+      y += Math.sin(angle) * (8 + rnd() * 10)
+      g.lineTo(x, y)
+    }
+    g.stroke()
+  }
+
+  if (decor === 'meadow') {
+    for (let i = 0; i < 60; i++) {
+      g.fillStyle = ['#f8bbd0', '#fff59d', '#b3e5fc'][Math.floor(rnd() * 3)]
+      g.globalAlpha = 0.5
+      g.fillRect(rnd() * WIDTH, rnd() * HEIGHT, 2, 2)
+    }
+    g.globalAlpha = 1
+  } else if (decor === 'forest') {
+    // Ombres de grands arbres et champignons luisants
+    for (let i = 0; i < 16; i++) {
+      g.fillStyle = 'rgba(0, 8, 5, 0.32)'
+      g.beginPath()
+      g.arc(rnd() * WIDTH, rnd() * HEIGHT, 26 + rnd() * 26, 0, Math.PI * 2)
+      g.fill()
+    }
+    for (let i = 0; i < 26; i++) {
+      const x = rnd() * WIDTH
+      const y = rnd() * HEIGHT
+      const glow = g.createRadialGradient(x, y, 0, x, y, 9)
+      glow.addColorStop(0, 'rgba(156, 204, 101, 0.35)')
+      glow.addColorStop(1, 'rgba(156, 204, 101, 0)')
+      g.fillStyle = glow
+      g.fillRect(x - 9, y - 9, 18, 18)
+      g.fillStyle = '#c5e1a5'
+      g.fillRect(x - 1, y - 1, 2, 2)
+    }
+  } else if (decor === 'desert') {
+    // Rides de dunes et sol craquelé
+    g.lineWidth = 1.4
+    for (let i = 0; i < 46; i++) {
+      g.strokeStyle = 'rgba(235, 205, 145, 0.11)'
+      g.beginPath()
+      const x = rnd() * WIDTH
+      const y = rnd() * HEIGHT
+      g.arc(x, y, 18 + rnd() * 40, Math.PI * 1.1, Math.PI * 1.9)
+      g.stroke()
+    }
+    for (let i = 0; i < 14; i++) crack(rnd() * WIDTH, rnd() * HEIGHT, 5 + Math.floor(rnd() * 5), rnd() * Math.PI * 2, 'rgba(20, 10, 0, 0.3)', 1.3)
+  } else if (decor === 'volcano') {
+    // Roches sombres et fissures de lave incandescentes
+    for (let i = 0; i < 22; i++) {
+      g.fillStyle = 'rgba(0, 0, 0, 0.28)'
+      g.beginPath()
+      g.ellipse(rnd() * WIDTH, rnd() * HEIGHT, 10 + rnd() * 24, 7 + rnd() * 14, rnd() * 3, 0, Math.PI * 2)
+      g.fill()
+    }
+    g.save()
+    g.shadowColor = '#ff5722'
+    g.shadowBlur = 8
+    for (let i = 0; i < 16; i++) {
+      const x = rnd() * WIDTH
+      const y = rnd() * HEIGHT
+      const a = rnd() * Math.PI * 2
+      crack(x, y, 6 + Math.floor(rnd() * 6), a, 'rgba(255, 87, 34, 0.75)', 2.2)
+    }
+    g.restore()
+  } else {
+    // Éclats de cristal violet et étoiles du vide
+    for (let i = 0; i < 70; i++) {
+      g.fillStyle = rnd() < 0.5 ? 'rgba(209, 196, 233, 0.5)' : 'rgba(149, 117, 205, 0.45)'
+      g.fillRect(rnd() * WIDTH, rnd() * HEIGHT, 1.5, 1.5)
+    }
+    for (let i = 0; i < 22; i++) {
+      const x = rnd() * WIDTH
+      const y = rnd() * HEIGHT
+      const h = 10 + rnd() * 22
+      const w = 4 + rnd() * 7
+      g.fillStyle = 'rgba(179, 136, 255, 0.3)'
+      g.beginPath()
+      g.moveTo(x, y - h)
+      g.lineTo(x + w, y)
+      g.lineTo(x, y + h * 0.3)
+      g.lineTo(x - w, y)
+      g.closePath()
+      g.fill()
+      g.strokeStyle = 'rgba(225, 200, 255, 0.45)'
+      g.lineWidth = 1
+      g.stroke()
+    }
+  }
+}
+
+/** Particules d'ambiance (pollen, spores, poussière, braises, lueurs du vide) : positions calculées à partir du temps, rien n'est stocké. */
+function drawAmbient(ctx: CanvasRenderingContext2D, biome: BiomeDef, time: number): void {
+  const a = biome.ambient
+  ctx.save()
+  ctx.fillStyle = a.color
+  for (let i = 0; i < a.count; i++) {
+    const h1 = Math.abs(Math.sin(i * 127.1 + 1.7) * 43758.5453) % 1
+    const h2 = Math.abs(Math.sin(i * 311.7 + 9.3) * 12543.321) % 1
+    const dir = a.rise ? -1 : 1
+    const y = (((h2 * HEIGHT + dir * a.speed * time * (0.6 + h1 * 0.8)) % HEIGHT) + HEIGHT) % HEIGHT
+    const x = h1 * WIDTH + Math.sin(time * 0.6 + i) * a.drift
+    ctx.globalAlpha = 0.25 + 0.45 * (0.5 + 0.5 * Math.sin(time * 2 + i * 1.9))
+    ctx.beginPath()
+    ctx.arc(x, y, a.size * (0.7 + h2 * 0.7), 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
+/** Annonce de l'arrivée dans un nouveau biome (en haut de l'écran, apparaît puis s'efface). */
+export interface BiomeBanner {
+  /** Numéro du biome (à partir de 1). */
+  index: number
+  biome: BiomeDef
+  /** 0 → 1 sur la durée de l'annonce. */
+  progress: number
+}
+
+/** Fondu entre l'ancien et le nouveau fond. */
+export interface RenderExtra {
+  prevBg?: CanvasImageSource | null
+  /** 0 = ancien fond, 1 = nouveau fond. */
+  fade?: number
+  banner?: BiomeBanner | null
+}
+
+function drawBanner(ctx: CanvasRenderingContext2D, banner: BiomeBanner): void {
+  // Entrée rapide, maintien, sortie douce
+  const p = banner.progress
+  const alpha = Math.min(1, p / 0.12, (1 - p) / 0.25)
+  if (alpha <= 0) return
+  const y = 118 + (1 - Math.min(1, p / 0.12)) * -14
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const band = ctx.createLinearGradient(0, y - 46, 0, y + 46)
+  band.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  band.addColorStop(0.5, 'rgba(0, 0, 0, 0.62)')
+  band.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  ctx.fillStyle = band
+  ctx.fillRect(0, y - 46, WIDTH, 92)
+  ctx.font = `600 13px ${FONT}`
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
+  ctx.fillText(`BIOME ${banner.index}`, WIDTH / 2, y - 24)
+  ctx.font = `800 32px ${FONT}`
+  ctx.lineWidth = 5
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
+  ctx.strokeText(banner.biome.name, WIDTH / 2, y + 2)
+  ctx.fillStyle = banner.biome.accent
+  ctx.fillText(banner.biome.name, WIDTH / 2, y + 2)
+  ctx.font = `italic 600 14px ${FONT}`
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.82)'
+  ctx.fillText(banner.biome.tagline, WIDTH / 2, y + 28)
+  ctx.restore()
+}
+
+export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: CanvasImageSource, extra: RenderExtra = {}): void {
   ctx.save()
   ctx.fillStyle = '#0b130e'
   ctx.fillRect(0, 0, WIDTH, HEIGHT)
@@ -85,7 +259,15 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
     const s = state.shake * 7
     ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s)
   }
-  ctx.drawImage(bg, 0, 0, WIDTH, HEIGHT)
+  const fade = extra.fade ?? 1
+  if (fade < 1 && extra.prevBg) {
+    ctx.drawImage(extra.prevBg, 0, 0, WIDTH, HEIGHT)
+    ctx.globalAlpha = fade
+    ctx.drawImage(bg, 0, 0, WIDTH, HEIGHT)
+    ctx.globalAlpha = 1
+  } else {
+    ctx.drawImage(bg, 0, 0, WIDTH, HEIGHT)
+  }
 
   drawDecals(ctx, state)
   drawGates(ctx, state)
@@ -100,6 +282,8 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
   drawBullets(ctx, state)
   drawWebShots(ctx, state)
   drawFx(ctx, state)
+  drawAmbient(ctx, biomeOf(state.wave), state.time)
+  if (extra.banner) drawBanner(ctx, extra.banner)
   ctx.restore()
 }
 
@@ -490,13 +674,18 @@ function drawGhostLabels(ctx: CanvasRenderingContext2D, state: GameState): void 
     if (!target) continue
     const next = nextUpgrade(target, p.unlocks)
     let text = levelName(target)
+    if (target.repairCd > 0) text += `  🔧 ${Math.ceil(target.repairCd)} s`
     let color = '#e0e0e0'
-    if (next && next.locked) {
+    if (target.owner !== p.id) {
+      // Le bâtiment d'un autre joueur : on peut le réparer, pas l'améliorer ni le démolir.
+      text += `  · Joueur ${target.owner + 1}`
+      color = '#b0bec5'
+    } else if (next && next.locked) {
       text += `  🔒 ${next.label}`
       color = '#ce93d8'
     } else if (next) {
       text += `  ▲ ${next.label} · ${next.cost}${next.mode === 'choice' ? '+' : ''}`
-      color = state.gold >= next.cost ? '#ffe082' : '#ffab91'
+      color = p.gold >= next.cost ? '#ffe082' : '#ffab91'
     } else {
       text += '  · niveau max'
     }

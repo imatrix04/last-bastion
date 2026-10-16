@@ -39,6 +39,8 @@ export function placementStatus(state: GameState, p: Player, col: number, row: n
   const existing = buildingAt(state, col, row)
   if (existing) {
     if (existing.hp < existing.maxHp) return 'repair'
+    // On n'améliore que ce qu'on a construit soi-même.
+    if (existing.owner !== p.id) return 'occupied'
     const up = nextUpgrade(existing, p.unlocks)
     return up && !up.locked ? 'upgrade' : 'occupied'
   }
@@ -48,7 +50,7 @@ export function placementStatus(state: GameState, p: Player, col: number, row: n
   // Un mur ou une tourelle ne se pose pas sur un monstre : il resterait coincé dedans et ne pourrait plus attaquer.
   if (BUILDS[BUILD_ORDER[p.selected]].solid && enemyOnTile(state, col, row)) return 'invalid'
   if (BUILD_ORDER[p.selected] === 'turret' && turretsOwned(state, p.id) >= turretCap(p.perks)) return 'limit'
-  return state.gold >= BUILDS[BUILD_ORDER[p.selected]].cost ? 'ok' : 'poor'
+  return p.gold >= BUILDS[BUILD_ORDER[p.selected]].cost ? 'ok' : 'poor'
 }
 
 /** Un monstre vivant touche-t-il cette case ? */
@@ -78,6 +80,7 @@ export function placeBuilding(state: GameState, kind: BuildKind, col: number, ro
     side: 1,
     boost,
     web: 0,
+    repairCd: 0,
     owner
   }
   state.grid[idx(col, row)] = b
@@ -121,7 +124,7 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
   switch (placementStatus(state, p, col, row)) {
     case 'ok': {
       const kind = BUILD_ORDER[p.selected]
-      state.gold -= BUILDS[kind].cost
+      p.gold -= BUILDS[kind].cost
       const b = placeBuilding(state, kind, col, row, p.perks[PERK_INDEX.overclock] ?? 0, p.id)
       b.pop = 0.7
       burst(state, cx, cy, '#d7ccc8', 6, 70)
@@ -131,15 +134,22 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
     case 'repair': {
       const b = buildingAt(state, col, row)
       if (!b) return false
-      const amount = Math.min(b.maxHp - b.hp, 30)
+      if (b.repairCd > 0) {
+        if (press) addText(state, cx, cy - 20, `Réparation prête dans ${Math.ceil(b.repairCd)} s`, '#90caf9')
+        return false
+      }
+      // Chaque réparation rend une part des PV max (50 % par défaut), puis la case est en recharge.
+      const amount = Math.min(b.maxHp - b.hp, Math.ceil(b.maxHp * GAME.repair.fraction))
       // Une réparation complète coûte environ la moitié de l'or investi dans le bâtiment.
       const cost = Math.ceil((investedCost(b) * 0.5 * amount) / b.maxHp)
-      if (state.gold < cost) {
+      if (p.gold < cost) {
         if (press) addText(state, p.x, p.y - 24, "Pas assez d'or", '#ff8a65')
         return false
       }
-      state.gold -= cost
+      p.gold -= cost
       b.hp += amount
+      b.repairCd = GAME.repair.cooldown
+      addText(state, cx, cy - 20, `+${Math.round((amount / b.maxHp) * 100)} % PV`, '#90caf9')
       sparks(state, cx, cy, '#80d8ff', 4, 90)
       burst(state, cx, cy, '#80d8ff', 2, 40, 3)
       return true
@@ -169,6 +179,10 @@ export function actUpgrade(state: GameState, p: Player): boolean {
     addText(state, p.x, p.y - 24, 'Rien à améliorer', '#b0bec5')
     return false
   }
+  if (b.owner !== p.id) {
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, `Appartient au Joueur ${b.owner + 1}`, '#b0bec5')
+    return false
+  }
   const next = nextUpgrade(b, p.unlocks)
   if (!next) {
     addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, 'Niveau max', '#b0bec5')
@@ -178,7 +192,7 @@ export function actUpgrade(state: GameState, p: Player): boolean {
     addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, 'Verrouillé (Compétences)', '#ce93d8')
     return false
   }
-  if (state.gold < next.cost) {
+  if (p.gold < next.cost) {
     addText(state, p.x, p.y - 24, "Pas assez d'or", '#ff8a65')
     return false
   }
@@ -186,7 +200,7 @@ export function actUpgrade(state: GameState, p: Player): boolean {
     state.choice = { player: p.id, col, row }
     return true
   }
-  state.gold -= next.cost
+  p.gold -= next.cost
   upgradeBuilding(state, b)
   upgradeFx(state, b)
   return true
@@ -199,28 +213,32 @@ export function actUpgrade(state: GameState, p: Player): boolean {
 export function applyTurretBranch(state: GameState, col: number, row: number, branch: Branch, player: Player): boolean {
   if (branch !== 1 && branch !== 2) return false
   const b = buildingAt(state, col, row)
-  if (!b || b.kind !== 'turret' || b.level !== TURRET_PLAIN_MAX) return false
+  if (!b || b.kind !== 'turret' || b.level !== TURRET_PLAIN_MAX || b.owner !== player.id) return false
   if (!branchUnlocked(player.unlocks, branch)) return false
   if (Math.hypot(player.x - (col + 0.5) * TILE, player.y - (row + 0.5) * TILE) > PICK_REACH * TILE) return false
   const cost = TURRET_BRANCHES[branch].levels[0].cost
-  if (state.gold < cost) {
+  if (player.gold < cost) {
     addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, "Pas assez d'or", '#ff8a65')
     return false
   }
-  state.gold -= cost
+  player.gold -= cost
   upgradeBuilding(state, b, branch)
   upgradeFx(state, b)
   state.shake = Math.min(1, state.shake + 0.08)
   return true
 }
 
-/** Démolit le bâtiment ciblé et rembourse une partie de l'or investi selon son état. */
+/** Démolit le bâtiment ciblé (le sien) et rembourse une partie de l'or investi selon son état. */
 export function actRemove(state: GameState, p: Player): boolean {
   const { col, row } = buildTarget(p)
   const b = buildingAt(state, col, row)
   if (!b) return false
+  if (b.owner !== p.id) {
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, `Appartient au Joueur ${b.owner + 1}`, '#b0bec5')
+    return false
+  }
   const refund = Math.round(investedCost(b) * 0.5 * (b.hp / b.maxHp))
-  state.gold += refund
+  p.gold += refund
   state.grid[idx(col, row)] = null
   if (BUILDS[b.kind].solid) state.flowDirty = true
   const cx = (col + 0.5) * TILE

@@ -515,3 +515,13 @@ kbd {
     box-shadow: 0 0 1.5em rgba(255, 145, 0, 0.9);
   }
 }
+
+/* L'or de chaque joueur (coop) : pastille à la couleur du joueur */
+.chip.gold.tagged {
+  border-left: 3px solid var(--pc, var(--gold));
+}
+.gold-tag {
+  font-size: 0.8em;
+  font-weight: 800;
+  color: var(--pc, var(--muted));
+}

@@ -94,7 +94,7 @@ function saveAddress(address: string): void {
 }
 
 const initialHud: HudState = {
-  gold: 0,
+  golds: [0, 0],
   wave: 0,
   phase: 'prep',
   countdown: 0,

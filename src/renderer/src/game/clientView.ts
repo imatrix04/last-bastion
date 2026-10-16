@@ -82,7 +82,6 @@ export class ClientView {
     this.jitter += (Math.max(0, sample - this.offset) - this.jitter) * 0.05
 
     // Ce qui n'a pas besoin d'être interpolé s'affiche tout de suite.
-    st.gold = s.gold
     st.baseHp = s.baseHp
     st.wave = s.wave
     st.phase = s.phase === 1 ? 'combat' : 'prep'
@@ -97,6 +96,7 @@ export class ClientView {
     for (let i = 0; i < s.players.length && i < st.players.length; i++) {
       const p = st.players[i]
       p.selected = s.players[i][3]
+      p.gold = s.gold[i] ?? p.gold
       // Durée d'effet et recharge de chaque emplacement de capacité (envoyées par l'hôte)
       for (let k = 0; k < p.abilityOn.length; k++) {
         p.abilityOn[k] = s.players[i][6 + 2 * k] ?? 0
@@ -142,7 +142,8 @@ export class ClientView {
         recoil: same ? old.recoil : 0,
         side: same ? old.side : 1,
         boost: Math.min(OVERCLOCK_LEVELS.length, Math.max(0, Math.round(rawBoost))),
-        web: Math.max(0, rawWeb / 10)
+        web: Math.max(0, rawWeb / 10),
+        repairCd: 0
       }
     }
 
@@ -202,9 +203,9 @@ export class ClientView {
     const p = this.state.players[LOCAL_ID]
     const { col, row } = buildTarget(p)
     const b = buildingAt(this.state, col, row)
-    if (!b || b.kind !== 'turret' || b.level !== TURRET_PLAIN_MAX) return null
+    if (!b || b.kind !== 'turret' || b.level !== TURRET_PLAIN_MAX || b.owner !== LOCAL_ID) return null
     const next = nextUpgrade(b, p.unlocks)
-    if (!next || next.locked || this.state.gold < next.cost) return null
+    if (!next || next.locked || p.gold < next.cost) return null
     return { player: LOCAL_ID, col, row }
   }
 
@@ -375,7 +376,7 @@ export class ClientView {
   hud(): HudState {
     const st = this.state
     return {
-      gold: st.gold,
+      golds: st.players.map((p) => p.gold),
       wave: st.wave,
       phase: st.phase,
       countdown: Math.ceil(Math.max(0, st.countdown)),

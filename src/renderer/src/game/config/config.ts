@@ -14,6 +14,7 @@
  *   8. Compétences       prix de l'arbre de compétences et des améliorations du joueur
  *   9. Points de fin de partie
  *  10. Mode développeur
+ *  11. Biomes           décor de la carte, qui change toutes les 5 vagues
  *
  * Ce fichier ne contient que des données (aucune logique) : le reste du code les lit.
  * Les noms, descriptions et textes affichés restent dans les fichiers d'origine
@@ -32,7 +33,7 @@ export const BASE_CONFIG = { col: 15, row: 7, cols: 3, rows: 3, maxHp: 1200 }
 
 export const GAME = {
   /** Or au début d'une partie. */
-  startGold: 60,
+  startGold: 120,
   /** Secondes avant la première vague. */
   firstPrep: 30,
   /** Secondes entre deux vagues. */
@@ -40,7 +41,12 @@ export const GAME = {
   /** Secondes entre deux constructions quand on maintient la touche. */
   buildRepeat: 0.14,
   /** Distance (en cases) à laquelle un joueur en ligne peut choisir la branche d'une tourelle. */
-  pickReach: 3
+  pickReach: 3,
+  /**
+   * Réparation : chaque réparation rend `fraction` des PV max du bâtiment (0,5 = 50 %), pour le même prix proportionnel,
+   * puis la case est en recharge `cooldown` secondes (on ne peut pas répéter la même case en boucle).
+   */
+  repair: { fraction: 0.5, cooldown: 3 }
 }
 
 // ───────────────────────────────────────────────────────────── 2. JOUEUR
@@ -105,18 +111,18 @@ export const WAVES = {
 
 /** hp : PV (avant la hausse par vague) · speed : px/s · damage : par coup · interval : secondes entre deux coups · reward : or. */
 export const ENEMY_STATS: Record<EnemyKind, EnemyDef> = {
-  grunt: { name: 'Rôdeur', hp: 50, speed: 62, radius: 11, damage: 10, interval: 0.9, reward: 7, color: '#8bc34a' },
-  runner: { name: 'Coureur', hp: 35, speed: 115, radius: 9, damage: 8, interval: 0.7, reward: 8, color: '#ffb74d' },
-  brute: { name: 'Brute', hp: 370, speed: 40, radius: 15, damage: 38, interval: 1.3, reward: 24, color: '#ba68c8' },
-  splitter: { name: 'Éclateur', hp: 230, speed: 46, radius: 14, damage: 25, interval: 1.2, reward: 12, color: '#26c6a2' },
-  spider: { name: 'Araignée', hp: 190, speed: 72, radius: 15, damage: 14, interval: 0.9, reward: 22, color: '#9c2a4a' },
-  boss: { name: 'Colosse', hp: 1300, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 180, color: '#e53935' }
+  grunt: { name: 'Rôdeur', hp: 50, speed: 62, radius: 11, damage: 10, interval: 0.9, reward: 8, color: '#8bc34a' },
+  runner: { name: 'Coureur', hp: 35, speed: 115, radius: 9, damage: 8, interval: 0.7, reward: 10, color: '#ffb74d' },
+  brute: { name: 'Brute', hp: 370, speed: 40, radius: 15, damage: 38, interval: 1.3, reward: 36, color: '#ba68c8' },
+  splitter: { name: 'Éclateur', hp: 230, speed: 46, radius: 14, damage: 25, interval: 1.2, reward: 16, color: '#26c6a2' },
+  spider: { name: 'Araignée', hp: 190, speed: 72, radius: 15, damage: 14, interval: 0.9, reward: 24, color: '#9c2a4a' },
+  boss: { name: 'Colosse', hp: 1300, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 220, color: '#e53935' }
 }
 
 // ───────────────────────────────────────────────────────────── 5. CONSTRUCTIONS
 
 /** Mur en bois (niveau 1 de la barricade). */
-export const WALL_BASE = { cost: 15, hp: 110, breakCost: 5 }
+export const WALL_BASE = { cost: 15, hp: 150, breakCost: 5 }
 
 /** Niveaux de mur à partir du niveau 2 (débloqués par l'arbre de compétences). cost : prix pour atteindre ce niveau. */
 export const WALL_TIERS: readonly WallTier[] = [
@@ -247,10 +253,10 @@ export const UNLOCK_COST = {
  */
 export const PERK_BALANCE = {
   speed: { costs: [50, 90, 140, 200, 280], perRank: 0.05 },
-  fireRate: { costs: [60, 100, 160, 230, 320], perRank: 0.1 },
+  fireRate: { costs: [60, 100, 160, 230, 320], perRank: 0.2 },
   range: { costs: [50, 90, 140, 200, 280], perRank: 0.05 },
-  damage: { costs: [60, 100, 160, 230, 320], perRank: 0.1 },
-  bulletSpeed: { costs: [40, 70, 110, 160, 220], perRank: 0.08 },
+  damage: { costs: [60, 100, 160, 230, 320], perRank: 0.2 },
+  bulletSpeed: { costs: [40, 70, 110, 160, 220], perRank: 0.1 },
   overclock: { costs: [450, 650, 900, 1200, 1600], perRank: 0 },
   precision: { costs: [50, 90, 140, 200, 280], perRank: 0.2 },
  turrets: { costs: [180, 350, 500, 800, 1200], perRank: 0 },
@@ -270,11 +276,11 @@ export const ABILITY_CONFIG = {
   fireBullets: {
     burnSeconds: 3,
     ranks: [
-      { duration: 10, cooldown: 45, burnDps: 10 },
-      { duration: 11, cooldown: 42, burnDps: 12 },
-      { duration: 12, cooldown: 38, burnDps: 16 },
-      { duration: 13, cooldown: 34, burnDps: 21 },
-      { duration: 15, cooldown: 30, burnDps: 27 }
+      { duration: 10, cooldown: 45, burnDps: 12 },
+      { duration: 11, cooldown: 42, burnDps: 14 },
+      { duration: 12, cooldown: 38, burnDps: 18 },
+      { duration: 13, cooldown: 34, burnDps: 24 },
+      { duration: 15, cooldown: 30, burnDps: 32 }
     ]
   }
 }
@@ -301,4 +307,139 @@ export const DEV_CONFIG = {
   goldPerSecond: 150,
   /** Multiplicateur des récompenses de monstres. */
   rewardMult: 10
+}
+
+// ───────────────────────────────────────────────────────────── 11. BIOMES
+
+/** Décor de fond propre à un biome (voir render.ts). */
+export type BiomeDecor = 'meadow' | 'forest' | 'desert' | 'volcano' | 'void'
+
+export interface BiomeDef {
+  name: string
+  /** Phrase affichée à l'arrivée dans le biome. */
+  tagline: string
+  /** Couleur de l'annonce. */
+  accent: string
+  /** Deux teintes du damier. */
+  tileA: string
+  tileB: string
+  /** Grandes taches claires / sombres qui cassent le damier. */
+  patchLight: string
+  patchDark: string
+  /** Petits traits et cailloux. */
+  speckA: string
+  speckB: string
+  pebbleA: string
+  pebbleB: string
+  /** Couloirs d'apparition sur les bords. */
+  edge: string
+  /** Assombrissement des coins (0 à 1) : plus le biome est dur, plus la carte se referme. */
+  vignette: number
+  /** Voile de couleur posé sur toute la scène ('' = aucun). */
+  tint: string
+  decor: BiomeDecor
+  /** Particules d'ambiance : count · speed (px/s, vers le haut si rise) · size (px) · drift (dérive latérale en px). */
+  ambient: { color: string; count: number; speed: number; size: number; drift: number; rise: boolean }
+}
+
+/**
+ * Le biome change toutes les `every` vagues (vagues 1 à 5 : le premier, 6 à 10 : le deuxième...).
+ * Après le dernier, la carte reste dans le dernier biome. Passage d'un biome à l'autre : fondu de `fadeSeconds`.
+ * Visuel seulement : la difficulté vient de WAVES ; le décor se durcit pour la montrer.
+ */
+export const BIOMES: { every: number; fadeSeconds: number; list: readonly BiomeDef[] } = {
+  every: 5,
+  fadeSeconds: 2.5,
+  list: [
+    {
+      name: 'Plaine',
+      tagline: 'Le calme avant la tempête',
+      accent: '#a5d6a7',
+      tileA: '#1f3324',
+      tileB: '#1c2f21',
+      patchLight: 'rgba(60, 100, 60, 0.07)',
+      patchDark: 'rgba(8, 20, 12, 0.1)',
+      speckA: '#27412b',
+      speckB: '#162419',
+      pebbleA: 'rgba(160, 170, 160, 0.16)',
+      pebbleB: 'rgba(110, 120, 110, 0.14)',
+      edge: 'rgba(70, 40, 30, 0.45)',
+      vignette: 0.45,
+      tint: '',
+      decor: 'meadow',
+      ambient: { color: '#fff59d', count: 14, speed: 6, size: 1.4, drift: 10, rise: false }
+    },
+    {
+      name: 'Forêt maudite',
+      tagline: 'Les arbres se referment, les monstres se multiplient',
+      accent: '#9ccc65',
+      tileA: '#16261d',
+      tileB: '#13211a',
+      patchLight: 'rgba(40, 90, 70, 0.08)',
+      patchDark: 'rgba(2, 10, 8, 0.18)',
+      speckA: '#1d3a2c',
+      speckB: '#0c1812',
+      pebbleA: 'rgba(120, 150, 130, 0.14)',
+      pebbleB: 'rgba(70, 100, 85, 0.14)',
+      edge: 'rgba(40, 30, 35, 0.5)',
+      vignette: 0.55,
+      tint: 'rgba(10, 30, 40, 0.1)',
+      decor: 'forest',
+      ambient: { color: '#9ccc65', count: 22, speed: 10, size: 1.7, drift: 18, rise: true }
+    },
+    {
+      name: 'Terres brûlées',
+      tagline: 'Le sol craque sous la chaleur : la horde s’épaissit',
+      accent: '#ffcc80',
+      tileA: '#4a3a22',
+      tileB: '#43341f',
+      patchLight: 'rgba(190, 150, 80, 0.09)',
+      patchDark: 'rgba(30, 18, 6, 0.14)',
+      speckA: '#5a4528',
+      speckB: '#2e2214',
+      pebbleA: 'rgba(215, 195, 155, 0.2)',
+      pebbleB: 'rgba(150, 120, 80, 0.18)',
+      edge: 'rgba(90, 40, 20, 0.5)',
+      vignette: 0.6,
+      tint: 'rgba(120, 70, 10, 0.08)',
+      decor: 'desert',
+      ambient: { color: '#d7b377', count: 28, speed: 4, size: 1.5, drift: 55, rise: false }
+    },
+    {
+      name: 'Cendres du volcan',
+      tagline: 'La roche fond : plus aucun répit',
+      accent: '#ff8a65',
+      tileA: '#2a2524',
+      tileB: '#262120',
+      patchLight: 'rgba(120, 100, 95, 0.07)',
+      patchDark: 'rgba(0, 0, 0, 0.2)',
+      speckA: '#3a3230',
+      speckB: '#161212',
+      pebbleA: 'rgba(160, 140, 130, 0.16)',
+      pebbleB: 'rgba(90, 70, 65, 0.16)',
+      edge: 'rgba(120, 30, 10, 0.55)',
+      vignette: 0.68,
+      tint: 'rgba(110, 20, 0, 0.12)',
+      decor: 'volcano',
+      ambient: { color: '#ff7043', count: 36, speed: 30, size: 1.8, drift: 14, rise: true }
+    },
+    {
+      name: 'Néant',
+      tagline: 'Au bord de l’abîme, tout est perdu d’avance',
+      accent: '#b388ff',
+      tileA: '#1c1530',
+      tileB: '#181229',
+      patchLight: 'rgba(120, 80, 200, 0.08)',
+      patchDark: 'rgba(0, 0, 10, 0.25)',
+      speckA: '#2b2050',
+      speckB: '#0e0a1c',
+      pebbleA: 'rgba(170, 140, 230, 0.16)',
+      pebbleB: 'rgba(100, 70, 160, 0.16)',
+      edge: 'rgba(120, 30, 90, 0.55)',
+      vignette: 0.78,
+      tint: 'rgba(60, 0, 90, 0.14)',
+      decor: 'void',
+      ambient: { color: '#b388ff', count: 40, speed: 14, size: 1.9, drift: 22, rise: true }
+    }
+  ]
 }

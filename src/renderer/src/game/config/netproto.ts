@@ -6,7 +6,7 @@ import { KILL_KINDS } from './progress'
 import type { FxEvent, GameState } from '../types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 12
+export const PROTO_VERSION = 13
 export const NET_PORT = 7777
 /** Fréquence d'envoi de l'état du jeu par l'hôte : un état tous les 2 pas de simulation (60 Hz). */
 export const SNAPSHOT_HZ = 30
@@ -70,7 +70,8 @@ export interface Snap {
   t: 'snap'
   /** Temps de simulation de l'hôte (s) : régulier, c'est lui qui date l'état. */
   ts: number
-  gold: number
+  /** Or de chaque joueur. */
+  gold: number[]
   baseHp: number
   wave: number
   /** 0 = préparation, 1 = combat */
@@ -106,7 +107,7 @@ export function encodeSnap(state: GameState): Snap {
   return {
     t: 'snap',
     ts: Math.round(state.time * 1000) / 1000,
-    gold: Math.floor(state.gold),
+    gold: state.players.map((p) => Math.floor(p.gold)),
     baseHp: Math.ceil(state.baseHp),
     wave: state.wave,
     phase: state.phase === 'combat' ? 1 : 0,
@@ -188,7 +189,7 @@ export function decodeSnap(raw: Record<string, unknown>): Snap | null {
   return {
     t: 'snap',
     ts: num(raw.ts),
-    gold: num(raw.gold),
+    gold: Array.isArray(raw.gold) ? raw.gold.slice(0, 2).map((v) => Math.max(0, num(v))) : [],
     baseHp: num(raw.baseHp),
     wave: num(raw.wave),
     phase: raw.phase === 1 ? 1 : 0,

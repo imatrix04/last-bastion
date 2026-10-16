@@ -19,6 +19,8 @@ import {
 import { abilityHud } from './abilities'
 import { emptyLoadout, scoreRun, type Loadout } from './config/progress'
 import { HostInput, RemoteInput } from './remoteInput'
+import { biomeIndex } from './biomes'
+import { BIOMES } from './config/config'
 import { createBackground, render } from './render'
 import { createState } from './state'
 import type { ChoiceRequest, GameState, HudState, RunResult } from './types'
@@ -40,6 +42,9 @@ export interface GameCallbacks {
 export type GameMode = 'local' | 'host' | 'client'
 
 /** Boucle de jeu : pas fixe de 1/60 s pour la simulation, rendu à chaque image. */
+/** Durée de l'annonce d'un nouveau biome (s). */
+const BANNER_SECONDS = 5
+
 export class Game {
   private state: GameState
   private input = new Input()
@@ -48,7 +53,12 @@ export class Game {
   private view: ClientView | null = null
   private unsubscribe: (() => void) | null = null
   private ctx: CanvasRenderingContext2D
-  private bg: CanvasImageSource
+  /** Fonds pré-rendus par biome, biome affiché, précédent (pour le fondu), avancement du fondu et de l'annonce (secondes, -1 = pas d'annonce). */
+  private bgs = new Map<number, HTMLCanvasElement>()
+  private biome = 0
+  private prevBiome = 0
+  private fade = 1
+  private bannerT = -1
   private raf = 0
   private last = 0
   private acc = 0
@@ -92,7 +102,6 @@ export class Game {
     // Un nouveau jeu côté hôte : le joueur distant (déjà connecté) doit passer à l'écran de jeu.
     if (mode === 'host' && session.peerReady) session.send({ t: 'start' })
 
-    this.bg = createBackground(1)
     this.observer = new ResizeObserver(() => this.resize())
     this.observer.observe(canvas)
     this.resize()
@@ -183,7 +192,33 @@ export class Game {
     this.scale = scale
     this.canvas.width = Math.round(WIDTH * scale)
     this.canvas.height = Math.round(HEIGHT * scale)
-    this.bg = createBackground(scale)
+    this.bgs.clear()
+  }
+
+  /** Fonds pré-rendus, un par biome (créés à la demande, refaits quand la taille d'affichage change). */
+  private backgroundOf(biome: number): HTMLCanvasElement {
+    let bg = this.bgs.get(biome)
+    if (!bg) {
+      bg = createBackground(this.scale, BIOMES.list[biome])
+      this.bgs.set(biome, bg)
+    }
+    return bg
+  }
+
+  /** Le biome suit la vague : à chaque changement, fondu vers le nouveau fond et annonce. */
+  private updateBiome(dt: number): void {
+    const next = biomeIndex(this.state.wave)
+    if (next !== this.biome) {
+      this.prevBiome = this.biome
+      this.biome = next
+      this.fade = 0
+      this.bannerT = 0
+    }
+    this.fade = Math.min(1, this.fade + dt / BIOMES.fadeSeconds)
+    if (this.bannerT >= 0) {
+      this.bannerT += dt
+      if (this.bannerT >= BANNER_SECONDS) this.bannerT = -1
+    }
   }
 
   private frame = (now: number): void => {
@@ -194,8 +229,13 @@ export class Game {
     if (this.mode === 'client') this.frameClient(dt)
     else this.frameSim(dt)
 
+    this.updateBiome(dt)
     this.ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0)
-    render(this.ctx, this.state, this.bg)
+    render(this.ctx, this.state, this.backgroundOf(this.biome), {
+      prevBg: this.fade < 1 ? this.backgroundOf(this.prevBiome) : null,
+      fade: this.fade,
+      banner: this.bannerT >= 0 ? { index: this.biome + 1, biome: BIOMES.list[this.biome], progress: this.bannerT / BANNER_SECONDS } : null
+    })
   }
 
   /** Local et hôte : la simulation tourne ici. */
@@ -306,7 +346,7 @@ export class Game {
     if (this.view) return this.view.hud()
     const s = this.state
     return {
-      gold: s.gold,
+      golds: s.players.map((p) => p.gold),
       wave: s.wave,
       phase: s.phase,
       countdown: Math.ceil(Math.max(0, s.countdown)),

@@ -63,7 +63,7 @@ function StatRow({ label, from, to, unit }: { label: string; from: number; to: n
 
 /** Pop-up de choix de la spécialisation (niveau 4) d'une tourelle : deux cartes comparées à la tourelle actuelle, choix à la souris. */
 export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JSX.Element {
-  const gold = useStore((s) => s.hud.gold)
+  const gold = useStore((s) => s.hud.golds[request.player] ?? 0)
   const color = useStore((s) => s.hud.colors[request.player]) ?? DEFAULT_COLORS[request.player]
   const unlocked = useStore((s) => s.progress.unlocked)
   const mask = unlockMask(unlocked)

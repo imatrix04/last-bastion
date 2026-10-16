@@ -34,6 +34,8 @@ export interface Player {
   remote?: boolean
   shootCd: number
   buildCd: number
+  /** Or de ce joueur : il ne dépense que le sien. Les gains (monstres, vagues) sont partagés à parts égales. */
+  gold: number
 }
 
 export interface Enemy {
@@ -96,6 +98,8 @@ export interface Building {
   owner: number
   /** Secondes restantes sous une toile d'araignée (cadence de tir réduite). */
   web: number
+  /** Secondes avant de pouvoir réparer à nouveau ce bâtiment (hôte seulement, non transmis). */
+  repairCd: number
 }
 
 export interface Bullet {
@@ -196,7 +200,8 @@ export interface ChoiceRequest {
 
 /** Ce que l'interface React a besoin de savoir (envoyé ~10 fois par seconde). */
 export interface HudState {
-  gold: number
+  /** Or de chaque joueur. */
+  golds: number[]
   wave: number
   phase: Phase
   countdown: number
@@ -251,7 +256,6 @@ export interface GameState {
   /** Une entrée par case (COLS * ROWS). */
   grid: (Building | null)[]
   baseHp: number
-  gold: number
   /** Numéro de la vague en cours (0 avant la première). */
   wave: number
   phase: Phase

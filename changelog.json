@@ -1,6 +1,24 @@
 {
   "releases": [
     {
+      "version": "1.4.5",
+      "date": "2026-10-16",
+      "added": [
+        "Or séparé en coop : chaque joueur a sa propre bourse et ne dépense que la sienne pour construire, réparer et améliorer. L'or de départ est réparti entre les joueurs",
+        "Les gains sont partagés à parts égales : récompenses des monstres, or de fin de vague et bonus de lancement anticipé. Au-dessus d'un monstre, le « + » indique la part de chacun",
+        "Une pastille d'or par joueur en haut à gauche (J1, J2), à la couleur de chacun, avec les animations de gain et de dépense",
+        "Cinq biomes qui se succèdent toutes les 5 vagues et montrent que la partie devient plus dure : Plaine (vagues 1 à 5), Forêt maudite (6 à 10), Terres brûlées (11 à 15), Cendres du volcan (16 à 20) et Néant (21 et plus)",
+        "Chaque biome a son décor (fleurs, champignons luisants, dunes et sol craquelé, fissures de lave, cristaux violets), ses particules d'ambiance (pollen, spores, poussière, braises, lueurs) et des bords de plus en plus sombres",
+        "À l'arrivée dans un nouveau biome, le décor se fond en 2,5 secondes et une annonce s'affiche en haut de l'écran avec le nom du biome ; l'invité la voit aussi en ligne"
+      ],
+      "changed": [
+        "On ne peut améliorer, choisir la branche d'une tourelle ou démolir que ce qu'on a construit soi-même (« Appartient au Joueur N » sinon). On peut toujours réparer les bâtiments de l'autre joueur, à ses frais ; l'étiquette d'un bâtiment indique son propriétaire",
+        "La réparation rend maintenant 50 % des PV max par action au lieu de 30 PV, au prix proportionnel aux PV rendus. Une même case ne peut pas être réparée pendant 3 secondes après une réparation, pour éviter de la spammer : « +50 % PV » s'affiche puis l'étiquette indique le temps restant",
+        "Protocole réseau en version 13 : l'hôte et l'invité doivent avoir la même version du jeu"
+      ],
+      "fixed": []
+    },
+    {
       "version": "1.4.4",
       "date": "2026-10-16",
       "added": [

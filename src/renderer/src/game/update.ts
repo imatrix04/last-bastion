@@ -15,6 +15,7 @@ import {
   WEB,
   WIDTH
 } from './config/constants'
+import { fmtGold, shareGold } from './economy'
 import { activateAbility, activeBurn, tickAbilities } from './abilities'
 import { ABILITY_CONFIG, EXPLOSION, MINIGUN, PLAYER_AIM, WAVES } from './config/config'
 import { CONTROLS, DEV_ENABLED, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './config/controls'
@@ -39,7 +40,7 @@ export function step(state: GameState, dt: number, input: InputLike): void {
     state.dev = !state.dev
     addText(state, WIDTH / 2, 70, state.dev ? 'MODE DEV : or rapide' : 'Mode dev coupé', state.dev ? '#ffd54a' : '#b0bec5')
   }
-  if (state.dev) state.gold += DEV_GOLD_PER_SEC * dt
+  if (state.dev) for (const p of state.players) p.gold += DEV_GOLD_PER_SEC * dt
 
   updatePlayers(state, dt, input)
   updateWaves(state, dt, input)
@@ -277,7 +278,7 @@ function updateWaves(state: GameState, dt: number, input: InputLike): void {
       // Lancer plus tôt rapporte un petit bonus.
       const bonus = Math.floor(state.countdown) * WAVES.skipBonusPerSecond
       if (bonus > 0) {
-        state.gold += bonus
+        shareGold(state, bonus)
         addText(state, BASE.col * TILE + (BASE.cols * TILE) / 2, BASE.row * TILE - 30, `+${bonus} (appel anticipé)`, '#ffd54a')
       }
       state.countdown = 0
@@ -312,7 +313,7 @@ function startWave(state: GameState): void {
 
 function endWave(state: GameState): void {
   const bonus = WAVES.reward.goldBase + state.wave * WAVES.reward.goldPerWave
-  state.gold += bonus
+  shareGold(state, bonus)
   state.baseHp = Math.min(BASE.maxHp, state.baseHp + BASE.maxHp * WAVES.reward.baseHeal)
   addText(
     state,
@@ -581,12 +582,12 @@ function reapEnemies(state: GameState): void {
     }
     const def = ENEMIES[e.kind]
     const reward = (e.minion ? Math.ceil(def.reward / 2) : def.reward) * (state.dev ? DEV_REWARD_MULT : 1)
-    state.gold += reward
+    const share = shareGold(state, reward)
     state.kills += 1
     state.kstats[killIndex(e.kind, e.minion)] += 1
     deathFx(state, e)
     if (e.kind === 'splitter') split(state, e, born)
-    addText(state, e.x, e.y - 12, `+${reward}`, '#ffd54a')
+    addText(state, e.x, e.y - 12, `+${fmtGold(share)}`, '#ffd54a')
   }
   list.length = w
   // Ajoutés après la boucle : la vague ne peut pas se terminer entre la mort d'un Éclateur et l'arrivée de ses petits.
@@ -600,6 +601,7 @@ export function decayBuildingFx(b: Building, dt: number): void {
   b.pop = Math.max(0, b.pop - dt * 2.5)
   b.recoil = Math.max(0, b.recoil - dt * 7)
   b.web = Math.max(0, b.web - dt)
+  b.repairCd = Math.max(0, b.repairCd - dt)
 }
 
 function updateTurrets(state: GameState, dt: number): void {

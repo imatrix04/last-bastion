@@ -1,13 +1,14 @@
 // Simulation sans interface : vérifie que la logique de jeu tient la route.
 // Usage : npm run sim
-import { actUpgrade, applyTurretBranch, placeBuilding, placementStatus, turretsOwned, upgradeBuilding } from '../src/renderer/src/game/build'
+import { actPlace, actUpgrade, applyTurretBranch, placeBuilding, placementStatus, turretsOwned, upgradeBuilding } from '../src/renderer/src/game/build'
 import { acceptRemotePose } from '../src/renderer/src/game/update'
 import { defaultLook } from '../src/renderer/src/game/config/appearance'
-import { BASE, BUILDS, BUILD_ORDER, COLS, OVERCLOCK_LEVELS, ROWS, STEP, type BuildKind } from '../src/renderer/src/game/config/constants'
+import { BASE, BUILDS, ENEMIES, START_GOLD, BUILD_ORDER, COLS, OVERCLOCK_LEVELS, ROWS, STEP, type BuildKind } from '../src/renderer/src/game/config/constants'
 import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN, turretLevel } from '../src/renderer/src/game/config/turrets'
 import { CONTROLS, SKIP_WAVE, type InputLike } from '../src/renderer/src/game/config/controls'
 import { idx, isBaseCell } from '../src/renderer/src/game/grid'
-import { ABILITY_CONFIG } from '../src/renderer/src/game/config/config'
+import { biomeIndex } from '../src/renderer/src/game/biomes'
+import { ABILITY_CONFIG, BIOMES } from '../src/renderer/src/game/config/config'
 import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, sanitizeAbilities, scoreRun, turretCap, unlockMask, type Loadout } from '../src/renderer/src/game/config/progress'
 import { createState } from '../src/renderer/src/game/state'
 import { fireRateMult, maxLevelOf, nextUpgrade, overclockMult, playerStats, spikeStats, turretStats } from '../src/renderer/src/game/stats'
@@ -41,9 +42,9 @@ interface Options {
 
 function tryBuy(state: GameState, kind: BuildKind, col: number, row: number): boolean {
   if (state.grid[idx(col, row)] || isBaseCell(col, row)) return false
-  if (state.gold < BUILDS[kind].cost) return false
+  if (state.players[0].gold < BUILDS[kind].cost) return false
   if (kind === 'turret' && turretsOwned(state, 0) >= turretCap(state.players[0].perks)) return false
-  state.gold -= BUILDS[kind].cost
+  state.players[0].gold -= BUILDS[kind].cost
   placeBuilding(state, kind, col, row)
   return true
 }
@@ -56,20 +57,25 @@ function botUpgrade(state: GameState): void {
     const next = nextUpgrade(b, ALL_UNLOCKS)
     if (!next) continue
     if (next.mode === 'direct') {
-      if (state.gold < next.cost) continue
-      state.gold -= next.cost
+      if (state.players[0].gold < next.cost) continue
+      state.players[0].gold -= next.cost
       upgradeBuilding(state, b)
     } else {
       const branch = ((b.col + b.row + flip++) % 2 === 0 ? 1 : 2) as 1 | 2
       const cost = TURRET_BRANCHES[branch].levels[0].cost
-      if (state.gold < cost) continue
-      state.gold -= cost
+      if (state.players[0].gold < cost) continue
+      state.players[0].gold -= cost
       upgradeBuilding(state, b, branch)
     }
   }
 }
 
 function botPrep(state: GameState, o: Options): void {
+  // Le bot joue pour toute l'équipe : l'or de tous les joueurs est mis en commun chez le joueur 1.
+  for (const q of state.players.slice(1)) {
+    state.players[0].gold += q.gold
+    q.gold = 0
+  }
   if (o.turrets) {
     for (const [c, r] of TURRET_SPOTS) tryBuy(state, 'turret', c, r)
     // Anneau de barricades renforcées en pierre autour de la forteresse avec le surplus d'or
@@ -79,8 +85,8 @@ function botPrep(state: GameState, o: Options): void {
       if (!tryBuy(state, 'barricade', c, r)) continue
       const b = state.grid[idx(c, r)]
       const next = b ? nextUpgrade(b, ALL_UNLOCKS) : null
-      if (b && next && state.gold >= next.cost) {
-        state.gold -= next.cost
+      if (b && next && state.players[0].gold >= next.cost) {
+        state.players[0].gold -= next.cost
         upgradeBuilding(state, b)
       }
     }
@@ -179,7 +185,7 @@ function checkUnlocks(): boolean {
   }
   const fresh = (mask: number): GameState => {
     const st = createState(1, [loadout(mask)])
-    st.gold = 9999
+    st.players[0].gold = 9999
     const p = st.players[0]
     p.x = 5 * 40 + 20
     p.y = 5 * 40 + 20
@@ -193,7 +199,7 @@ function checkUnlocks(): boolean {
   let st = fresh(0)
   const wall = placeBuilding(st, 'barricade', 6, 5)
   actUpgrade(st, st.players[0])
-  ok = report('Mur en pierre verrouillé', wall.level === 1 && st.gold === 9999) && ok
+  ok = report('Mur en pierre verrouillé', wall.level === 1 && st.players[0].gold === 9999) && ok
   st = fresh(unlockMask(['stone']))
   const w2 = placeBuilding(st, 'barricade', 6, 5)
   for (let i = 0; i < 4; i++) actUpgrade(st, st.players[0])
@@ -276,7 +282,7 @@ function checkUnlocks(): boolean {
 
   // Overclocking : de ×1,2 (rang 1) à ×2 (rang 5), pour les tourelles posées par un joueur qui l'a
   st = createState(1, [withOverclock(0, 5)])
-  st.gold = 9999
+  st.players[0].gold = 9999
   st.players[0].x = 5 * 40 + 20
   st.players[0].y = 5 * 40 + 20
   st.players[0].dirX = 1
@@ -358,6 +364,72 @@ function checkUnlocks(): boolean {
     ok = report('Balles enflammées : recharge', p.abilityOn[0] === 0) && ok
     ok = report('Capacité non débloquée refusée', sanitizeAbilities(['fireBullets'], emptyPerks()).length === 0 && sanitizeAbilities([0, 0, 0], lo.perks).length === 1) && ok
   }
+
+  // Or séparé : chaque joueur dépense le sien, les gains sont partagés, on n'améliore que ce qui nous appartient
+  {
+    const input = (down: string[]): InputLike => ({ isDown: () => false, wasPressed: (c) => down.includes(c) })
+    const st = createState(2, [FULL, FULL])
+    const [a, b] = st.players
+    ok = report('Or de départ partagé entre les joueurs', a.gold === START_GOLD / 2 && b.gold === START_GOLD / 2) && ok
+    a.gold = 1000
+    b.gold = 1000
+    a.x = 5 * 40 + 20
+    a.y = 5 * 40 + 20
+    a.dirX = 1
+    a.dirY = 0
+    b.x = 5 * 40 + 20
+    b.y = 6 * 40 + 20
+    b.dirX = 0
+    b.dirY = -1
+    const wall = placeBuilding(st, 'barricade', 6, 5, 0, 0)
+    // Le joueur 2 vise le mur du joueur 1 (case 5,5 → au-dessus de lui : 5,5 ; on le place sur sa cible)
+    b.x = 6 * 40 + 20
+    b.y = 6 * 40 + 20
+    const before = [a.gold, b.gold]
+    step(st, STEP, input([CONTROLS[1].upgrade]))
+    ok = report('Amélioration d’un bâtiment d’autrui refusée', wall.level === 1 && b.gold === before[1]) && ok
+    step(st, STEP, input([CONTROLS[1].remove]))
+    ok = report('Démolition d’un bâtiment d’autrui refusée', st.grid[idx(6, 5)] === wall) && ok
+    a.x = 5 * 40 + 20
+    a.y = 5 * 40 + 20
+    step(st, STEP, input([CONTROLS[0].upgrade]))
+    ok = report('Le propriétaire améliore avec son or', wall.level === 2 && a.gold < before[0] && b.gold === before[1]) && ok
+    // Gains partagés : un monstre tué rapporte la moitié à chacun
+    const g0 = [a.gold, b.gold]
+    const m = createEnemy(st, 'brute', 800, 300)
+    m.hp = 0
+    st.enemies.push(m)
+    step(st, STEP, input([]))
+    const reward = ENEMIES.brute.reward
+    ok = report('Gain d’un monstre partagé en deux', Math.abs(a.gold - g0[0] - reward / 2) < 1e-6 && Math.abs(b.gold - g0[1] - reward / 2) < 1e-6) && ok
+  }
+
+  // Réparation : 50 % des PV par action, puis 3 s de recharge sur la case
+  {
+    const st = createState(1, [loadout(0)])
+    const p = st.players[0]
+    p.gold = 9999
+    p.x = 5 * 40 + 20
+    p.y = 5 * 40 + 20
+    p.dirX = 1
+    p.dirY = 0
+    const w = placeBuilding(st, 'barricade', 6, 5, 0, 0)
+    w.hp = w.maxHp * 0.1
+    const hp0 = w.hp
+    ok = report('Réparation : +50 % des PV max', actPlace(st, p, true) && Math.abs(w.hp - (hp0 + w.maxHp * 0.5)) <= 1) && ok
+    const hp1 = w.hp
+    ok = report('Réparation : recharge de la case', !actPlace(st, p, true) && w.hp === hp1 && w.repairCd > 2.9) && ok
+    const idle: InputLike = { isDown: () => false, wasPressed: () => false }
+    for (let i = 0; i < 190; i++) step(st, STEP, idle)
+    ok = report('Réparation : de nouveau possible après 3 s', actPlace(st, p, true) && w.hp > hp1) && ok
+    for (let i = 0; i < 190; i++) step(st, STEP, idle)
+    actPlace(st, p, true)
+    ok = report('Réparation : plafonnée aux PV max', w.hp <= w.maxHp) && ok
+  }
+
+  // Biomes : un nouveau biome toutes les 5 vagues, le dernier se prolonge
+  ok = report('Biomes : 1 à 5, 6, 10, 11', biomeIndex(1) === 0 && biomeIndex(5) === 0 && biomeIndex(6) === 1 && biomeIndex(10) === 1 && biomeIndex(11) === 2) && ok
+  ok = report('Biomes : le dernier se prolonge', biomeIndex(999) === BIOMES.list.length - 1) && ok
 
   // Points : (kills pondérés + 10 × vague) × (1 + vague / 10)
   const score = scoreRun([100, 20, 5, 1, 4, 40, 3], 10)

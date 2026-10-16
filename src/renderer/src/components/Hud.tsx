@@ -11,7 +11,7 @@ const ABILITY_NAMES = { fireBullets: 'Balles enflammées' } as const
 const GLYPHS = { barricade: '▤', turret: '◉', spikes: '▲' } as const
 
 /** Or affiché : le nombre glisse vers sa nouvelle valeur, la pièce brille à chaque gain, un « +N » s'envole (rouge « −N » à la dépense). */
-function GoldChip({ gold }: { gold: number }): React.JSX.Element {
+function GoldChip({ gold, tag, color }: { gold: number; tag?: string; color?: string }): React.JSX.Element {
   const [shown, setShown] = useState(gold)
   const [pops, setPops] = useState<{ id: number; amount: number }[]>([])
   const [flash, setFlash] = useState<'gain' | 'spend' | ''>('')
@@ -47,7 +47,8 @@ function GoldChip({ gold }: { gold: number }): React.JSX.Element {
   }, [gold])
 
   return (
-    <div className={`chip gold${flash ? ` ${flash}` : ''}`}>
+    <div className={`chip gold${flash ? ` ${flash}` : ''}${tag ? ' tagged' : ''}`} style={color ? ({ '--pc': color } as CSSProperties) : undefined}>
+      {tag && <span className="gold-tag">{tag}</span>}
       <span className="coin" />
       <b>{Math.round(shown)}</b>
       <span className="muted">or</span>
@@ -77,7 +78,14 @@ export function Hud(): React.JSX.Element {
     <div className="hud">
       <div className="hud-top">
         <div className="hud-left">
-          <GoldChip gold={hud.gold} />
+          {Array.from({ length: playerCount }, (_, i) => (
+            <GoldChip
+              key={i}
+              gold={hud.golds[i] ?? 0}
+              tag={playerCount > 1 ? `J${i + 1}` : undefined}
+              color={playerCount > 1 ? (hud.colors[i] ?? DEFAULT_COLORS[i]) : undefined}
+            />
+          ))}
           <div className="chip kills">
             <span className="skull" aria-hidden>
               ☠
@@ -123,10 +131,10 @@ export function Hud(): React.JSX.Element {
       <div className="hud-bottom">
         {mode === 'local' ? (
           Array.from({ length: playerCount }, (_, i) => (
-            <BuildBar key={i} index={i} keyIndex={i} selected={hud.selected[i] ?? 0} gold={hud.gold} color={hud.colors[i] ?? DEFAULT_COLORS[i]} abilities={hud.abilities[i] ?? []} />
+            <BuildBar key={i} index={i} keyIndex={i} selected={hud.selected[i] ?? 0} gold={hud.golds[i] ?? 0} color={hud.colors[i] ?? DEFAULT_COLORS[i]} abilities={hud.abilities[i] ?? []} />
           ))
         ) : (
-          <BuildBar index={myIndex} keyIndex={0} selected={hud.selected[myIndex] ?? 0} gold={hud.gold} color={hud.colors[myIndex] ?? DEFAULT_COLORS[myIndex]} abilities={hud.abilities[myIndex] ?? []} />
+          <BuildBar index={myIndex} keyIndex={0} selected={hud.selected[myIndex] ?? 0} gold={hud.golds[myIndex] ?? 0} color={hud.colors[myIndex] ?? DEFAULT_COLORS[myIndex]} abilities={hud.abilities[myIndex] ?? []} />
         )}
       </div>
     </div>
