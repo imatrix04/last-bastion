@@ -27,7 +27,7 @@ import { killIndex } from './config/progress'
 import { fireRateMult, isWeapon, playerStats, spikeStats, tierOf, turretStats } from './stats'
 import { turretForm } from './config/turrets'
 import type { Building, Enemy, GameState, Player } from './types'
-import { composeWave, createEnemy, pickGates, spawnEnemy, spawnInterval, waveScale } from './waves'
+import { composeWave, createEnemy, pickGates, spawnEnemy, spawnInterval } from './waves'
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
@@ -305,7 +305,6 @@ function updateWaves(state: GameState, dt: number, input: InputLike): void {
 
 function startWave(state: GameState): void {
   state.wave += 1
-  state.waveScale = waveScale(state.wave)
   state.spawnQueue = composeWave(state.wave, state.playerCount)
   // Départs décalés pour que les entrées ne crachent pas toutes au même instant.
   state.gateTimers = state.gates.map((_, i) => 0.5 + i * 0.12)

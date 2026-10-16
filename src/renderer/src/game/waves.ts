@@ -36,7 +36,19 @@ export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   return list
 }
 
-export const waveScale = (wave: number): number => 1 + (wave - 1) * WAVES.hpGrowth
+/** Première vague où chaque type de monstre apparaît : c'est de là que ses PV commencent à augmenter. */
+export const FIRST_WAVE: Record<EnemyKind, number> = {
+  grunt: 1,
+  runner: WAVES.runners.from,
+  splitter: WAVES.splitters.from,
+  brute: WAVES.brutes.from,
+  spider: WAVES.spiders.from,
+  boss: WAVES.boss.every,
+  rageboss: WAVES.rageBoss.every
+}
+
+/** Multiplicateur de PV d'un type de monstre à une vague donnée : ×1 à sa première apparition, puis +hpGrowth par vague. */
+export const hpScale = (kind: EnemyKind, wave: number): number => 1 + Math.max(0, wave - FIRST_WAVE[kind]) * WAVES.hpGrowth
 
 export const spawnInterval = (wave: number): number => Math.max(WAVES.spawn.min, WAVES.spawn.base - wave * WAVES.spawn.perWave)
 
@@ -71,7 +83,7 @@ function gateOn(side: string, t: number): Vec {
 /** Crée un ennemi (sans l'ajouter à la partie). `hpMult` : fraction des PV normaux de ce type à cette vague. */
 export function createEnemy(state: GameState, kind: EnemyKind, x: number, y: number, hpMult = 1, minion = false): Enemy {
   const def = ENEMIES[kind]
-  const hp = Math.max(1, Math.round(def.hp * state.waveScale * hpMult))
+  const hp = Math.max(1, Math.round(def.hp * hpScale(kind, state.wave) * hpMult))
   return {
     id: state.nextEnemyId++,
     kind,

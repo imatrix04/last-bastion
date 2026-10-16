@@ -90,8 +90,8 @@ export const WAVES = {
   boss: { every: 5, per: 10 },
   /** Aux vagues multiples de `every`, le Colosse est remplacé par sa version enragée (même nombre). */
   rageBoss: { every: 10 },
-  /** PV des monstres : ×(1 + (vague − 1) × hpGrowth). */
-  hpGrowth: 0.1,
+  /** PV des monstres : ×(1 + (vague − première apparition du type) × hpGrowth) : la hausse commence à l'arrivée de chaque monstre (voir FIRST_WAVE dans waves.ts). */
+  hpGrowth: 0.2,
   /** Intervalle d'apparition PAR ENTRÉE : max(min, base − vague × perWave) secondes. */
   spawn: { base: 1.0, perWave: 0.05, min: 0.1 },
   /** Nombre d'entrées selon la vague : { jusqu'à la vague (incluse), nombre d'entrées }. Au-delà : `maxGates`. */

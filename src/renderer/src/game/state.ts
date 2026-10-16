@@ -38,7 +38,6 @@ export function createState(playerCount: 1 | 2, loadouts: Loadout[] = []): GameS
     spawnQueue: [],
     gateTimers: [],
     gates: pickGates(1),
-    waveScale: 1,
     flow: new Float32Array(COLS * ROWS),
     flowDirty: true,
     nextEnemyId: 1,

@@ -265,7 +265,6 @@ export interface GameState {
   gateTimers: number[]
   /** Points d'apparition de la prochaine vague / de la vague en cours. */
   gates: Vec[]
-  waveScale: number
   /** Coût cumulé jusqu'à la forteresse, par case. */
   flow: Float32Array
   flowDirty: boolean

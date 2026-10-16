@@ -8,7 +8,7 @@ import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN, turretLevel } from '..
 import { CONTROLS, SKIP_WAVE, type InputLike } from '../src/renderer/src/game/config/controls'
 import { idx, isBaseCell } from '../src/renderer/src/game/grid'
 import { biomeIndex } from '../src/renderer/src/game/biomes'
-import { ABILITY_CONFIG, BIOMES } from '../src/renderer/src/game/config/config'
+import { ABILITY_CONFIG, BIOMES, WAVES } from '../src/renderer/src/game/config/config'
 import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, sanitizeAbilities, scoreRun, spikeCap, turretCap, unlockMask, type Loadout } from '../src/renderer/src/game/config/progress'
 import { createState } from '../src/renderer/src/game/state'
 import { fireRateMult, maxLevelOf, nextUpgrade, overclockMult, playerStats, spikeStats, turretStats } from '../src/renderer/src/game/stats'
@@ -160,7 +160,6 @@ function run(o: Options): { ok: boolean } {
 function checkSplitter(): boolean {
   const state = createState(1, [FULL])
   state.wave = 5
-  state.waveScale = 1.4
   state.phase = 'combat'
   state.spawnQueue = []
   state.countdown = 0
@@ -419,6 +418,32 @@ function checkUnlocks(): boolean {
     ok = report('Pieux : 8 au maximum', spikeCap(p.perks) === 8) && ok
   }
 
+  // Overclocking : seulement les tourelles du joueur qui a la capacité (le rang est pris à la pose)
+  {
+    const withOc = loadout(0)
+    withOc.perks[PERK_INDEX.overclock] = 4
+    const st = createState(2, [withOc, loadout(0)])
+    const [a, b] = st.players
+    a.gold = 9999
+    b.gold = 9999
+    a.selected = BUILD_ORDER.indexOf('turret')
+    b.selected = BUILD_ORDER.indexOf('turret')
+    a.x = 5 * 40 + 20
+    a.y = 5 * 40 + 20
+    a.dirX = 1
+    a.dirY = 0
+    b.x = 12 * 40 + 20
+    b.y = 5 * 40 + 20
+    b.dirX = 1
+    b.dirY = 0
+    actPlace(st, a, true)
+    actPlace(st, b, true)
+    const ta = st.grid[idx(6, 5)]
+    const tb = st.grid[idx(13, 5)]
+    ok = report('Overclocking : tourelle du joueur qui l’a', !!ta && ta.boost === 4 && fireRateMult(ta) > 1) && ok
+    ok = report('Overclocking : pas sur les tourelles de l’autre', !!tb && tb.boost === 0 && fireRateMult(tb) === 1) && ok
+  }
+
   // Réparation : 50 % des PV par action, puis 3 s de recharge sur la case
   {
     const st = createState(1, [loadout(0)])
@@ -452,6 +477,20 @@ function checkUnlocks(): boolean {
     ok = report('Colosse enragé : vague 10 = enragé', count(w10, 'rageboss') === 1 && count(w10, 'boss') === 0) && ok
     ok = report('Colosse enragé : 2 à la vague 20', count(w20, 'rageboss') === 2) && ok
     ok = report('Colosse enragé : plus fort que le Colosse', ENEMIES.rageboss.hp > ENEMIES.boss.hp && ENEMIES.rageboss.damage > ENEMIES.boss.damage && ENEMIES.rageboss.speed > ENEMIES.boss.speed) && ok
+  }
+
+  // PV : la hausse commence à la première apparition de chaque type de monstre
+  {
+    const st = createState(1, [FULL])
+    st.wave = 10
+    const rage = createEnemy(st, 'rageboss', 300, 300)
+    ok = report('PV : Colosse enragé ×1 à la vague 10', rage.maxHp === ENEMIES.rageboss.hp) && ok
+    st.wave = 20
+    const rage20 = createEnemy(st, 'rageboss', 300, 300)
+    ok = report('PV : Colosse enragé en hausse ensuite', rage20.maxHp === Math.round(ENEMIES.rageboss.hp * (1 + 10 * WAVES.hpGrowth))) && ok
+    st.wave = 3
+    ok = report('PV : Coureur ×1 à la vague 3', createEnemy(st, 'runner', 300, 300).maxHp === ENEMIES.runner.hp) && ok
+    ok = report('PV : Rôdeur déjà en hausse à la vague 3', createEnemy(st, 'grunt', 300, 300).maxHp === Math.round(ENEMIES.grunt.hp * (1 + 2 * WAVES.hpGrowth))) && ok
   }
 
   // Biomes : un nouveau biome toutes les 5 vagues, le dernier se prolonge
