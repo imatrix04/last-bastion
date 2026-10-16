@@ -1,7 +1,7 @@
 {
   "releases": [
     {
-      "version": "1.4.6",
+      "version": "1.4.7",
       "date": "2026-10-16",
       "added": [
         "Nouveau boss, le Colosse enragé : la version énervée du Colosse, qui apparaît toutes les 10 vagues à sa place (vagues 10, 20, 30…, un de plus tous les 10 niveaux). Il a 3600 PV, avance plus vite, frappe plus fort et plus souvent, et rapporte 600 or",
