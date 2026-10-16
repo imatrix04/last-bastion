@@ -1,5 +1,5 @@
 import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS, WEB, type BuildKind, type SpikeLevel, type TierUnlock } from './constants'
-import { hasUnlock, perkMult } from './progress'
+import { PERKS, PERK_INDEX, hasUnlock, perkMult } from './progress'
 import {
   TURRET_BRANCHES,
   TURRET_MAX_LEVEL,
@@ -133,11 +133,14 @@ export interface PlayerStats {
   damage: number
   range: number
   bulletSpeed: number
+  /** Part de l'anticipation du mouvement des ennemis (0 = vise leur position actuelle, 1 = interception complète). */
+  lead: number
 }
 
 /** Statistiques du joueur : valeurs de base (PLAYER) × bonus de ses améliorations. */
 export function playerStats(perks: readonly number[]): PlayerStats {
   return {
+    lead: Math.min(1, (perks[PERK_INDEX.precision] ?? 0) * PERKS[PERK_INDEX.precision].perRank),
     speed: PLAYER.speed * perkMult(perks, 'speed'),
     fireRate: PLAYER.fireRate * perkMult(perks, 'fireRate'),
     damage: PLAYER.damage * perkMult(perks, 'damage'),

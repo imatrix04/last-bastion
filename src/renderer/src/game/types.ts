@@ -58,6 +58,9 @@ export interface Enemy {
   ly: number
   checkT: number
   stuck: boolean
+  /** Vitesse du dernier déplacement (px/s) : sert au joueur à anticiper son tir. */
+  vx: number
+  vy: number
 }
 
 export interface Building {

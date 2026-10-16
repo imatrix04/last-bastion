@@ -127,7 +127,7 @@ export const isUnlockId = (v: unknown): v is UnlockId => typeof v === 'string' &
 
 // ------------------------------------------------------------- améliorations du joueur
 
-export type PerkId = 'speed' | 'fireRate' | 'range' | 'damage' | 'bulletSpeed' | 'overclock'
+export type PerkId = 'speed' | 'fireRate' | 'range' | 'damage' | 'bulletSpeed' | 'overclock' | 'precision'
 
 export interface PerkDef {
   id: PerkId
@@ -147,14 +147,8 @@ export const PERKS: readonly PerkDef[] = [
   { id: 'fireRate', group: 'soldier', name: 'Cadence de tir', blurb: 'Tirer plus souvent.', costs: [60, 100, 160, 230, 320], perRank: 0.1 },
   { id: 'range', group: 'soldier', name: 'Portée', blurb: 'Toucher plus loin.', costs: [50, 90, 140, 200, 280], perRank: 0.05 },
   { id: 'damage', group: 'soldier', name: 'Dégâts', blurb: 'Des balles plus puissantes.', costs: [60, 100, 160, 230, 320], perRank: 0.1 },
-  {
-    id: 'bulletSpeed',
-    group: 'soldier',
-    name: 'Vitesse des balles',
-    blurb: 'Des balles plus rapides, moins de tirs manqués.',
-    costs: [40, 70, 110, 160, 220],
-    perRank: 0.08
-  },
+  { id: 'precision', group: 'soldier', name: 'Précision', blurb: 'Augmente la précision globale en anticipant le déplacement des cibles.', costs: [50, 90, 140, 200, 280], perRank: 0.2 },
+  {id: 'bulletSpeed',group: 'soldier',name: 'Vitesse des balles',blurb: 'Des balles plus rapides, moins de tirs manqués.',costs: [40, 70, 110, 160, 220],perRank: 0.08 },
   {
     id: 'overclock',
     group: 'tech',

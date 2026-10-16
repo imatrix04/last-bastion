@@ -93,6 +93,70 @@ function drawCatEars(ctx: CanvasRenderingContext2D, r: number, t: number): void 
   }
 }
 
+/** Canon en or : tube doré, reflet qui glisse le long du canon, étincelles qui scintillent à la bouche (dans le repère de l'arme). */
+function drawGoldBarrel(ctx: CanvasRenderingContext2D, r: number, t: number): void {
+  const x0 = r * 0.4
+  const x1 = r * 1.75
+  const bodyY = -r * 0.27
+  const h = r * 0.54
+
+  // Tube doré : clair en haut, sombre en bas
+  const metal = ctx.createLinearGradient(0, bodyY, 0, bodyY + h)
+  metal.addColorStop(0, '#fff0a8')
+  metal.addColorStop(0.35, '#f2b134')
+  metal.addColorStop(0.7, '#9a6a14')
+  metal.addColorStop(1, '#5a3a08')
+  ctx.fillStyle = metal
+  ctx.strokeStyle = '#3d2804'
+  ctx.lineWidth = 1.4
+  ctx.beginPath()
+  ctx.roundRect(x0, bodyY, x1 - x0, h, r * 0.12)
+  ctx.fill()
+  ctx.stroke()
+
+  // Reflet qui glisse d'un bout à l'autre, découpé dans le tube
+  const sweep = ((t * 0.55) % 1.6) - 0.3
+  const cx = x0 + (x1 - x0) * sweep
+  ctx.save()
+  ctx.beginPath()
+  ctx.roundRect(x0, bodyY, x1 - x0, h, r * 0.12)
+  ctx.clip()
+  const shine = ctx.createLinearGradient(cx - r * 0.3, 0, cx + r * 0.3, 0)
+  shine.addColorStop(0, 'rgba(255, 255, 255, 0)')
+  shine.addColorStop(0.5, 'rgba(255, 255, 240, 0.85)')
+  shine.addColorStop(1, 'rgba(255, 255, 255, 0)')
+  ctx.fillStyle = shine
+  ctx.fillRect(cx - r * 0.3, bodyY, r * 0.6, h)
+  ctx.restore()
+
+  // Bague de la bouche
+  ctx.fillStyle = '#ffe38a'
+  ctx.fillRect(r * 0.72, bodyY, r * 0.16, h)
+  ctx.fillStyle = '#ffd24a'
+  ctx.fillRect(r * 1.62, -r * 0.2, r * 0.18, r * 0.4)
+
+  // Étincelles : quatre branches fines qui apparaissent à tour de rôle
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  for (let k = 0; k < 3; k++) {
+    const twinkle = Math.pow(Math.max(0, Math.sin(t * 2.6 + k * 2.1)), 10)
+    if (twinkle < 0.02) continue
+    const sx = r * (1.9 + k * 0.28)
+    const sy = (k - 1) * r * 0.42
+    const size = r * (0.12 + 0.2 * twinkle)
+    drawGlow(ctx, sx, sy, r * 0.5, '#ffd24a', 0.35 * twinkle)
+    ctx.strokeStyle = `rgba(255, 250, 220, ${0.9 * twinkle})`
+    ctx.lineWidth = 0.9
+    ctx.beginPath()
+    ctx.moveTo(sx - size, sy)
+    ctx.lineTo(sx + size, sy)
+    ctx.moveTo(sx, sy - size)
+    ctx.lineTo(sx, sy + size)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
 // ------------------------------------------------------------------------ corps
 
 interface Pose {
@@ -127,20 +191,24 @@ function paintAvatar(ctx: CanvasRenderingContext2D, look: Look, r: number, pose:
   }
   ctx.restore()
 
-  // Arme : tube sombre rayé de la couleur du joueur, bouche lumineuse
+  // Arme : tube sombre rayé de la couleur du joueur, bouche lumineuse (ou canon en or animé)
   ctx.save()
   ctx.rotate(aim)
-  ctx.fillStyle = '#18242b'
-  ctx.strokeStyle = '#091218'
-  ctx.lineWidth = 1.4
-  ctx.beginPath()
-  ctx.roundRect(r * 0.4, -r * 0.27, r * 1.35, r * 0.54, r * 0.12)
-  ctx.fill()
-  ctx.stroke()
-  ctx.fillStyle = color
-  ctx.fillRect(r * 0.72, -r * 0.27, r * 0.16, r * 0.54)
-  ctx.fillStyle = shade(color, 0.7)
-  ctx.fillRect(r * 1.62, -r * 0.2, r * 0.18, r * 0.4)
+  if (look.skin === 'gold') {
+    drawGoldBarrel(ctx, r, t)
+  } else {
+    ctx.fillStyle = '#18242b'
+    ctx.strokeStyle = '#091218'
+    ctx.lineWidth = 1.4
+    ctx.beginPath()
+    ctx.roundRect(r * 0.4, -r * 0.27, r * 1.35, r * 0.54, r * 0.12)
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = color
+    ctx.fillRect(r * 0.72, -r * 0.27, r * 0.16, r * 0.54)
+    ctx.fillStyle = shade(color, 0.7)
+    ctx.fillRect(r * 1.62, -r * 0.2, r * 0.18, r * 0.4)
+  }
   ctx.restore()
 
   // Accessoire (derrière la tête, pour qu'il paraisse attaché)

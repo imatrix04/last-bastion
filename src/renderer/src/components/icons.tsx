@@ -114,6 +114,14 @@ export const IconBulletSpeed = (p: P): React.JSX.Element => (
   </svg>
 )
 
+export const IconPrecision = (p: P): React.JSX.Element => (
+  <svg {...base(p)}>
+    <circle cx="14" cy="10" r="6" />
+    <circle cx="14" cy="10" r="1.6" fill="currentColor" stroke="none" />
+    <path d="M2 18h6M4 21h8" />
+  </svg>
+)
+
 export const IconEars = (p: P): React.JSX.Element => (
   <svg {...base(p)}>
     <path d="M4 19V5l6 5M20 19V5l-6 5" />
@@ -143,13 +151,6 @@ export const PERK_ICONS: Record<PerkId, (p: P) => React.JSX.Element> = {
   range: IconRange,
   damage: IconDamage,
   bulletSpeed: IconBulletSpeed,
-  overclock: IconBolt
+  overclock: IconBolt,
+  precision: IconPrecision
 }
-
-/** Emblème du jeu : le cristal de la forteresse dans son cadre. */
-export const BrandMark = (p: P): React.JSX.Element => (
-  <svg {...base({ strokeWidth: 2, ...p })}>
-    <path d="M12 2l8 10-8 10-8-10z" fill="currentColor" fillOpacity="0.18" />
-    <path d="M12 2v20M4 12h16" strokeWidth={1} />
-  </svg>
-)

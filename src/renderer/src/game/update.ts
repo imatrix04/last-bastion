@@ -66,6 +66,35 @@ export function nearestEnemy(state: GameState, x: number, y: number, range: numb
   return best
 }
 
+/**
+ * Angle de tir vers un ennemi. `lead` (0 à 1) dose l'anticipation : 0 vise sa position actuelle,
+ * 1 vise le point d'interception (là où la balle et lui se rejoignent s'il garde sa vitesse).
+ */
+function leadAngle(x: number, y: number, e: Enemy, bulletSpeed: number, lead: number): number {
+  const dx = e.x - x
+  const dy = e.y - y
+  const direct = Math.atan2(dy, dx)
+  if (lead <= 0 || (e.vx === 0 && e.vy === 0)) return direct
+  // Temps t > 0 tel que |(dx + vx·t, dy + vy·t)| = bulletSpeed·t
+  const a = e.vx * e.vx + e.vy * e.vy - bulletSpeed * bulletSpeed
+  const b = 2 * (dx * e.vx + dy * e.vy)
+  const c = dx * dx + dy * dy
+  let t: number
+  if (Math.abs(a) < 1e-6) {
+    t = b < 0 ? -c / b : 0
+  } else {
+    const disc = b * b - 4 * a * c
+    if (disc < 0) return direct
+    const s = Math.sqrt(disc)
+    const t1 = (-b - s) / (2 * a)
+    const t2 = (-b + s) / (2 * a)
+    const lo = Math.min(t1, t2)
+    t = lo > 0 ? lo : Math.max(t1, t2)
+  }
+  if (!(t > 0)) return direct
+  return Math.atan2(dy + e.vy * t * lead, dx + e.vx * t * lead)
+}
+
 function fire(
   state: GameState,
   x: number,
@@ -204,9 +233,9 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
     const ps = playerStats(p.perks)
     const target = nearestEnemy(state, p.x, p.y, ps.range)
     if (target) {
-      p.aim = Math.atan2(target.y - p.y, target.x - p.x)
+      p.aim = leadAngle(p.x, p.y, target, ps.bulletSpeed, ps.lead)
       if (p.shootCd <= 0) {
-        const spread = (Math.random() - 0.5) * 0.08
+        const spread = (Math.random() - 0.5) * 0.08 * (1 - ps.lead * 0.5)
         const angle = p.aim + spread
         fire(state, p.x, p.y, angle, ps.bulletSpeed, ps.damage, ps.range, 0)
         muzzle(state, p.x + Math.cos(angle) * 22, p.y + Math.sin(angle) * 22, angle, 0)
@@ -390,6 +419,8 @@ function updateEnemies(state: GameState, dt: number): void {
     e.flash = Math.max(0, e.flash - dt)
     e.attackCd -= dt
     e.age += dt
+    e.vx = 0
+    e.vy = 0
     if (e.kind === 'spider' && spiderAbility(state, e, dt)) {
       e.attacking = false
       continue
@@ -437,6 +468,8 @@ function updateEnemies(state: GameState, dt: number): void {
     if (dist > 0.5) turnToward(e, Math.atan2(dy, dx), dt)
     e.x += (dx / dist) * move
     e.y += (dy / dist) * move
+    e.vx = ((dx / dist) * move) / dt
+    e.vy = ((dy / dist) * move) / dt
   }
 
   // Séparation douce pour éviter que les ennemis ne s'empilent

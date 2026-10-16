@@ -3,7 +3,7 @@
  * la boutique, le menu et le réseau (chaque joueur envoie la sienne).
  */
 
-export type SkinId = 'none' | 'cat'
+export type SkinId = 'none' | 'cat' | 'gold'
 
 export interface SkinDef {
   id: SkinId
@@ -16,7 +16,8 @@ export interface SkinDef {
 /** L'ordre fixe l'index envoyé sur le réseau : ne jamais réordonner, seulement ajouter à la fin. */
 export const SKINS: readonly SkinDef[] = [
   { id: 'none', name: 'Aucun', blurb: 'Le soldat tel quel.', price: 0 },
-  { id: 'cat', name: 'Oreilles de chat', blurb: 'Rose unique, dégradé bordeaux, avec des oreilles qui frémissent.', price: 420 }
+  { id: 'cat', name: 'Oreilles de chat', blurb: 'Rose unique, dégradé bordeaux, avec des oreilles qui frémissent.', price: 420 },
+  { id: 'gold', name: 'Canon en or', blurb: 'Le tube doré, avec un reflet qui glisse le long du canon et des étincelles à la bouche.', price: 650 }
 ]
 
 export const SKIN_BY_ID: Readonly<Record<SkinId, SkinDef>> = Object.fromEntries(SKINS.map((s) => [s.id, s])) as Record<SkinId, SkinDef>

@@ -56,7 +56,7 @@ const EFFECTS: Record<UnlockId, Row[]> = {
 const BRANCH_TITLES: Record<TreeBranch, string> = { barricade: 'Murs', spikes: 'Pieux', turret: 'Tourelles · niveau 4 à 7', tech: 'Technologie' }
 
 /** Statistiques de base du joueur et leur unité, pour afficher « actuel → prochain rang ». */
-const BASE_VALUES: Record<Exclude<PerkId, 'overclock'>, { base: number; unit: string; digits: number }> = {
+const BASE_VALUES: Record<Exclude<PerkId, 'overclock' | 'precision'>, { base: number; unit: string; digits: number }> = {
   speed: { base: PLAYER.speed, unit: 'px/s', digits: 0 },
   fireRate: { base: PLAYER.fireRate, unit: 'tirs/s', digits: 1 },
   range: { base: PLAYER.range, unit: 'px', digits: 0 },
@@ -155,6 +155,9 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
   if (def.id === 'overclock') {
     show = (r) => (r === 0 ? 'aucun' : `× ${OVERCLOCK_LEVELS[r - 1].toFixed(1)}`)
     gain = `× ${OVERCLOCK_LEVELS[max - 1].toFixed(1)} (+${Math.round((OVERCLOCK_LEVELS[max - 1] - 1) * 100)} %)`
+  } else if (def.id === 'precision') {
+    show = (r) => (r === 0 ? 'aucune' : `${Math.round(r * def.perRank * 100)} % d’anticipation`)
+    gain = `${show(max)}, dispersion −${Math.round(max * def.perRank * 50)} %`
   } else {
     const v = BASE_VALUES[def.id]
     const at = (r: number): number => v.base * perkMult(PERKS.map((_, i) => (i === index ? r : 0)), def.id)

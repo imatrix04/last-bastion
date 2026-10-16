@@ -301,7 +301,9 @@ export class ClientView {
           lx: x,
           ly: y,
           checkT: 0,
-          stuck: false
+          stuck: false,
+          vx: 0,
+          vy: 0
         }
         this.enemies.set(id, e)
       }

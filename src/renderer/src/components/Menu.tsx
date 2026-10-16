@@ -6,7 +6,7 @@ import { session } from '../net'
 import { loadAddress, useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
 import { AvatarCanvas } from './AvatarCanvas'
-import { BrandMark } from './icons'
+import logo from '../assets/logo.png'
 
 export function Menu(): React.JSX.Element {
   const start = useStore((s) => s.start)
@@ -38,7 +38,7 @@ export function Menu(): React.JSX.Element {
     <div className="screen home">
       <section className="home-rail">
         <header className="brand">
-          <BrandMark className="brand-mark" />
+          <img className="brand-mark" src={logo} alt="" />
           <div>
             <h1>
               Last <span>Bastion</span>

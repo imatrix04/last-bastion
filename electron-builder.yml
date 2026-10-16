@@ -10,6 +10,7 @@ extraResources:
     to: changelog.json
 win:
   target: nsis
+  icon: src/renderer/src/assets/logo.png
 nsis:
   oneClick: true
   perMachine: false
