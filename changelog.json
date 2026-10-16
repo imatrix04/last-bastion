@@ -1,6 +1,31 @@
 {
   "releases": [
     {
+      "version": "1.4.0",
+      "date": "2026-10-16",
+      "added": [
+        "Nouvelle amélioration du soldat, la Précision (5 rangs) : tes balles anticipent le déplacement des monstres et visent là où ils seront, de 20 % d'anticipation au rang 1 à l'interception complète au rang 5, avec une dispersion réduite jusqu'à moitié",
+        "Les tourelles montent jusqu'au niveau 10 : deux évolutions à débloquer dans l'arbre de compétences, chacune demandant la branche correspondante",
+        "Minigun (évolution des double canons, niveaux 8 à 10) : de 12 à 16 tirs/s, un faisceau de trois tubes qui tourne et arrose les ennemis",
+        "Canon explosif (évolution du canon lourd, niveaux 8 à 10) : l'obus explose à l'impact et blesse tous les ennemis dans la zone (de 70 à 95 px de rayon, moins fort vers le bord), avec onde de choc, étincelles, fumée et tremblement d'écran",
+        "Compteur de monstres tués en jeu, sous le compteur d'or",
+        "Compteur d'or animé : le nombre glisse vers sa nouvelle valeur, la pièce brille et tourne à chaque gain, un « +N » s'envole, et un « −N » orange apparaît à chaque dépense",
+        "Canon en or : skin de canon animé, avec un reflet qui glisse le long du tube et des étincelles à la bouche (1050 points)",
+        "Pseudo pour chaque joueur (12 caractères au maximum), affiché au-dessus du personnage en jeu et dans le menu, et visible par l'autre joueur en ligne",
+        "Le logo du jeu apparaît sur l'accueil et dans la fenêtre de mise à jour, et sert d'icône à l'application"
+      ],
+      "changed": [
+        "Les monstres apparaissent maintenant à la cadence de chaque entrée, et non plus une fois pour toute la carte : plus il y a d'entrées, plus ils arrivent nombreux en même temps",
+        "Les cartes du choix de tourelle indiquent que la branche évolue jusqu'au niveau 7, puis jusqu'au niveau 10 avec son évolution",
+        "Tous les chiffres d'équilibrage (joueur, vagues, ennemis, constructions, tourelles, prix des compétences, points de fin de partie) sont réunis dans un seul fichier de configuration, dans un dossier dédié",
+        "Protocole réseau en version 9 : l'hôte et l'invité doivent avoir la même version du jeu",
+        "Chapeau et canon sont deux emplacements distincts : les oreilles de chat sont un chapeau, et un joueur peut porter un chapeau et un canon en même temps. La boutique les range dans deux groupes",
+        "Fenêtre de mise à jour refaite : notes groupées par version avec leur date, compteur par section, et barre de progression pendant le téléchargement",
+        "Les monstres peuvent arriver par jusqu'à 8 entrées, réparties sur les 4 côtés, à partir de la vague 16"
+      ],
+      "fixed": []
+    },
+    {
       "version": "1.3.0",
       "date": "2026-10-15",
       "added": [
