@@ -155,7 +155,8 @@ h4 {
 /* Quadrillage discret : le même pas que la carte de jeu */
 .screen.home,
 .screen.sk,
-.screen.shop {
+.screen.shop,
+.screen.arsenal {
   background-image:
     linear-gradient(rgba(170, 205, 185, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(170, 205, 185, 0.045) 1px, transparent 1px);
   background-size: 3.2em 3.2em;
@@ -424,7 +425,8 @@ table.controls td:first-child {
 /* ------------------------------------------- compétences et boutique : en-tête commun */
 
 .screen.sk,
-.screen.shop {
+.screen.shop,
+.screen.arsenal {
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
@@ -1333,4 +1335,105 @@ table.controls td:first-child {
   margin: 0.8em 0 0.2em;
   color: var(--muted);
   font-size: 0.9em;
+}
+
+/* ---------------------------------------------------------------- arsenal */
+
+.ar-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.8em;
+  padding-right: 0.6em;
+}
+.ar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9em;
+}
+.ar-sub {
+  margin: 0.6em 0 0;
+  font-size: 0.95em;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.ar-slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9em;
+}
+.ar-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35em;
+  padding: 0.9em 1em;
+  min-height: 9em;
+  border: 1px dashed var(--line);
+  border-radius: 0.8em;
+  background: rgba(0, 0, 0, 0.25);
+}
+.ar-slot.on {
+  border-style: solid;
+  border-color: #ffab40;
+  background: rgba(255, 145, 0, 0.07);
+}
+.ar-key {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+.ar-ico {
+  width: 2.2em;
+  height: 2.2em;
+  color: #ffab40;
+  flex: none;
+}
+.ar-empty {
+  margin: auto;
+  color: var(--muted);
+}
+.ar-actions {
+  display: flex;
+  gap: 0.4em;
+  margin-top: auto;
+}
+.ar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+}
+.ar-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1em;
+  padding: 0.9em 1.1em;
+  border: 1px solid var(--line);
+  border-radius: 0.8em;
+  background: rgba(0, 0, 0, 0.25);
+}
+.ar-card.on {
+  border-color: #ffab40;
+}
+.ar-card.locked {
+  opacity: 0.7;
+}
+.ar-card.locked .ar-ico {
+  color: var(--muted);
+}
+.ar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+.ar-text p {
+  margin: 0.2em 0 0;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.ar-text small {
+  color: #ffcc80;
 }

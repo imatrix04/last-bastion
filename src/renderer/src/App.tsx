@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Arsenal } from './components/Arsenal'
 import { GameCanvas } from './components/GameCanvas'
 import { Hud } from './components/Hud'
 import { Lobby } from './components/Lobby'
@@ -51,6 +52,7 @@ export default function App(): React.JSX.Element {
         {screen === 'lobby' && <Lobby />}
         {screen === 'menu' && <Menu />}
         {screen === 'skills' && <SkillTree />}
+        {screen === 'arsenal' && <Arsenal />}
         {screen === 'shop' && <Shop />}
         <UpdateDialog />
       </div>

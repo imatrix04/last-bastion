@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SKIN_BY_ID, playerLabel } from '../game/config/appearance'
+import { ABILITY_SLOTS } from '../game/config/config'
 import { CONTROLS, SKIP_WAVE } from '../game/config/controls'
 import { PERKS, UNLOCKS } from '../game/config/progress'
 import { session } from '../net'
@@ -16,6 +17,7 @@ export function Menu(): React.JSX.Element {
   const bestWave = useStore((s) => s.bestWave)
   const openSkills = useStore((s) => s.openSkills)
   const openShop = useStore((s) => s.openShop)
+  const openArsenal = useStore((s) => s.openArsenal)
   const progress = useStore((s) => s.progress)
   const label = useKeyLabels()
   const [address, setAddress] = useState(loadAddress)
@@ -98,12 +100,19 @@ export function Menu(): React.JSX.Element {
             <span className="mi-label">Compétences</span>
             <span className="mi-meta amber">{progress.points} pts</span>
           </button>
-          <button className="mi" onClick={openShop}>
+          <button className="mi" onClick={openArsenal}>
             <span className="mi-n">05</span>
+            <span className="mi-label">Arsenal</span>
+            <span className="mi-meta">
+              {progress.abilities.length} / {ABILITY_SLOTS}
+            </span>
+          </button>
+          <button className="mi" onClick={openShop}>
+            <span className="mi-n">06</span>
             <span className="mi-label">Boutique</span>
           </button>
           <button className="mi" onClick={() => setSheet(true)}>
-            <span className="mi-n">06</span>
+            <span className="mi-n">07</span>
             <span className="mi-label">Commandes</span>
           </button>
         </nav>

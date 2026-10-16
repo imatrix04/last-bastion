@@ -24,7 +24,7 @@ import {
 import type { ChoiceRequest, HudState, RunResult } from './game/types'
 import { session } from './net'
 
-export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover' | 'skills' | 'shop'
+export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover' | 'skills' | 'shop' | 'arsenal'
 /** local : une machine · host : héberge la partie en ligne · client : a rejoint la partie d'un hôte */
 export type Mode = 'local' | 'host' | 'client'
 
@@ -138,6 +138,10 @@ interface Store {
   resume: () => void
   toMenu: () => void
   setHud: (hud: HudState) => void
+  openArsenal: () => void
+  closeArsenal: () => void
+  /** Décale une capacité équipée d'un emplacement (-1 = vers la première touche, +1 = vers la dernière). */
+  moveAbility: (id: AbilityId, dir: -1 | 1) => void
   openSkills: () => void
   closeSkills: () => void
   /** Dépense des points pour débloquer une compétence (vérifie le prix et le prérequis). */
@@ -258,6 +262,23 @@ export const useStore = create<Store>()((set, get) => ({
 
   setHud: (hud) => set({ hud }),
 
+  openArsenal: () => {
+    if (get().screen === 'menu') set({ screen: 'arsenal' })
+  },
+  closeArsenal: () => {
+    if (get().screen === 'arsenal') set({ screen: 'menu' })
+  },
+  moveAbility: (id, dir) => {
+    const { progress } = get()
+    const i = progress.abilities.indexOf(id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= progress.abilities.length) return
+    const abilities = progress.abilities.slice()
+    ;[abilities[i], abilities[j]] = [abilities[j], abilities[i]]
+    const next = { ...progress, abilities }
+    saveProgress(next)
+    set({ progress: next })
+  },
   openSkills: () => {
     if (get().screen === 'menu') set({ screen: 'skills' })
   },

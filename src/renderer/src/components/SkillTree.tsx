@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS } from '../game/config/constants'
-import { ABILITY_CONFIG, ABILITY_SLOTS, TURRET_LIMIT } from '../game/config/config'
-import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type AbilityId, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/config/progress'
+import { ABILITY_CONFIG, TURRET_LIMIT } from '../game/config/config'
+import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/config/progress'
 import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_EVOLVE_LEVEL, TURRET_MAX_LEVEL, TURRET_PLAIN, TURRET_PLAIN_MAX, TURRET_SPEC_LEVEL } from '../game/config/turrets'
 import { useStore } from '../store'
 import { IconBack, PERK_ICONS, UNLOCK_ICONS } from './icons'
@@ -160,24 +160,6 @@ function UnlockDetail({ def }: { def: UnlockDef }): React.JSX.Element {
   )
 }
 
-/** Équipe ou retire une capacité active : jusqu'à ABILITY_SLOTS par partie, déclenchées par les touches 1 à 3 (Z X C par défaut). */
-function EquipButton({ id }: { id: AbilityId }): React.JSX.Element {
-  const equipped = useStore((s) => s.progress.abilities)
-  const toggle = useStore((s) => s.toggleAbility)
-  const on = equipped.includes(id)
-  const full = !on && equipped.length >= ABILITY_SLOTS
-  return (
-    <div className="d-equip">
-      <button className={on ? '' : 'primary'} disabled={full} onClick={() => toggle(id)}>
-        {on ? 'Retirer de la partie' : 'Équiper pour la partie'}
-      </button>
-      <span className="muted">
-        {equipped.length} / {ABILITY_SLOTS} capacités équipées
-      </span>
-    </div>
-  )
-}
-
 function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.Element {
   const points = useStore((s) => s.progress.points)
   const rank = useStore((s) => s.progress.perks[index] ?? 0)
@@ -243,7 +225,7 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
         </div>
       </dl>
       {def.group === 'passive' && <p className="d-note">Passive : toujours active une fois débloquée, sans emplacement à équiper.</p>}
-      {def.group === 'ability' && rank > 0 && <EquipButton id={def.id as AbilityId} />}
+      {def.group === 'ability' && rank > 0 && <p className="d-note">S’équipe dans l’Arsenal (menu principal).</p>}
       <div className="d-buy">
         {maxed ? (
           <p className="d-status ok">Rang maximum</p>
@@ -254,25 +236,6 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
         )}
       </div>
     </>
-  )
-}
-
-/** Les emplacements de capacités et ce qui y est équipé. */
-function EquippedStrip(): React.JSX.Element {
-  const equipped = useStore((s) => s.progress.abilities)
-  return (
-    <div className="ability-slots" aria-label="Capacités équipées">
-      {Array.from({ length: ABILITY_SLOTS }, (_, i) => {
-        const id = equipped[i]
-        const Icon = id ? PERK_ICONS[id] : null
-        return (
-          <div key={i} className={`ability-slot${id ? ' on' : ''}`}>
-            <span className="num">{i + 1}</span>
-            {Icon ? <Icon className="node-ico" /> : <span className="muted">vide</span>}
-          </div>
-        )
-      })}
-    </div>
   )
 }
 
@@ -340,14 +303,13 @@ export function SkillTree(): React.JSX.Element {
           </section>
 
           <section className="sk-perks">
-            <h3 className="sk-label">Capacités actives · jusqu’à {ABILITY_SLOTS} par partie</h3>
+            <h3 className="sk-label">Capacités actives · à équiper dans l’Arsenal</h3>
             <div className="perk-row">
               {PERKS.map((p, i) =>
                 p.group === 'ability' ? (
                   <PerkTile key={p.id} def={p} index={i} selected={sel.kind === 'perk' && sel.id === p.id} onSelect={() => setSel({ kind: 'perk', id: p.id })} />
                 ) : null
               )}
-              <EquippedStrip />
             </div>
           </section>
         </div>
