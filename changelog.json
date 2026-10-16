@@ -1,6 +1,29 @@
 {
   "releases": [
     {
+      "version": "1.4.4",
+      "date": "2026-10-16",
+      "added": [
+        "Nouvel onglet Arsenal dans le menu : on y choisit ce qu'on emporte en partie. Trois emplacements de capacités actives (avec ◀ ▶ pour changer l'ordre des touches et un bouton pour retirer), la liste des capacités disponibles, et les capacités passives",
+        "Première capacité active, les Balles enflammées (déblocage au rang 1, 5 rangs) : pendant son effet tes balles enflamment les monstres touchés, qui brûlent 3 secondes (la brûlure repart à chaque balle). De 10 s d'effet, 45 s de recharge et 10 dégâts/s au rang 1 à 15 s, 30 s et 27 dégâts/s au rang 5",
+        "Les capacités actives se déclenchent avec une touche par emplacement : Z X C pour le Joueur 1, Pavé 4 5 6 pour le Joueur 2. En jeu, une barre affiche pour chacune sa touche, sa durée restante ou sa recharge, puis « Prête »",
+        "Les monstres en feu sont léchés par des flammes, les balles enflammées sont rouge-orange et le soldat est entouré d'un halo de feu pendant l'effet",
+        "Tourelles limitées par joueur : 3 de base, puis une de plus à chaque rang de la nouvelle amélioration « Tourelles » (colonne Technologie, 5 rangs, de 180 à 1200 points), soit 8 au maximum",
+        "Traînée « Cœurs » (480 points) : des petits cœurs rose et bordeaux s’évaporent derrière le personnage, montent en ondulant puis s’effacent",
+        "Traînée « Scan » (600 points) : traînée de données cyan, avec trois lignes qui défilent, des pixels qui clignotent et un curseur en tête",
+        "Nouveau groupe « Traînées » dans la boutique : chaque joueur équipe une traînée, indépendamment du chapeau et du canon"
+      ],
+      "changed": [
+        "L'Overclocking devient une capacité passive : toujours active une fois débloquée, sans emplacement à équiper. Il est indiqué « Capacité passive » dans l'arbre de compétences, qui ne sert plus qu'à acheter les rangs",
+        "La fenêtre des commandes liste les touches des capacités actives. L'accueil passe à sept entrées (Arsenal en cinquième position, Boutique en sixième, Commandes en septième)",
+        "Une tourelle ne se pose plus sans limite : quand la limite est atteinte, le joueur voit « Limite : N tourelles ». Une tourelle détruite libère sa place, et les améliorations et réparations ne sont pas limitées",
+        "Protocole réseau en version 12 : l'hôte et l'invité doivent avoir la même version du jeu. L'hôte gère les capacités des deux joueurs"
+      ],
+      "fixed": [
+        "On ne peut plus poser un mur ou une tourelle sur une case où se trouve un monstre : il restait coincé dedans et ne pouvait plus attaquer. Les pieux restent posables"
+      ]
+    },
+    {
       "version": "1.4.1",
       "date": "2026-10-16",
       "added": [
