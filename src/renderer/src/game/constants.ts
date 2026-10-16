@@ -111,11 +111,13 @@ export const WEB = {
   slow: 0.4
 }
 
-/** Apparence des projectiles : 0 joueur, 1 tourelle, 2 obus lourd. */
+/** Apparence des projectiles : 0 joueur, 1 tourelle, 2 obus lourd, 3 minigun, 4 obus explosif. */
 export const BULLET_STYLES: ReadonlyArray<{ color: string; radius: number }> = [
   { color: '#fff59d', radius: 3 },
   { color: '#80deea', radius: 3 },
-  { color: '#ffb74d', radius: 6 }
+  { color: '#ffb74d', radius: 6 },
+  { color: '#fff176', radius: 2.5 },
+  { color: '#ff7043', radius: 7 }
 ]
 
 export type EnemyKind = 'grunt' | 'runner' | 'brute' | 'splitter' | 'boss' | 'spider'

@@ -1,5 +1,5 @@
 import { buildTarget } from './build'
-import { BASE, ENEMIES, HEIGHT, OVERCLOCK_LEVELS, TILE, WIDTH } from './constants'
+import { BASE, BULLET_STYLES, ENEMIES, HEIGHT, OVERCLOCK_LEVELS, TILE, WIDTH } from './constants'
 import { CONTROLS, type InputLike } from './controls'
 import { skinAt } from './appearance'
 import { addText, burst, decal, muzzle, ring, updateFx, webShot } from './fx'
@@ -343,7 +343,7 @@ export class ClientView {
     const elapsed = Math.min(0.25, Math.max(0, rt - a.t))
     const bullets: Bullet[] = []
     for (const [x, y, vx, vy, style] of a.snap.bullets) {
-      bullets.push({ x: x + vx * elapsed, y: y + vy * elapsed, vx, vy, life: 1, damage: 0, style: style >= 0 && style <= 2 ? Math.round(style) : 0 })
+      bullets.push({ x: x + vx * elapsed, y: y + vy * elapsed, vx, vy, life: 1, damage: 0, style: style >= 0 && style < BULLET_STYLES.length ? Math.round(style) : 0, splash: 0 })
     }
     st.bullets = bullets
 
@@ -373,6 +373,7 @@ export class ClientView {
       baseMax: BASE.maxHp,
       enemies: this.enemies.size + this.queued,
       kills: st.kills,
+      dev: false,
       selected: st.players.map((p) => p.selected),
       ping: Math.round(this.rtt),
       colors: st.players.map((p) => p.look.color)

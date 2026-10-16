@@ -13,11 +13,11 @@ function shuffle<T>(arr: T[]): T[] {
 /** Liste des ennemis d'une vague, dans l'ordre d'apparition. */
 export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   const mult = players === 2 ? 1.6 : 1
-  const grunts = Math.round((5 + wave * 2.2) * mult)
-  const runners = wave >= 3 ? Math.round((1 + (wave - 3) * 1.5) * mult) : 0
-  const splitters = wave >= 4 ? Math.round((1 + (wave - 4) * 1) * mult) : 0
-  const brutes = wave >= 5 ? Math.round((1 + (wave - 5) * 0.7) * mult) : 0
-  const spiders = wave >= 6 ? Math.round((1 + (wave - 6) * 0.5) * mult) : 0
+  const grunts = Math.round((5 + wave * 2.4) * mult)
+  const runners = wave >= 3 ? Math.round((1 + (wave - 3) * 1.7) * mult) : 0
+  const splitters = wave >= 6 ? Math.round((1 + (wave - 6) * 1.5) * mult) : 0
+  const brutes = wave >= 8 ? Math.round((1 + (wave - 8) * 0.8) * mult) : 0
+  const spiders = wave >= 11 ? Math.round((1 + (wave - 11) * 0.7) * mult) : 0
   const bosses = wave % 5 === 0 ? Math.ceil(wave / 10) : 0
 
   const list: EnemyKind[] = []
@@ -35,23 +35,32 @@ export const waveScale = (wave: number): number => 1 + (wave - 1) * 0.1
 
 export const spawnInterval = (wave: number): number => Math.max(0.10, 1.0 - wave * 0.05)
 
-/** Points d'entrée : 1 côté au début, jusqu'aux 4 côtés plus tard. */
+/** Points d'entrée : 1 au début, jusqu'à 8 plus tard (répartis sur les 4 côtés, 2 par côté au maximum). */
 export function pickGates(wave: number): Vec[] {
-  const count = wave <= 2 ? 1 : wave <= 5 ? 2 : wave <= 9 ? 3 : 4
-  const sides = shuffle(['top', 'right', 'bottom', 'left']).slice(0, count)
-  return sides.map((side) => {
-    const t = 0.25 + Math.random() * 0.5
-    switch (side) {
-      case 'top':
-        return { x: WIDTH * t, y: TILE * 0.5 }
-      case 'bottom':
-        return { x: WIDTH * t, y: HEIGHT - TILE * 0.5 }
-      case 'left':
-        return { x: TILE * 0.5, y: HEIGHT * t }
-      default:
-        return { x: WIDTH - TILE * 0.5, y: HEIGHT * t }
-    }
+  const count = wave <= 2 ? 1 : wave <= 5 ? 2 : wave <= 8 ? 3 : wave <= 12 ? 4 : wave <= 15 ? 6 : 8
+  const sides = shuffle(['top', 'right', 'bottom', 'left'])
+  // Chaque côté reçoit ses entrées à tour de rôle, et se partage en tranches pour qu'elles ne se superposent pas.
+  const perSide = [0, 0, 0, 0]
+  for (let i = 0; i < count; i++) perSide[i % 4]++
+  return sides.flatMap((side, s) => {
+    const n = perSide[s]
+    const span = 0.5 / n
+    return Array.from({ length: n }, (_, j) => gateOn(side, 0.25 + j * span + Math.random() * span))
   })
+}
+
+/** Point d'entrée sur un côté, à la fraction `t` de ce côté. */
+function gateOn(side: string, t: number): Vec {
+  switch (side) {
+    case 'top':
+      return { x: WIDTH * t, y: TILE * 0.5 }
+    case 'bottom':
+      return { x: WIDTH * t, y: HEIGHT - TILE * 0.5 }
+    case 'left':
+      return { x: TILE * 0.5, y: HEIGHT * t }
+    default:
+      return { x: WIDTH - TILE * 0.5, y: HEIGHT * t }
+  }
 }
 
 /** Crée un ennemi (sans l'ajouter à la partie). `hpMult` : fraction des PV normaux de ce type à cette vague. */

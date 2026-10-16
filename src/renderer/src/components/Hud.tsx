@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { DEFAULT_COLORS } from '../game/appearance'
 import { BUILD_ORDER, BUILDS } from '../game/constants'
 import { CONTROLS, SKIP_WAVE } from '../game/controls'
@@ -6,6 +6,57 @@ import { useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
 
 const GLYPHS = { barricade: '▤', turret: '◉', spikes: '▲' } as const
+
+/** Or affiché : le nombre glisse vers sa nouvelle valeur, la pièce brille à chaque gain, un « +N » s'envole (rouge « −N » à la dépense). */
+function GoldChip({ gold }: { gold: number }): React.JSX.Element {
+  const [shown, setShown] = useState(gold)
+  const [pops, setPops] = useState<{ id: number; amount: number }[]>([])
+  const [flash, setFlash] = useState<'gain' | 'spend' | ''>('')
+  const prev = useRef(gold)
+  const shownRef = useRef(gold)
+  const nextId = useRef(0)
+
+  useEffect(() => {
+    const delta = Math.floor(gold) - Math.floor(prev.current)
+    prev.current = gold
+    if (delta === 0) return
+    // Les petits gains continus (mode dev) ne créent pas un « +N » à chaque mise à jour.
+    if (Math.abs(delta) >= 3) {
+      const id = nextId.current++
+      setPops((p) => [...p.slice(-4), { id, amount: delta }])
+      window.setTimeout(() => setPops((p) => p.filter((x) => x.id !== id)), 900)
+    }
+    setFlash(delta > 0 ? 'gain' : 'spend')
+    const t = window.setTimeout(() => setFlash(''), 260)
+    return () => window.clearTimeout(t)
+  }, [gold])
+
+  useEffect(() => {
+    let raf = 0
+    const tick = (): void => {
+      const diff = gold - shownRef.current
+      shownRef.current = Math.abs(diff) < 0.6 ? gold : shownRef.current + diff * 0.2
+      setShown(shownRef.current)
+      if (shownRef.current !== gold) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [gold])
+
+  return (
+    <div className={`chip gold${flash ? ` ${flash}` : ''}`}>
+      <span className="coin" />
+      <b>{Math.round(shown)}</b>
+      <span className="muted">or</span>
+      {pops.map((p) => (
+        <span key={p.id} className={`gold-pop ${p.amount > 0 ? 'up' : 'down'}`}>
+          {p.amount > 0 ? '+' : '−'}
+          {Math.abs(p.amount)}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 export function Hud(): React.JSX.Element {
   const hud = useStore((s) => s.hud)
@@ -22,10 +73,16 @@ export function Hud(): React.JSX.Element {
   return (
     <div className="hud">
       <div className="hud-top">
-        <div className="chip gold">
-          <span className="coin" />
-          <b>{hud.gold}</b>
-          <span className="muted">or</span>
+        <div className="hud-left">
+          <GoldChip gold={hud.gold} />
+          <div className="chip kills">
+            <span className="skull" aria-hidden>
+              ☠
+            </span>
+            <b>{hud.kills}</b>
+            <span className="muted">monstres tués</span>
+          </div>
+          {hud.dev && <div className="chip dev">MODE DEV · or rapide (F9 pour couper)</div>}
         </div>
 
         <div className="chip wave">

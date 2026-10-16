@@ -2,11 +2,13 @@ import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS, WEB, t
 import { PERKS, PERK_INDEX, hasUnlock, perkMult } from './progress'
 import {
   TURRET_BRANCHES,
+  TURRET_EVOLVE_LEVEL,
   TURRET_MAX_LEVEL,
   TURRET_PLAIN_MAX,
   TURRET_SPEC_LEVEL,
   turretInvested,
   turretLevel,
+  turretForm,
   turretNextCost,
   type Branch,
   type TurretStats
@@ -109,6 +111,10 @@ export function nextUpgrade(b: Leveled, unlocks: number): UpgradeStep | null {
       const cheapest = open.length > 0 ? Math.min(...open.map((id) => TURRET_BRANCHES[id === 'double' ? 1 : 2].levels[0].cost)) : cost
       return { mode: 'choice', cost: cheapest, label: `Niveau ${TURRET_SPEC_LEVEL} : choisir`, locked: open.length === 0 }
     }
+    if (b.level + 1 === TURRET_EVOLVE_LEVEL) {
+      const need = b.branch === 1 ? 'minigun' : 'explosive'
+      return { mode: 'direct', cost, label: `Niveau ${b.level + 1} · ${b.branch === 1 ? 'Minigun' : 'Canon explosif'}`, locked: !hasUnlock(unlocks, need) }
+    }
     return { mode: 'direct', cost, label: `Niveau ${b.level + 1}`, locked: false }
   }
   const tiers = tiersOf(b.kind)
@@ -121,7 +127,11 @@ export function nextUpgrade(b: Leveled, unlocks: number): UpgradeStep | null {
 export const branchUnlocked = (unlocks: number, branch: 1 | 2): boolean => hasUnlock(unlocks, branch === 1 ? 'double' : 'heavy')
 
 export const levelName = (b: Leveled): string => {
-  if (b.kind === 'turret') return b.branch !== 0 ? `${TURRET_BRANCHES[b.branch].name} · niv. ${b.level}` : `Tourelle niv. ${b.level}`
+  if (b.kind === 'turret') {
+    const form = turretForm(b.level, b.branch)
+    const name = form === 'minigun' ? 'Minigun' : form === 'explosive' ? 'Canon explosif' : b.branch !== 0 ? TURRET_BRANCHES[b.branch].name : ''
+    return name ? `${name} · niv. ${b.level}` : `Tourelle niv. ${b.level}`
+  }
   return tierOf(b.kind, b.level)?.name ?? BUILDS[b.kind].name
 }
 

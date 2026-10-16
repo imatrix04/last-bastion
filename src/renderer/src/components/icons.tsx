@@ -74,6 +74,23 @@ export const IconHeavy = (p: P): React.JSX.Element => (
   </svg>
 )
 
+export const IconMinigun = (p: P): React.JSX.Element => (
+  <svg {...base(p)}>
+    <circle cx="7" cy="12" r="3.6" />
+    <path d="M11 9h10M11 12h11M11 15h10" />
+    <path d="M3 20h8" />
+  </svg>
+)
+
+export const IconExplosive = (p: P): React.JSX.Element => (
+  <svg {...base(p)}>
+    <circle cx="8" cy="15" r="3.6" />
+    <path d="M11.5 12.5l4-4" />
+    <path d="M18 3l1.2 3 3 .8-2.6 1.8.2 3.2L17.5 10l-3 1.1.8-3.1L13 5.7l3.2-.2z" fill="currentColor" fillOpacity="0.25" />
+    <path d="M3 21h10" />
+  </svg>
+)
+
 export const IconBolt = (p: P): React.JSX.Element => (
   <svg {...base(p)}>
     <path d="M13.5 2L5 13.5h6L9.5 22 19 9.8h-6.2z" fill="currentColor" fillOpacity="0.2" />
@@ -142,7 +159,9 @@ export const UNLOCK_ICONS: Record<UnlockId, (p: P) => React.JSX.Element> = {
   spikeStone: IconSpikes,
   spikeReinforced: IconSpikesReinforced,
   double: IconDouble,
-  heavy: IconHeavy
+  heavy: IconHeavy,
+  minigun: IconMinigun,
+  explosive: IconExplosive
 }
 
 export const PERK_ICONS: Record<PerkId, (p: P) => React.JSX.Element> = {

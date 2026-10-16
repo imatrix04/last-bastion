@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { DEFAULT_COLORS } from '../game/appearance'
-import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN_MAX, type Branch } from '../game/turrets'
+import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN_MAX, type Branch } from '../game/turrets'
 import { gameBridge } from '../game/gameBridge'
 import { drawTurret } from '../game/sprites'
 import { unlockMask } from '../game/progress'
@@ -101,7 +101,7 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
             const def = TURRET_BRANCHES[branch]
             const first = def.levels[0]
             const s = first.stats
-            const top = def.levels[def.levels.length - 1].stats
+            const top = def.levels[TURRET_BASE_MAX_LEVEL - TURRET_PLAIN_MAX - 1].stats
             const locked = !branchUnlocked(mask, branch)
             const poor = !locked && gold < first.cost
             return (
@@ -118,7 +118,7 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
                   <StatRow label="Dégâts / s" from={Math.round(cur.damage * cur.fireRate)} to={Math.round(s.damage * s.fireRate)} />
                 </div>
                 <p className="pfoot">
-                  Évolue jusqu’au niveau {TURRET_MAX_LEVEL} : {top.fireRate} tirs/s · {top.damage} dégâts · {top.range} px
+                  Évolue jusqu’au niveau {TURRET_BASE_MAX_LEVEL} (puis {TURRET_MAX_LEVEL} avec l’évolution) : {top.fireRate} tirs/s · {top.damage} dégâts · {top.range} px
                 </p>
                 {locked ? (
                   <span className="plock">Verrouillé · à débloquer dans Compétences</span>

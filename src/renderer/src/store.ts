@@ -97,6 +97,7 @@ const initialHud: HudState = {
   baseMax: BASE.maxHp,
   enemies: 0,
   kills: 0,
+  dev: false,
   selected: [0, 0],
   ping: 0,
   colors: [DEFAULT_COLORS[0], DEFAULT_COLORS[1]]

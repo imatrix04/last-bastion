@@ -312,6 +312,7 @@ export class Game {
       baseMax: BASE.maxHp,
       enemies: s.enemies.length + s.spawnQueue.length,
       kills: s.kills,
+      dev: s.dev,
       selected: s.players.map((p) => p.selected),
       ping: Math.round(this.peerPing),
       colors: s.players.map((p) => p.look.color)

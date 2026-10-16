@@ -4,6 +4,7 @@
  *   niveaux 1 → 3   communs à toutes les tourelles (TURRET_PLAIN)
  *   niveau 4        on choisit une branche : double canons ou canon lourd
  *   niveaux 5 → 7   la branche choisie continue d'évoluer, avec ses propres statistiques
+ *   niveaux 8 → 10  évolution (compétence à débloquer) : double canons → Minigun, canon lourd → Canon explosif
  *
  * Chaque niveau a ses statistiques complètes et son prix (pour y arriver depuis le niveau précédent).
  * Le niveau 1 se paie à la pose : son prix est TURRET_PLACE_COST.
@@ -23,6 +24,8 @@ export interface TurretStats {
   hp: number
   /** Vitesse du projectile (px/s). */
   bulletSpeed: number
+  /** Rayon de l'explosion à l'impact (px) ; absent = tir sans zone. */
+  splash?: number
 }
 
 export interface TurretLevel {
@@ -53,7 +56,7 @@ export interface TurretBranchDef {
   blurb: string
   /** Couleur d'accent du canon (rendu). */
   accent: string
-  /** Niveaux de la branche : le premier est le niveau 4 (le choix), puis 5, 6, 7. */
+  /** Niveaux de la branche : le premier est le niveau 4 (le choix), puis 5 à 7, puis 8 à 10 (évolution). */
   levels: readonly TurretLevel[]
 }
 
@@ -66,7 +69,11 @@ export const TURRET_BRANCHES: Record<1 | 2, TurretBranchDef> = {
       { cost: 370, stats: { damage: 26, fireRate: 4.8, range: 220, hp: 410, bulletSpeed: 560 } },
       { cost: 480, stats: { damage: 30, fireRate: 5.4, range: 230, hp: 480, bulletSpeed: 580 } },
       { cost: 600, stats: { damage: 36, fireRate: 6.0, range: 240, hp: 560, bulletSpeed: 590 } },
-      { cost: 780, stats: { damage: 44, fireRate: 7.0, range: 250, hp: 660, bulletSpeed: 600 } }
+      { cost: 780, stats: { damage: 44, fireRate: 7.0, range: 250, hp: 660, bulletSpeed: 600 } },
+      // Minigun
+      { cost: 950, stats: { damage: 30, fireRate: 12, range: 255, hp: 760, bulletSpeed: 640 } },
+      { cost: 1200, stats: { damage: 34, fireRate: 14, range: 262, hp: 860, bulletSpeed: 650 } },
+      { cost: 1500, stats: { damage: 38, fireRate: 16, range: 270, hp: 980, bulletSpeed: 660 } }
     ]
   },
   2: {
@@ -77,13 +84,30 @@ export const TURRET_BRANCHES: Record<1 | 2, TurretBranchDef> = {
       { cost: 420, stats: { damage: 78, fireRate: 2.4, range: 250, hp: 460, bulletSpeed: 640 } },
       { cost: 540, stats: { damage: 92, fireRate: 2.4, range: 262, hp: 540, bulletSpeed: 660 } },
       { cost: 680, stats: { damage: 112, fireRate: 2.5, range: 275, hp: 630, bulletSpeed: 680 } },
-      { cost: 850, stats: { damage: 136, fireRate: 2.6, range: 290, hp: 760, bulletSpeed: 700 } }
+      { cost: 850, stats: { damage: 136, fireRate: 2.6, range: 290, hp: 760, bulletSpeed: 700 } },
+      // Canon explosif : l'obus explose à l'impact et touche tout autour
+      { cost: 1050, stats: { damage: 150, fireRate: 2.2, range: 295, hp: 880, bulletSpeed: 620, splash: 70 } },
+      { cost: 1350, stats: { damage: 175, fireRate: 2.3, range: 300, hp: 1000, bulletSpeed: 630, splash: 82 } },
+      { cost: 1700, stats: { damage: 205, fireRate: 2.4, range: 310, hp: 1150, bulletSpeed: 640, splash: 95 } }
     ]
   }
 }
 
 /** Niveau maximum d'une tourelle (niveaux simples + niveaux de branche). */
 export const TURRET_MAX_LEVEL = TURRET_PLAIN_MAX + TURRET_BRANCHES[1].levels.length
+/** Premier niveau d'évolution (Minigun / Canon explosif) : il demande une compétence de plus. */
+export const TURRET_EVOLVE_LEVEL = 8
+/** Dernier niveau avant l'évolution. */
+export const TURRET_BASE_MAX_LEVEL = TURRET_EVOLVE_LEVEL - 1
+
+/** Forme de la tourelle : sert au tir et au dessin. */
+export type TurretForm = 'basic' | 'double' | 'minigun' | 'heavy' | 'explosive'
+
+export function turretForm(level: number, branch: Branch): TurretForm {
+  if (branch === 0 || level <= TURRET_PLAIN_MAX) return 'basic'
+  const evolved = level >= TURRET_EVOLVE_LEVEL
+  return branch === 1 ? (evolved ? 'minigun' : 'double') : evolved ? 'explosive' : 'heavy'
+}
 
 /** Statistiques et prix d'un niveau. `branch` ne compte qu'à partir du niveau 4. */
 export function turretLevel(level: number, branch: Branch): TurretLevel {

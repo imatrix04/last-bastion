@@ -117,6 +117,83 @@ kbd {
   background: radial-gradient(circle at 35% 30%, #fff3b0, var(--gold) 55%, #b8860b);
   box-shadow: 0 0 0.5em rgba(255, 213, 74, 0.5);
 }
+.hud-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45em;
+}
+.chip.gold {
+  position: relative;
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.12s;
+}
+.chip.gold.gain {
+  border-color: var(--gold);
+  box-shadow: 0 0 1.2em rgba(255, 213, 74, 0.55);
+  transform: scale(1.06);
+}
+.chip.gold.gain b {
+  text-shadow: 0 0 0.6em rgba(255, 224, 130, 0.9);
+}
+.chip.gold.spend {
+  border-color: #ff8a65;
+  box-shadow: 0 0 1em rgba(255, 112, 67, 0.4);
+}
+.chip.gold.gain .coin {
+  animation: coin-spin 0.45s ease-out;
+}
+@keyframes coin-spin {
+  from {
+    transform: rotateY(0deg) scale(1.35);
+  }
+  to {
+    transform: rotateY(360deg) scale(1);
+  }
+}
+.gold-pop {
+  position: absolute;
+  left: 100%;
+  top: 0.1em;
+  margin-left: 0.5em;
+  font-weight: 800;
+  font-size: 1.15em;
+  pointer-events: none;
+  animation: gold-pop 0.9s ease-out forwards;
+}
+.gold-pop.up {
+  color: #ffe082;
+  text-shadow: 0 0 0.5em rgba(255, 213, 74, 0.8);
+}
+.gold-pop.down {
+  color: #ff8a65;
+}
+@keyframes gold-pop {
+  from {
+    opacity: 1;
+    transform: translateY(0.4em);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-1.4em);
+  }
+}
+.chip.kills {
+  padding: 0.35em 0.8em;
+}
+.chip.kills .skull {
+  color: #ef9a9a;
+}
+.chip.kills b {
+  color: #ffcdd2;
+}
+.chip.dev {
+  padding: 0.3em 0.7em;
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #1b1b1b;
+  background: var(--gold);
+  border-color: #b8860b;
+}
 .chip.wave {
   font-size: 1.1em;
 }

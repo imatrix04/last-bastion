@@ -15,12 +15,13 @@ import {
   WEB,
   WIDTH
 } from './constants'
-import { CONTROLS, SKIP_WAVE, type InputLike } from './controls'
+import { CONTROLS, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './controls'
 import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot } from './fx'
 import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
 import { computeFlow, nextCell } from './pathing'
 import { killIndex } from './progress'
 import { fireRateMult, isWeapon, playerStats, spikeStats, tierOf, turretStats } from './stats'
+import { turretForm } from './turrets'
 import type { Building, Enemy, GameState, Player } from './types'
 import { composeWave, createEnemy, pickGates, spawnEnemy, spawnInterval, waveScale } from './waves'
 
@@ -30,6 +31,13 @@ const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.m
 export function step(state: GameState, dt: number, input: InputLike): void {
   if (state.gameOver) return
   state.time += dt
+
+  // Mode développeur : seulement avec `npm run dev` (absent des versions installées).
+  if (import.meta.env.DEV && input.wasPressed(DEV_TOGGLE)) {
+    state.dev = !state.dev
+    addText(state, WIDTH / 2, 70, state.dev ? 'MODE DEV : or rapide' : 'Mode dev coupé', state.dev ? '#ffd54a' : '#b0bec5')
+  }
+  if (state.dev) state.gold += DEV_GOLD_PER_SEC * dt
 
   updatePlayers(state, dt, input)
   updateWaves(state, dt, input)
@@ -103,7 +111,8 @@ function fire(
   speed: number,
   damage: number,
   range: number,
-  style: number
+  style: number,
+  splash = 0
 ): void {
   state.bullets.push({
     x,
@@ -112,7 +121,8 @@ function fire(
     vy: Math.sin(angle) * speed,
     life: range / speed + 0.15,
     damage,
-    style
+    style,
+    splash
   })
 }
 
@@ -550,7 +560,7 @@ function reapEnemies(state: GameState): void {
       continue
     }
     const def = ENEMIES[e.kind]
-    const reward = e.minion ? Math.ceil(def.reward / 2) : def.reward
+    const reward = (e.minion ? Math.ceil(def.reward / 2) : def.reward) * (state.dev ? DEV_REWARD_MULT : 1)
     state.gold += reward
     state.kills += 1
     state.kstats[killIndex(e.kind, e.minion)] += 1
@@ -585,18 +595,22 @@ function updateTurrets(state: GameState, dt: number): void {
     if (!target) continue
     b.angle = Math.atan2(target.y - cy, target.x - cx)
     if (b.cooldown <= 0) {
-      const heavy = b.branch === 2
-      const double = b.branch === 1
-      // Double canon : les deux tubes tirent à tour de rôle, décalés de part et d'autre de l'axe.
+      const form = turretForm(b.level, b.branch)
+      const minigun = form === 'minigun'
+      const heavy = form === 'heavy' || form === 'explosive'
+      const double = form === 'double' || minigun
+      // Double canon et minigun : les tubes tirent à tour de rôle, décalés de part et d'autre de l'axe.
       b.side = -b.side
-      const lateral = double ? b.side * 4.5 : 0
+      const lateral = double ? b.side * (minigun ? 3 : 4.5) : 0
       const muzzleLen = heavy ? 22 : 17
       const mx = cx + Math.cos(b.angle) * muzzleLen - Math.sin(b.angle) * lateral
       const my = cy + Math.sin(b.angle) * muzzleLen + Math.cos(b.angle) * lateral
-      fire(state, mx, my, b.angle, stats.bulletSpeed, stats.damage, stats.range, heavy ? 2 : 1)
-      muzzle(state, mx, my, b.angle, heavy ? 3 : double ? 2 : 1)
+      // Le minigun arrose : léger écart aléatoire à chaque balle.
+      const angle = minigun ? b.angle + (Math.random() - 0.5) * 0.1 : b.angle
+      fire(state, mx, my, angle, stats.bulletSpeed, stats.damage, stats.range, minigun ? 3 : form === 'explosive' ? 4 : heavy ? 2 : 1, stats.splash ?? 0)
+      muzzle(state, mx, my, angle, heavy ? 3 : double ? 2 : 1)
       b.recoil = 1
-      if (heavy) state.shake = Math.min(1, state.shake + 0.04)
+      if (heavy) state.shake = Math.min(1, state.shake + (form === 'explosive' ? 0.06 : 0.04))
       b.cooldown = 1 / (stats.fireRate * fireRateMult(b))
     }
   }
@@ -616,6 +630,22 @@ function updateSpikes(state: GameState, dt: number): void {
   }
 }
 
+/** Explosion à l'impact : tous les ennemis dans le rayon sont touchés, de moins en moins fort vers le bord (100 % → 50 %). */
+function explode(state: GameState, x: number, y: number, radius: number, damage: number, color: string): void {
+  for (const e of state.enemies) {
+    if (e.hp <= 0) continue
+    const d = Math.max(0, Math.hypot(e.x - x, e.y - y) - e.radius)
+    if (d > radius) continue
+    damageEnemy(e, damage * (1 - 0.5 * (d / radius)))
+  }
+  ring(state, x, y, color, radius)
+  burst(state, x, y, color, 10, 170)
+  burst(state, x, y, '#fff3e0', 2, 0, 3)
+  sparks(state, x, y, '#ffe0b2', 10, 260)
+  smoke(state, x, y, '#8d6e63', 3, 50)
+  state.shake = Math.min(1, state.shake + 0.05)
+}
+
 function updateBullets(state: GameState, dt: number): void {
   const bullets = state.bullets
   let w = 0
@@ -631,13 +661,16 @@ function updateBullets(state: GameState, dt: number): void {
         const dx = e.x - b.x
         const dy = e.y - b.y
         if (dx * dx + dy * dy <= r * r) {
-          damageEnemy(e, b.damage)
           const style = BULLET_STYLES[b.style] ?? BULLET_STYLES[0]
-          if (b.style === 2) {
+          if (b.splash > 0) {
+            explode(state, b.x, b.y, b.splash, b.damage, style.color)
+          } else if (b.style === 2) {
             sparks(state, b.x, b.y, style.color, 8, 200)
             burst(state, b.x, b.y, style.color, 1, 0, 3)
             ring(state, b.x, b.y, style.color, 26)
+            damageEnemy(e, b.damage)
           } else {
+            damageEnemy(e, b.damage)
             sparks(state, b.x, b.y, style.color, 3, 150)
           }
           alive = false

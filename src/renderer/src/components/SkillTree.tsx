@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS } from '../game/constants'
 import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/progress'
-import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN, TURRET_PLAIN_MAX } from '../game/turrets'
+import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_EVOLVE_LEVEL, TURRET_MAX_LEVEL, TURRET_PLAIN, TURRET_PLAIN_MAX, TURRET_SPEC_LEVEL } from '../game/turrets'
 import { useStore } from '../store'
 import { IconBack, PERK_ICONS, UNLOCK_ICONS } from './icons'
 
@@ -26,19 +26,36 @@ const spikeRows = (i: number): Row[] => {
   ]
 }
 const branchRows = (id: 1 | 2): Row[] => {
-  const lv = TURRET_BRANCHES[id].levels
+  const lv = TURRET_BRANCHES[id].levels.slice(0, TURRET_BASE_MAX_LEVEL - TURRET_PLAIN_MAX)
   const first = lv[0].stats
   const top = lv[lv.length - 1].stats
   return id === 1
     ? [
         ['Cadence au niveau 4', `${LAST.fireRate} → ${first.fireRate} tirs/s`],
-        [`Cadence au niveau ${TURRET_MAX_LEVEL}`, `${top.fireRate} tirs/s`],
+        [`Cadence au niveau ${TURRET_BASE_MAX_LEVEL}`, `${top.fireRate} tirs/s`],
         ['Prix des niveaux 4 à 7', lv.map((l) => l.cost).join(' / ') + ' or']
       ]
     : [
         ['Dégâts au niveau 4', `${LAST.damage} → ${first.damage}`],
-        [`Dégâts au niveau ${TURRET_MAX_LEVEL}`, `${top.damage} · portée ${top.range} px`],
+        [`Dégâts au niveau ${TURRET_BASE_MAX_LEVEL}`, `${top.damage} · portée ${top.range} px`],
         ['Prix des niveaux 4 à 7', lv.map((l) => l.cost).join(' / ') + ' or']
+      ]
+}
+
+const evolveRows = (id: 1 | 2): Row[] => {
+  const lv = TURRET_BRANCHES[id].levels.slice(TURRET_EVOLVE_LEVEL - TURRET_SPEC_LEVEL)
+  const before = TURRET_BRANCHES[id].levels[TURRET_EVOLVE_LEVEL - TURRET_SPEC_LEVEL - 1].stats
+  const top = lv[lv.length - 1].stats
+  return id === 1
+    ? [
+        [`Cadence ${TURRET_BASE_MAX_LEVEL} → ${TURRET_MAX_LEVEL}`, `${before.fireRate} → ${top.fireRate} tirs/s`],
+        [`Dégâts au niveau ${TURRET_MAX_LEVEL}`, `${top.damage} par balle · portée ${top.range} px`],
+        [`Prix des niveaux ${TURRET_EVOLVE_LEVEL} à ${TURRET_MAX_LEVEL}`, lv.map((l) => l.cost).join(' / ') + ' or']
+      ]
+    : [
+        [`Dégâts ${TURRET_BASE_MAX_LEVEL} → ${TURRET_MAX_LEVEL}`, `${before.damage} → ${top.damage}`],
+        [`Zone d’explosion au niveau ${TURRET_MAX_LEVEL}`, `${top.splash} px de rayon`],
+        [`Prix des niveaux ${TURRET_EVOLVE_LEVEL} à ${TURRET_MAX_LEVEL}`, lv.map((l) => l.cost).join(' / ') + ' or']
       ]
 }
 
@@ -50,10 +67,12 @@ const EFFECTS: Record<UnlockId, Row[]> = {
   spikeStone: spikeRows(1),
   spikeReinforced: spikeRows(2),
   double: branchRows(1),
-  heavy: branchRows(2)
+  heavy: branchRows(2),
+  minigun: evolveRows(1),
+  explosive: evolveRows(2)
 }
 
-const BRANCH_TITLES: Record<TreeBranch, string> = { barricade: 'Murs', spikes: 'Pieux', turret: 'Tourelles · niveau 4 à 7', tech: 'Technologie' }
+const BRANCH_TITLES: Record<TreeBranch, string> = { barricade: 'Murs', spikes: 'Pieux', turret: 'Tourelles · niveau 4 à 10', tech: 'Technologie' }
 
 /** Statistiques de base du joueur et leur unité, pour afficher « actuel → prochain rang ». */
 const BASE_VALUES: Record<Exclude<PerkId, 'overclock' | 'precision'>, { base: number; unit: string; digits: number }> = {

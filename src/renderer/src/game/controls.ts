@@ -43,6 +43,12 @@ export const CONTROLS: PlayerControls[] = [
 /** Lance la vague suivante sans attendre la fin du compte à rebours. */
 export const SKIP_WAVE = 'KeyN'
 
+/** Mode développeur (local et hôte) : or à volonté pour tester. Touche pour l'activer / le couper. */
+export const DEV_TOGGLE = 'F9'
+/** Mode développeur : or gagné par seconde, et multiplicateur des récompenses de monstres. */
+export const DEV_GOLD_PER_SEC = 150
+export const DEV_REWARD_MULT = 10
+
 export interface InputLike {
   isDown(code: string): boolean
   wasPressed(code: string): boolean
@@ -51,5 +57,6 @@ export interface InputLike {
 /** Touches dont on bloque le comportement par défaut (défilement, focus...) pendant la partie. */
 export const GAME_KEYS: ReadonlySet<string> = new Set([
   ...CONTROLS.flatMap((c) => [c.up, c.down, c.left, c.right, c.place, c.upgrade, c.remove, c.prev, c.next, ...c.slots]),
-  SKIP_WAVE
+  SKIP_WAVE,
+  DEV_TOGGLE
 ])

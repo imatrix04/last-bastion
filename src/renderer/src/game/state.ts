@@ -40,6 +40,7 @@ export function createState(playerCount: 1 | 2, loadouts: Loadout[] = []): GameS
     flowDirty: true,
     nextEnemyId: 1,
     kills: 0,
+    dev: false,
     kstats: KILL_KINDS.map(() => 0),
     gameOver: false,
     shake: 0,

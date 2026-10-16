@@ -9,7 +9,7 @@ import type { EnemyKind, TierUnlock } from './constants'
 
 // ------------------------------------------------------------ compétences à débloquer
 
-export type UnlockId = TierUnlock | 'double' | 'heavy'
+export type UnlockId = TierUnlock | 'double' | 'heavy' | 'minigun' | 'explosive'
 export type TreeBranch = 'barricade' | 'spikes' | 'turret' | 'tech'
 
 export interface UnlockDef {
@@ -88,6 +88,24 @@ export const UNLOCKS: readonly UnlockDef[] = [
     blurb: 'Choix possible au niveau 4 d’une tourelle : des obus énormes, jusqu’au niveau 7.',
     cost: 250,
     tier: 0
+  },
+  {
+    id: 'minigun',
+    branch: 'turret',
+    name: 'Minigun',
+    blurb: 'Évolution des double canons : au niveau 8, la tourelle devient un minigun qui arrose les ennemis, jusqu’au niveau 10.',
+    cost: 450,
+    requires: 'double',
+    tier: 1
+  },
+  {
+    id: 'explosive',
+    branch: 'turret',
+    name: 'Canon explosif',
+    blurb: 'Évolution du canon lourd : au niveau 8, l’obus explose à l’impact et blesse tout autour, jusqu’au niveau 10.',
+    cost: 450,
+    requires: 'heavy',
+    tier: 1
   }
 ]
 

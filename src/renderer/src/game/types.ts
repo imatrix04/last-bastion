@@ -95,6 +95,8 @@ export interface Bullet {
   damage: number
   /** Index dans BULLET_STYLES. */
   style: number
+  /** Rayon de l'explosion à l'impact (0 = aucune). */
+  splash: number
 }
 
 /** 0 éclat carré · 1 étincelle (traînée additive) · 2 fumée · 3 lueur additive */
@@ -189,6 +191,8 @@ export interface HudState {
   /** Ennemis vivants + ennemis restant à faire apparaître. */
   enemies: number
   kills: number
+  /** Mode développeur actif. */
+  dev: boolean
   /** Objet de construction sélectionné par joueur. */
   selected: number[]
   /** Latence réseau en ms (en ligne), 0 si inconnue. */
@@ -235,6 +239,8 @@ export interface GameState {
   flowDirty: boolean
   nextEnemyId: number
   kills: number
+  /** Mode développeur : or rapide (touche F9, local et hôte). */
+  dev: boolean
   /** Kills par type, dans l'ordre de KILL_KINDS (sert au calcul des points de fin de partie). */
   kstats: number[]
   gameOver: boolean

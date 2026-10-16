@@ -1,5 +1,5 @@
 import { ENEMIES, type EnemyKind } from './constants'
-import { TURRET_BRANCHES, TURRET_SPEC_LEVEL, type Branch } from './turrets'
+import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_SPEC_LEVEL, turretForm, type Branch } from './turrets'
 import type { Enemy } from './types'
 
 /** Dessin des ennemis et des tourelles. Les corps sont pré-rendus une fois (canvas hors écran), seules les parties animées sont tracées à chaque image. */
@@ -603,9 +603,12 @@ export interface TurretLook {
 
 /** Tourelle centrée en (cx, cy), tuile de 40 px. Sert à la partie et aux aperçus du pop-up de choix. */
 export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: TurretLook, time: number): void {
-  const accent = t.branch !== 0 ? TURRET_BRANCHES[t.branch].accent : '#80deea'
+  const form = turretForm(t.level, t.branch)
+  const accent = form === 'minigun' ? '#ffee58' : form === 'explosive' ? '#ff5722' : t.branch !== 0 ? TURRET_BRANCHES[t.branch].accent : '#80deea'
   // Niveaux de branche : 0 au niveau 4, jusqu'à 3 au niveau 7. Chaque niveau ajoute du blindage et de la lumière.
-  const tier = t.branch !== 0 ? Math.max(0, t.level - TURRET_SPEC_LEVEL) : 0
+  const tier = t.branch !== 0 ? Math.min(3, Math.max(0, t.level - TURRET_SPEC_LEVEL)) : 0
+  // Évolution : 0 avant le niveau 8, puis 1 à 3 (niveaux 8 à 10).
+  const evo = Math.max(0, t.level - TURRET_BASE_MAX_LEVEL)
   const boost = t.boost ?? 0
   ctx.save()
   ctx.translate(cx, cy)
@@ -680,7 +683,49 @@ export function drawTurret(ctx: CanvasRenderingContext2D, cx: number, cy: number
 
   // Canons
   ctx.rotate(t.angle)
-  if (t.branch === 1) {
+  if (form === 'minigun') {
+    // Faisceau de trois tubes autour d'un moyeu, qui tourne un peu à chaque tir
+    const kick = t.recoil * 3
+    const len = 21 + evo * 1.5
+    const spin = (time * 10 + t.recoil * 3) % TAU
+    ctx.fillStyle = '#455a64'
+    ctx.fillRect(-2 - kick, -8, 8, 16)
+    ctx.fillStyle = '#263238'
+    ctx.fillRect(4 - kick, -7.5, 4, 15)
+    for (let i = 0; i < 3; i++) {
+      const y = Math.sin(spin + (i * TAU) / 3) * 5.5
+      ctx.fillStyle = '#b0bec5'
+      ctx.fillRect(6 - kick, y - 1.6, len, 3.2)
+      ctx.fillStyle = accent
+      ctx.fillRect(len + 2 - kick, y - 1.6, 3, 3.2)
+    }
+    ctx.fillStyle = '#37474f'
+    ctx.fillRect(len - 4 - kick, -7.5, 3, 15)
+  } else if (form === 'explosive') {
+    // Gros mortier évasé, obus orange visible dans la gueule
+    const kick = t.recoil * 7
+    const ext = evo * 1.4
+    ctx.fillStyle = '#4e342e'
+    ctx.fillRect(-2 - kick, -7 - evo * 0.3, 22 + ext, 14 + evo * 0.6)
+    ctx.fillStyle = '#cfd8dc'
+    ctx.fillRect(1 - kick, -5, 18 + ext, 10)
+    ctx.fillStyle = accent
+    ctx.fillRect(8 - kick, -7 - evo * 0.3, 3, 14 + evo * 0.6)
+    ctx.fillStyle = '#37474f'
+    ctx.beginPath()
+    ctx.moveTo(17 + ext - kick, -6)
+    ctx.lineTo(27 + ext - kick, -10)
+    ctx.lineTo(27 + ext - kick, 10)
+    ctx.lineTo(17 + ext - kick, 6)
+    ctx.closePath()
+    ctx.fill()
+    ctx.fillStyle = '#10171a'
+    ctx.fillRect(25 + ext - kick, -8, 2, 16)
+    ctx.fillStyle = accent
+    ctx.beginPath()
+    ctx.arc(24 + ext - kick, 0, 4, 0, TAU)
+    ctx.fill()
+  } else if (t.branch === 1) {
     for (const s of [-1, 1]) {
       const kick = (s === t.side ? t.recoil : t.recoil * 0.25) * 4
       const len = 18 + tier * 1.5
