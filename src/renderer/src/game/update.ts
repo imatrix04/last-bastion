@@ -14,14 +14,15 @@ import {
   TILE,
   WEB,
   WIDTH
-} from './constants'
-import { CONTROLS, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './controls'
+} from './config/constants'
+import { EXPLOSION, MINIGUN, PLAYER_AIM, WAVES } from './config/config'
+import { CONTROLS, DEV_ENABLED, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './config/controls'
 import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot } from './fx'
 import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
 import { computeFlow, nextCell } from './pathing'
-import { killIndex } from './progress'
+import { killIndex } from './config/progress'
 import { fireRateMult, isWeapon, playerStats, spikeStats, tierOf, turretStats } from './stats'
-import { turretForm } from './turrets'
+import { turretForm } from './config/turrets'
 import type { Building, Enemy, GameState, Player } from './types'
 import { composeWave, createEnemy, pickGates, spawnEnemy, spawnInterval, waveScale } from './waves'
 
@@ -33,7 +34,7 @@ export function step(state: GameState, dt: number, input: InputLike): void {
   state.time += dt
 
   // Mode développeur : seulement avec `npm run dev` (absent des versions installées).
-  if (import.meta.env.DEV && input.wasPressed(DEV_TOGGLE)) {
+  if (DEV_ENABLED && input.wasPressed(DEV_TOGGLE)) {
     state.dev = !state.dev
     addText(state, WIDTH / 2, 70, state.dev ? 'MODE DEV : or rapide' : 'Mode dev coupé', state.dev ? '#ffd54a' : '#b0bec5')
   }
@@ -245,7 +246,7 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
     if (target) {
       p.aim = leadAngle(p.x, p.y, target, ps.bulletSpeed, ps.lead)
       if (p.shootCd <= 0) {
-        const spread = (Math.random() - 0.5) * 0.08 * (1 - ps.lead * 0.5)
+        const spread = (Math.random() - 0.5) * PLAYER_AIM.spread * (1 - ps.lead * PLAYER_AIM.spreadReductionAtMax)
         const angle = p.aim + spread
         fire(state, p.x, p.y, angle, ps.bulletSpeed, ps.damage, ps.range, 0)
         muzzle(state, p.x + Math.cos(angle) * 22, p.y + Math.sin(angle) * 22, angle, 0)
@@ -264,7 +265,7 @@ function updateWaves(state: GameState, dt: number, input: InputLike): void {
     state.countdown -= dt
     if (input.wasPressed(SKIP_WAVE) && state.countdown > 0) {
       // Lancer plus tôt rapporte un petit bonus.
-      const bonus = Math.floor(state.countdown) * 2
+      const bonus = Math.floor(state.countdown) * WAVES.skipBonusPerSecond
       if (bonus > 0) {
         state.gold += bonus
         addText(state, BASE.col * TILE + (BASE.cols * TILE) / 2, BASE.row * TILE - 30, `+${bonus} (appel anticipé)`, '#ffd54a')
@@ -276,11 +277,14 @@ function updateWaves(state: GameState, dt: number, input: InputLike): void {
   }
 
   if (state.spawnQueue.length > 0) {
-    state.spawnTimer -= dt
-    if (state.spawnTimer <= 0) {
-      const kind = state.spawnQueue.shift()
-      if (kind) spawnEnemy(state, kind)
-      state.spawnTimer = spawnInterval(state.wave)
+    // Chaque entrée a sa propre cadence : plus il y a d'entrées, plus les monstres arrivent nombreux en même temps.
+    for (let i = 0; i < state.gates.length && state.spawnQueue.length > 0; i++) {
+      state.gateTimers[i] = (state.gateTimers[i] ?? 0) - dt
+      if (state.gateTimers[i] <= 0) {
+        const kind = state.spawnQueue.shift()
+        if (kind) spawnEnemy(state, kind, i)
+        state.gateTimers[i] = spawnInterval(state.wave)
+      }
     }
   } else if (state.enemies.length === 0) {
     endWave(state)
@@ -291,14 +295,15 @@ function startWave(state: GameState): void {
   state.wave += 1
   state.waveScale = waveScale(state.wave)
   state.spawnQueue = composeWave(state.wave, state.playerCount)
-  state.spawnTimer = 0.5
+  // Départs décalés pour que les entrées ne crachent pas toutes au même instant.
+  state.gateTimers = state.gates.map((_, i) => 0.5 + i * 0.12)
   state.phase = 'combat'
 }
 
 function endWave(state: GameState): void {
-  const bonus = 30 + state.wave * 12
+  const bonus = WAVES.reward.goldBase + state.wave * WAVES.reward.goldPerWave
   state.gold += bonus
-  state.baseHp = Math.min(BASE.maxHp, state.baseHp + BASE.maxHp * 0.08)
+  state.baseHp = Math.min(BASE.maxHp, state.baseHp + BASE.maxHp * WAVES.reward.baseHeal)
   addText(
     state,
     BASE.col * TILE + (BASE.cols * TILE) / 2,
@@ -606,7 +611,7 @@ function updateTurrets(state: GameState, dt: number): void {
       const mx = cx + Math.cos(b.angle) * muzzleLen - Math.sin(b.angle) * lateral
       const my = cy + Math.sin(b.angle) * muzzleLen + Math.cos(b.angle) * lateral
       // Le minigun arrose : léger écart aléatoire à chaque balle.
-      const angle = minigun ? b.angle + (Math.random() - 0.5) * 0.1 : b.angle
+      const angle = minigun ? b.angle + (Math.random() - 0.5) * MINIGUN.spread : b.angle
       fire(state, mx, my, angle, stats.bulletSpeed, stats.damage, stats.range, minigun ? 3 : form === 'explosive' ? 4 : heavy ? 2 : 1, stats.splash ?? 0)
       muzzle(state, mx, my, angle, heavy ? 3 : double ? 2 : 1)
       b.recoil = 1
@@ -636,7 +641,7 @@ function explode(state: GameState, x: number, y: number, radius: number, damage:
     if (e.hp <= 0) continue
     const d = Math.max(0, Math.hypot(e.x - x, e.y - y) - e.radius)
     if (d > radius) continue
-    damageEnemy(e, damage * (1 - 0.5 * (d / radius)))
+    damageEnemy(e, damage * (1 - (1 - EXPLOSION.edgeDamage) * (d / radius)))
   }
   ring(state, x, y, color, radius)
   burst(state, x, y, color, 10, 170)

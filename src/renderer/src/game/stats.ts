@@ -1,5 +1,5 @@
-import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS, WEB, type BuildKind, type SpikeLevel, type TierUnlock } from './constants'
-import { PERKS, PERK_INDEX, hasUnlock, perkMult } from './progress'
+import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS, WEB, type BuildKind, type SpikeLevel, type TierUnlock } from './config/constants'
+import { PERKS, PERK_INDEX, hasUnlock, perkMult } from './config/progress'
 import {
   TURRET_BRANCHES,
   TURRET_EVOLVE_LEVEL,
@@ -12,7 +12,7 @@ import {
   turretNextCost,
   type Branch,
   type TurretStats
-} from './turrets'
+} from './config/turrets'
 import type { Building } from './types'
 
 /** Ce qui définit le niveau d'un bâtiment (partagé entre la simulation, l'invité et l'interface). */

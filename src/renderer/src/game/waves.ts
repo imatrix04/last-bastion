@@ -1,4 +1,5 @@
-import { ENEMIES, HEIGHT, TILE, WIDTH, type EnemyKind } from './constants'
+import { WAVES } from './config/config'
+import { ENEMIES, HEIGHT, TILE, WIDTH, type EnemyKind } from './config/constants'
 import { smoke } from './fx'
 import type { Enemy, GameState, Vec } from './types'
 
@@ -12,13 +13,15 @@ function shuffle<T>(arr: T[]): T[] {
 
 /** Liste des ennemis d'une vague, dans l'ordre d'apparition. */
 export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
-  const mult = players === 2 ? 1.6 : 1
-  const grunts = Math.round((5 + wave * 2.4) * mult)
-  const runners = wave >= 3 ? Math.round((1 + (wave - 3) * 1.7) * mult) : 0
-  const splitters = wave >= 6 ? Math.round((1 + (wave - 6) * 1.5) * mult) : 0
-  const brutes = wave >= 8 ? Math.round((1 + (wave - 8) * 0.8) * mult) : 0
-  const spiders = wave >= 11 ? Math.round((1 + (wave - 11) * 0.7) * mult) : 0
-  const bosses = wave % 5 === 0 ? Math.ceil(wave / 10) : 0
+  const mult = players === 2 ? WAVES.twoPlayerMult : 1
+  const grown = (g: { from: number; base: number; perWave: number }): number =>
+    wave >= g.from ? Math.round((g.base + (wave - g.from) * g.perWave) * mult) : 0
+  const grunts = Math.round((WAVES.grunts.base + wave * WAVES.grunts.perWave) * mult)
+  const runners = grown(WAVES.runners)
+  const splitters = grown(WAVES.splitters)
+  const brutes = grown(WAVES.brutes)
+  const spiders = grown(WAVES.spiders)
+  const bosses = wave % WAVES.boss.every === 0 ? Math.ceil(wave / WAVES.boss.per) : 0
 
   const list: EnemyKind[] = []
   for (let i = 0; i < grunts; i++) list.push('grunt')
@@ -31,13 +34,13 @@ export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   return list
 }
 
-export const waveScale = (wave: number): number => 1 + (wave - 1) * 0.1
+export const waveScale = (wave: number): number => 1 + (wave - 1) * WAVES.hpGrowth
 
-export const spawnInterval = (wave: number): number => Math.max(0.10, 1.0 - wave * 0.05)
+export const spawnInterval = (wave: number): number => Math.max(WAVES.spawn.min, WAVES.spawn.base - wave * WAVES.spawn.perWave)
 
 /** Points d'entrée : 1 au début, jusqu'à 8 plus tard (répartis sur les 4 côtés, 2 par côté au maximum). */
 export function pickGates(wave: number): Vec[] {
-  const count = wave <= 2 ? 1 : wave <= 5 ? 2 : wave <= 8 ? 3 : wave <= 12 ? 4 : wave <= 15 ? 6 : 8
+  const count = WAVES.gates.find((g) => wave <= g.upToWave)?.count ?? WAVES.maxGates
   const sides = shuffle(['top', 'right', 'bottom', 'left'])
   // Chaque côté reçoit ses entrées à tour de rôle, et se partage en tranches pour qu'elles ne se superposent pas.
   const perSide = [0, 0, 0, 0]
@@ -94,9 +97,10 @@ export function createEnemy(state: GameState, kind: EnemyKind, x: number, y: num
   }
 }
 
-export function spawnEnemy(state: GameState, kind: EnemyKind): void {
+/** Fait apparaître un ennemi à l'entrée `gateIndex` (au hasard si non précisée). */
+export function spawnEnemy(state: GameState, kind: EnemyKind, gateIndex = Math.floor(Math.random() * state.gates.length)): void {
   const def = ENEMIES[kind]
-  const gate = state.gates[Math.floor(Math.random() * state.gates.length)]
+  const gate = state.gates[gateIndex]
   const onHorizontalEdge = gate.y < TILE || gate.y > HEIGHT - TILE
   const jitter = (Math.random() - 0.5) * 90
   const x = onHorizontalEdge ? Math.max(def.radius, Math.min(WIDTH - def.radius, gate.x + jitter)) : gate.x

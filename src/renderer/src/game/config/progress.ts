@@ -1,4 +1,5 @@
 import { defaultLook, isSkinId, sanitizeLook, type Look, type SkinId } from './appearance'
+import { PERK_BALANCE, SCORE, UNLOCK_COST } from './config'
 import type { EnemyKind, TierUnlock } from './constants'
 
 /**
@@ -35,7 +36,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'barricade',
     name: 'Mur en pierre',
     blurb: 'La barricade peut être renforcée en pierre : bien plus résistante.',
-    cost: 120,
+    cost: UNLOCK_COST.stone,
     tier: 0
   },
   {
@@ -43,7 +44,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'barricade',
     name: 'Mur en bronze',
     blurb: 'Un mur de métal : plus solide que la pierre.',
-    cost: 220,
+    cost: UNLOCK_COST.bronze,
     requires: 'stone',
     tier: 1
   },
@@ -52,7 +53,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'barricade',
     name: 'Mur en pierre renforcé',
     blurb: 'Dernier niveau de la barricade : un rempart blindé.',
-    cost: 350,
+    cost: UNLOCK_COST.reinforced,
     requires: 'bronze',
     tier: 2
   },
@@ -61,7 +62,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'spikes',
     name: 'Pieux en pierre',
     blurb: 'Les pieux peuvent être taillés dans la pierre : plus de dégâts, plus de ralentissement.',
-    cost: 150,
+    cost: UNLOCK_COST.spikeStone,
     tier: 0
   },
   {
@@ -69,7 +70,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'spikes',
     name: 'Pieux en pierre renforcé',
     blurb: 'Dernier niveau des pieux : un piège redoutable qui tient longtemps.',
-    cost: 320,
+    cost: UNLOCK_COST.spikeReinforced,
     requires: 'spikeStone',
     tier: 1
   },
@@ -78,7 +79,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'turret',
     name: 'Double canons',
     blurb: 'Choix possible au niveau 4 d’une tourelle : la cadence explose, jusqu’au niveau 7.',
-    cost: 250,
+    cost: UNLOCK_COST.double,
     tier: 0
   },
   {
@@ -86,7 +87,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'turret',
     name: 'Canon lourd',
     blurb: 'Choix possible au niveau 4 d’une tourelle : des obus énormes, jusqu’au niveau 7.',
-    cost: 250,
+    cost: UNLOCK_COST.heavy,
     tier: 0
   },
   {
@@ -94,7 +95,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'turret',
     name: 'Minigun',
     blurb: 'Évolution des double canons : au niveau 8, la tourelle devient un minigun qui arrose les ennemis, jusqu’au niveau 10.',
-    cost: 450,
+    cost: UNLOCK_COST.minigun,
     requires: 'double',
     tier: 1
   },
@@ -103,7 +104,7 @@ export const UNLOCKS: readonly UnlockDef[] = [
     branch: 'turret',
     name: 'Canon explosif',
     blurb: 'Évolution du canon lourd : au niveau 8, l’obus explose à l’impact et blesse tout autour, jusqu’au niveau 10.',
-    cost: 450,
+    cost: UNLOCK_COST.explosive,
     requires: 'heavy',
     tier: 1
   }
@@ -161,19 +162,18 @@ export interface PerkDef {
 
 /** L'ordre fixe la position dans la sauvegarde et dans le message réseau : seulement ajouter à la fin. */
 export const PERKS: readonly PerkDef[] = [
-  { id: 'speed', group: 'soldier', name: 'Vitesse', blurb: 'Se déplacer plus vite.', costs: [50, 90, 140, 200, 280], perRank: 0.05 },
-  { id: 'fireRate', group: 'soldier', name: 'Cadence de tir', blurb: 'Tirer plus souvent.', costs: [60, 100, 160, 230, 320], perRank: 0.1 },
-  { id: 'range', group: 'soldier', name: 'Portée', blurb: 'Toucher plus loin.', costs: [50, 90, 140, 200, 280], perRank: 0.05 },
-  { id: 'damage', group: 'soldier', name: 'Dégâts', blurb: 'Des balles plus puissantes.', costs: [60, 100, 160, 230, 320], perRank: 0.1 },
-  { id: 'precision', group: 'soldier', name: 'Précision', blurb: 'Augmente la précision globale en anticipant le déplacement des cibles.', costs: [50, 90, 140, 200, 280], perRank: 0.2 },
-  {id: 'bulletSpeed',group: 'soldier',name: 'Vitesse des balles',blurb: 'Des balles plus rapides, moins de tirs manqués.',costs: [40, 70, 110, 160, 220],perRank: 0.08 },
+  { id: 'speed', group: 'soldier', name: 'Vitesse', blurb: 'Se déplacer plus vite.', costs: PERK_BALANCE.speed.costs, perRank: PERK_BALANCE.speed.perRank },
+  { id: 'fireRate', group: 'soldier', name: 'Cadence de tir', blurb: 'Tirer plus souvent.', costs: PERK_BALANCE.fireRate.costs, perRank: PERK_BALANCE.fireRate.perRank },
+  { id: 'range', group: 'soldier', name: 'Portée', blurb: 'Toucher plus loin.', costs: PERK_BALANCE.range.costs, perRank: PERK_BALANCE.range.perRank },
+  { id: 'damage', group: 'soldier', name: 'Dégâts', blurb: 'Des balles plus puissantes.', costs: PERK_BALANCE.damage.costs, perRank: PERK_BALANCE.damage.perRank },
+  { id: 'precision', group: 'soldier', name: 'Précision', blurb: 'Augmente la précision globale en anticipant le déplacement des cibles.', costs: PERK_BALANCE.precision.costs, perRank: PERK_BALANCE.precision.perRank },
+  {id: 'bulletSpeed',group: 'soldier',name: 'Vitesse des balles',blurb: 'Des balles plus rapides, moins de tirs manqués.',costs: PERK_BALANCE.bulletSpeed.costs, perRank: PERK_BALANCE.bulletSpeed.perRank },
   {
     id: 'overclock',
     group: 'tech',
     name: 'Overclocking',
     blurb: 'Toutes tes tourelles (et futures armes de défense) tirent plus vite : ×1,2 au rang 1, jusqu’à ×2 au rang 5.',
-    costs: [450, 650, 900, 1200, 1600],
-    perRank: 0
+    costs: PERK_BALANCE.overclock.costs, perRank: PERK_BALANCE.overclock.perRank
   }
 ]
 
@@ -209,19 +209,11 @@ export type KillKind = (typeof KILL_KINDS)[number]
 export const killIndex = (kind: EnemyKind, minion: boolean): number => (minion ? 5 : KILL_KINDS.indexOf(kind))
 
 /** Points rapportés par un monstre abattu. */
-export const KILL_POINTS: Readonly<Record<KillKind, number>> = {
-  grunt: 1,
-  runner: 1,
-  brute: 3,
-  splitter: 3,
-  boss: 15,
-  minion: 0.5,
-  spider: 4
-}
+export const KILL_POINTS: Readonly<Record<KillKind, number>> = SCORE.killPoints
 /** Points par vague atteinte. */
-export const WAVE_POINTS = 10
+export const WAVE_POINTS = SCORE.wavePoints
 /** Chaque vague atteinte augmente le total de 10 % : tenir longtemps est récompensé. */
-export const WAVE_BONUS = 0.1
+export const WAVE_BONUS = SCORE.waveBonus
 
 export interface RunScore {
   /** Somme des kills pondérés par type. */

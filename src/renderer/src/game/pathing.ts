@@ -1,4 +1,4 @@
-import { BASE, BUILDS, COLS, ROWS } from './constants'
+import { BASE, BUILDS, COLS, ROWS } from './config/constants'
 import { idx, inBounds, isBaseCell } from './grid'
 import { breakCostOf } from './stats'
 import type { GameState } from './types'

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { DEFAULT_COLORS, SKIN_BY_ID, isHexColor, type Look, type SkinId } from './game/appearance'
-import { BASE } from './game/constants'
+import { DEFAULT_COLORS, NAME_MAX, SKIN_BY_ID, isHexColor, skinFits, type Look, type SkinId, type SkinPart } from './game/config/appearance'
+import { BASE } from './game/config/constants'
 import {
   PERKS,
   PERK_INDEX,
@@ -15,7 +15,7 @@ import {
   type PerkId,
   type SavedProgress,
   type UnlockId
-} from './game/progress'
+} from './game/config/progress'
 import type { ChoiceRequest, HudState, RunResult } from './game/types'
 import { session } from './net'
 
@@ -298,10 +298,14 @@ export const useStore = create<Store>()((set, get) => ({
     const { progress } = get()
     const current = progress.looks[slot]
     const color = change.color !== undefined && isHexColor(change.color) ? change.color.toLowerCase() : current.color
-    // Un skin ne s'équipe que s'il a été acheté.
-    const skin = change.skin !== undefined && progress.skins.includes(change.skin) ? change.skin : current.skin
+    // Un skin ne s'équipe que s'il a été acheté, et seulement à son emplacement.
+    const owns = (id: SkinId, part: SkinPart): boolean => skinFits(id, part) && (id === 'none' || progress.skins.includes(id))
+    const hat = change.hat !== undefined && owns(change.hat, 'hat') ? change.hat : current.hat
+    const weapon = change.weapon !== undefined && owns(change.weapon, 'weapon') ? change.weapon : current.weapon
+    // Pas de trim ici : on saisit le pseudo caractère par caractère, les espaces doivent rester.
+    const name = change.name !== undefined ? change.name.replace(/[\r\n\t]/g, ' ').slice(0, NAME_MAX) : current.name
     const looks: [Look, Look] = [progress.looks[0], progress.looks[1]]
-    looks[slot] = { color, skin }
+    looks[slot] = { color, hat, weapon, name }
     const next = { ...progress, looks }
     saveProgress(next)
     set({ progress: next })

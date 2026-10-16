@@ -1,7 +1,7 @@
 import { session, type SessionEvent } from '../net'
 import { applyTurretBranch } from './build'
-import { BASE, HEIGHT, STEP, WIDTH } from './constants'
-import type { Branch } from './turrets'
+import { BASE, HEIGHT, STEP, WIDTH } from './config/constants'
+import type { Branch } from './config/turrets'
 import { ClientView } from './clientView'
 import { Input } from './input'
 import {
@@ -15,14 +15,14 @@ import {
   decodeSnap,
   encodeSnap,
   type Action
-} from './netproto'
-import { emptyLoadout, scoreRun, type Loadout } from './progress'
+} from './config/netproto'
+import { emptyLoadout, scoreRun, type Loadout } from './config/progress'
 import { HostInput, RemoteInput } from './remoteInput'
 import { createBackground, render } from './render'
 import { createState } from './state'
 import type { ChoiceRequest, GameState, HudState, RunResult } from './types'
 import { acceptRemotePose, step } from './update'
-import type { InputLike } from './controls'
+import type { InputLike } from './config/controls'
 
 export interface GameCallbacks {
   onHud(hud: HudState): void

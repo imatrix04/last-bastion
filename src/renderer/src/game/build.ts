@@ -5,18 +5,19 @@ import {
   ROWS,
   TILE,
   type BuildKind
-} from './constants'
+} from './config/constants'
+import { GAME } from './config/config'
 import { addText, burst, ring, smoke, sparks } from './fx'
 import { buildingAt, idx, isBaseCell } from './grid'
-import { PERK_INDEX } from './progress'
+import { PERK_INDEX } from './config/progress'
 import { branchUnlocked, investedCost, levelName, maxHpOf, nextUpgrade } from './stats'
-import { TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from './turrets'
+import { TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from './config/turrets'
 import type { Building, GameState, Player } from './types'
 
 export type PlacementStatus = 'ok' | 'repair' | 'upgrade' | 'poor' | 'invalid' | 'occupied'
 
 /** Distance maximale (en cases) entre un joueur et la tourelle qu'il spécialise à distance. */
-const PICK_REACH = 3
+const PICK_REACH = GAME.pickReach
 
 /** Case ciblée : celle juste devant le joueur. */
 export function buildTarget(p: Player): { col: number; row: number } {

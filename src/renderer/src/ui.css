@@ -830,8 +830,27 @@ table.controls td:first-child {
   margin: 0;
 }
 
+.name-panel {
+  align-self: stretch;
+}
+.namefield {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+}
+.namefield input {
+  width: 14em;
+}
+.namefield span {
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+
 .shop-list {
   min-width: 0;
+}
+.skin-group + .skin-group {
+  margin-top: 1.6em;
 }
 .shop-list ul {
   list-style: none;

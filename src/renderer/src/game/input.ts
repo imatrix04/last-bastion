@@ -1,4 +1,4 @@
-import { GAME_KEYS, type InputLike } from './controls'
+import { GAME_KEYS, type InputLike } from './config/controls'
 
 /** Clavier : état des touches (par `event.code`) + fronts montants consommés à chaque pas de simulation. */
 export class Input implements InputLike {

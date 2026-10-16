@@ -1,5 +1,5 @@
-import { SKIP_WAVE, type InputLike } from './controls'
-import { ACTIONS, CODES, type Action } from './netproto'
+import { SKIP_WAVE, type InputLike } from './config/controls'
+import { ACTIONS, CODES, type Action } from './config/netproto'
 
 /** Les touches du joueur 2 (sauf « lancer la vague », partagée) : elles sont pilotées par le réseau, pas par le clavier de l'hôte. */
 const P2_CODES: ReadonlySet<string> = new Set(ACTIONS.filter((a) => a !== 'skip').map((a) => CODES[1][a]))

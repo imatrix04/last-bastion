@@ -1,4 +1,4 @@
-import { BASE, BUILDS, COLS, ROWS, TILE } from './constants'
+import { BASE, BUILDS, COLS, ROWS, TILE } from './config/constants'
 import type { Building, GameState, Vec } from './types'
 
 export const idx = (col: number, row: number): number => row * COLS + col

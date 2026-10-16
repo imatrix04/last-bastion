@@ -1,31 +1,40 @@
+import {
+  BASE_CONFIG,
+  ENEMY_STATS,
+  GAME,
+  OVERCLOCK_LEVELS as OVERCLOCK_CONFIG,
+  PLAYER_COLORS as PLAYER_COLORS_CONFIG,
+  PLAYER_CONFIG,
+  SPIKE_TIERS,
+  WALL_BASE,
+  WALL_TIERS,
+  WEB_CONFIG,
+  WORLD
+} from './config'
 import { TURRET_BREAK_COST, TURRET_PLACE_COST, TURRET_PLAIN } from './turrets'
 
+// Les valeurs modifiables sont dans config.ts ; ce fichier les expose sous leurs noms habituels et définit les types.
+
+
 // Monde : grille de 32 x 18 cases de 40 px => 1280 x 720
-export const TILE = 40
-export const COLS = 32
-export const ROWS = 18
+export const TILE = WORLD.tile
+export const COLS = WORLD.cols
+export const ROWS = WORLD.rows
 export const WIDTH = COLS * TILE
 export const HEIGHT = ROWS * TILE
 
 /** La forteresse à défendre, au centre de la carte. */
 /** 3 x 3 cases : la grille est paire (32 x 18), le centre tombe donc à un demi-tile près du milieu de la carte. */
-export const BASE = { col: 15, row: 7, cols: 3, rows: 3, maxHp: 1200 }
+export const BASE = BASE_CONFIG
 
-export const PLAYER = {
-  radius: 13,
-  speed: 150,
-  fireRate: 2.5,
-  damage: 12,
-  range: 250,
-  bulletSpeed: 620
-}
-export const PLAYER_COLORS = ['#4fc3f7', '#f06292']
+export const PLAYER = PLAYER_CONFIG
+export const PLAYER_COLORS = PLAYER_COLORS_CONFIG
 
 export const STEP = 1 / 60
-export const START_GOLD = 60
-export const FIRST_PREP = 30
-export const PREP_TIME = 20
-export const BUILD_REPEAT = 0.14
+export const START_GOLD = GAME.startGold
+export const FIRST_PREP = GAME.firstPrep
+export const PREP_TIME = GAME.prepTime
+export const BUILD_REPEAT = GAME.buildRepeat
 
 export type BuildKind = 'barricade' | 'turret' | 'spikes'
 
@@ -56,14 +65,10 @@ export interface SpikeLevel {
   unlock?: TierUnlock
   debris: string
 }
-export const SPIKE_LEVELS: readonly SpikeLevel[] = [
-  { name: 'Pieux en bois', cost: 45, hp: 220, dps: 30, wearPerSec: 14, slow: 0.65, debris: '#b08a55' },
-  { name: 'Pieux en pierre', cost: 60, hp: 380, dps: 44, wearPerSec: 12, slow: 0.55, unlock: 'spikeStone', debris: '#a9afbd' },
-  { name: 'Pieux en pierre renforcé', cost: 90, hp: 550, dps: 62, wearPerSec: 9, slow: 0.45, unlock: 'spikeReinforced', debris: '#cfd8dc' }
-]
+export const SPIKE_LEVELS: readonly SpikeLevel[] = SPIKE_TIERS
 
 export const BUILDS: Record<BuildKind, BuildDef> = {
-  barricade: { kind: 'barricade', name: 'Mur en bois', cost: 15, hp: 110, solid: true, breakCost: 5 },
+  barricade: { kind: 'barricade', name: 'Mur en bois', cost: WALL_BASE.cost, hp: WALL_BASE.hp, solid: true, breakCost: WALL_BASE.breakCost },
   turret: { kind: 'turret', name: 'Tourelle', cost: TURRET_PLACE_COST, hp: TURRET_PLAIN[0].stats.hp, solid: true, breakCost: TURRET_BREAK_COST },
   spikes: { kind: 'spikes', name: 'Pieux', cost: SPIKE_LEVELS[0].cost, hp: SPIKE_LEVELS[0].hp, solid: false, breakCost: 0 }
 }
@@ -86,30 +91,13 @@ export interface WallTier {
   /** Couleur des éclats quand il est touché. */
   debris: string
 }
-export const BARRICADE_TIERS: readonly WallTier[] = [
-  { name: 'Mur en pierre', cost: 45, hp: 320, breakCost: 14, unlock: 'stone', debris: '#a9afbd' },
-  { name: 'Mur en bronze', cost: 60, hp: 600, breakCost: 19, unlock: 'bronze', debris: '#c47a3a' },
-  { name: 'Mur en pierre renforcé', cost: 80, hp: 910, breakCost: 26, unlock: 'reinforced', debris: '#cfd8dc' }
-]
+export const BARRICADE_TIERS: readonly WallTier[] = WALL_TIERS
 
 /** Overclocking : multiplicateur de cadence de tir selon le rang de la compétence (1 à 5), de ×1,2 à ×2. */
-export const OVERCLOCK_LEVELS: readonly number[] = [1.2, 1.4, 1.6, 1.8, 2]
+export const OVERCLOCK_LEVELS: readonly number[] = OVERCLOCK_CONFIG
 
 /** Toile de l'araignée : posée sur une arme de défense, elle réduit sa cadence de tir. */
-export const WEB = {
-  /** Portée de crachat (px). */
-  range: 180,
-  /** Secondes entre deux toiles. */
-  cooldown: 4.5,
-  /** Préparation avant le tir : l'araignée se dresse, le joueur peut réagir. */
-  windup: 0.75,
-  /** Vol de la toile (s). */
-  flight: 0.4,
-  /** Durée du ralentissement (s). */
-  duration: 5,
-  /** Multiplicateur de cadence sous la toile. */
-  slow: 0.4
-}
+export const WEB = WEB_CONFIG
 
 /** Apparence des projectiles : 0 joueur, 1 tourelle, 2 obus lourd, 3 minigun, 4 obus explosif. */
 export const BULLET_STYLES: ReadonlyArray<{ color: string; radius: number }> = [
@@ -134,11 +122,4 @@ export interface EnemyDef {
   color: string
 }
 
-export const ENEMIES: Record<EnemyKind, EnemyDef> = {
-  grunt: { name: 'Rôdeur', hp: 50, speed: 62, radius: 11, damage: 10, interval: 0.9, reward: 7, color: '#8bc34a' },
-  runner: { name: 'Coureur', hp: 35, speed: 115, radius: 9, damage: 8, interval: 0.7, reward: 8, color: '#ffb74d' },
-  brute: { name: 'Brute', hp: 370, speed: 40, radius: 15, damage: 38, interval: 1.3, reward: 24, color: '#ba68c8' },
-  splitter: { name: 'Éclateur', hp: 230, speed: 46, radius: 14, damage: 25, interval: 1.2, reward: 12, color: '#26c6a2' },
-  spider: { name: 'Araignée', hp: 190, speed: 72, radius: 15, damage: 14, interval: 0.9, reward: 22, color: '#9c2a4a' },
-  boss: { name: 'Colosse', hp: 1300, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 180, color: '#e53935' }
-}
+export const ENEMIES: Record<EnemyKind, EnemyDef> = ENEMY_STATS

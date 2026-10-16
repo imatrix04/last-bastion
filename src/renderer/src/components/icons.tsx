@@ -1,5 +1,5 @@
 import type { SVGProps } from 'react'
-import type { PerkId, UnlockId } from '../game/progress'
+import type { PerkId, UnlockId } from '../game/config/progress'
 
 /** Pictogrammes en SVG (24 × 24, couleur = currentColor) : traits francs, pas d'emoji. */
 

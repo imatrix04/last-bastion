@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { HEIGHT, WIDTH } from '../game/constants'
+import { HEIGHT, WIDTH } from '../game/config/constants'
 import { Game } from '../game/engine'
 import { gameBridge } from '../game/gameBridge'
-import { loadoutOf } from '../game/progress'
+import { loadoutOf } from '../game/config/progress'
 import { useStore } from '../store'
 
 export function GameCanvas(): React.JSX.Element {

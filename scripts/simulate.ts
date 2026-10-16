@@ -2,12 +2,12 @@
 // Usage : npm run sim
 import { actUpgrade, applyTurretBranch, placeBuilding, upgradeBuilding } from '../src/renderer/src/game/build'
 import { acceptRemotePose } from '../src/renderer/src/game/update'
-import { defaultLook } from '../src/renderer/src/game/appearance'
-import { BASE, BUILDS, COLS, OVERCLOCK_LEVELS, ROWS, STEP, type BuildKind } from '../src/renderer/src/game/constants'
-import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN, turretLevel } from '../src/renderer/src/game/turrets'
-import { SKIP_WAVE, type InputLike } from '../src/renderer/src/game/controls'
+import { defaultLook } from '../src/renderer/src/game/config/appearance'
+import { BASE, BUILDS, COLS, OVERCLOCK_LEVELS, ROWS, STEP, type BuildKind } from '../src/renderer/src/game/config/constants'
+import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN, turretLevel } from '../src/renderer/src/game/config/turrets'
+import { SKIP_WAVE, type InputLike } from '../src/renderer/src/game/config/controls'
 import { idx, isBaseCell } from '../src/renderer/src/game/grid'
-import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, scoreRun, unlockMask, type Loadout } from '../src/renderer/src/game/progress'
+import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, scoreRun, unlockMask, type Loadout } from '../src/renderer/src/game/config/progress'
 import { createState } from '../src/renderer/src/game/state'
 import { fireRateMult, maxLevelOf, nextUpgrade, overclockMult, playerStats, spikeStats, turretStats } from '../src/renderer/src/game/stats'
 import type { GameState } from '../src/renderer/src/game/types'
@@ -228,7 +228,11 @@ function checkUnlocks(): boolean {
   ok = report('Canon lourd débloqué (niveau 4)', applyTurretBranch(st, 6, 5, 2, p) && t.level === 4 && t.branch === 2) && ok
   const d4 = turretStats(4, 2).damage
   for (let i = 0; i < 5; i++) actUpgrade(st, p)
+  ok = report('Niveau 8 verrouillé sans Canon explosif', t.level === 7 && nextUpgrade(t, p.unlocks)?.locked === true) && ok
+  p.unlocks = unlockMask(['heavy', 'explosive'])
+  for (let i = 0; i < 5; i++) actUpgrade(st, p)
   ok = report(`Tourelle jusqu’au niveau ${TURRET_MAX_LEVEL}`, t.level === TURRET_MAX_LEVEL && turretStats(t.level, 2).damage > d4) && ok
+  ok = report('Canon explosif : zone d’explosion', (turretStats(8, 2).splash ?? 0) > 0 && !turretStats(7, 2).splash) && ok
   ok = report('Niveau maximum : plus d’amélioration', nextUpgrade(t, ALL_UNLOCKS) === null) && ok
   ok =
     report(
@@ -278,7 +282,7 @@ function checkUnlocks(): boolean {
   st.enemies.push(sp)
   st.phase = 'combat'
   st.spawnQueue = ['grunt']
-  st.spawnTimer = 9999
+  st.gateTimers = st.gates.map(() => 9999)
   const idle: InputLike = { isDown: () => false, wasPressed: () => false }
   let sawCast = false
   for (let i = 0; i < 60 * 3 && tw.web === 0; i++) {

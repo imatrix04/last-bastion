@@ -5,8 +5,13 @@
 
 export type SkinId = 'none' | 'cat' | 'gold'
 
+/** Emplacement d'un skin : un chapeau sur la tête, ou un canon dans la main. Un joueur peut équiper un de chaque. */
+export type SkinPart = 'hat' | 'weapon'
+
 export interface SkinDef {
   id: SkinId
+  /** Emplacement, `null` pour « Aucun ». */
+  part: SkinPart | null
   name: string
   blurb: string
   /** Prix en points de compétence. */
@@ -15,9 +20,21 @@ export interface SkinDef {
 
 /** L'ordre fixe l'index envoyé sur le réseau : ne jamais réordonner, seulement ajouter à la fin. */
 export const SKINS: readonly SkinDef[] = [
-  { id: 'none', name: 'Aucun', blurb: 'Le soldat tel quel.', price: 0 },
-  { id: 'cat', name: 'Oreilles de chat', blurb: 'Rose unique, dégradé bordeaux, avec des oreilles qui frémissent.', price: 420 },
-  { id: 'gold', name: 'Canon en or', blurb: 'Le tube doré, avec un reflet qui glisse le long du canon et des étincelles à la bouche.', price: 650 }
+  { id: 'none', part: null, name: 'Aucun', blurb: 'Rien de particulier.', price: 0 },
+  {
+    id: 'cat',
+    part: 'hat',
+    name: 'Oreilles de chat',
+    blurb: 'Rose unique, dégradé bordeaux, avec des oreilles qui frémissent.',
+    price: 720
+  },
+  {
+    id: 'gold',
+    part: 'weapon',
+    name: 'Canon en or',
+    blurb: 'Le tube doré, avec un reflet qui glisse le long du canon et des étincelles à la bouche.',
+    price: 1050
+  }
 ]
 
 export const SKIN_BY_ID: Readonly<Record<SkinId, SkinDef>> = Object.fromEntries(SKINS.map((s) => [s.id, s])) as Record<SkinId, SkinDef>
@@ -26,11 +43,27 @@ export const isSkinId = (v: unknown): v is SkinId => typeof v === 'string' && v 
 export const skinIndex = (id: SkinId): number => Math.max(0, SKINS.findIndex((s) => s.id === id))
 export const skinAt = (i: unknown): SkinId => (typeof i === 'number' && Number.isInteger(i) ? (SKINS[i]?.id ?? 'none') : 'none')
 
+/** Vrai si `id` peut être équipé à l'emplacement `part` (« Aucun » va partout). */
+export const skinFits = (id: SkinId, part: SkinPart): boolean => id === 'none' || SKIN_BY_ID[id].part === part
+
 export interface Look {
   /** Couleur du personnage, « #rrggbb ». */
   color: string
-  skin: SkinId
+  /** Chapeau équipé (skins de l'emplacement « hat »). */
+  hat: SkinId
+  /** Canon équipé (skins de l'emplacement « weapon »). */
+  weapon: SkinId
+  /** Pseudo affiché au-dessus du personnage. Vide = « J1 » / « J2 ». */
+  name: string
 }
+
+export const NAME_MAX = 12
+
+/** Pseudo reçu ou saisi : texte d'une ligne, sans espaces superflus, limité à NAME_MAX caractères. */
+export const sanitizeName = (v: unknown): string => (typeof v === 'string' ? v.replace(/[\r\n\t]/g, ' ').trim().slice(0, NAME_MAX) : '')
+
+/** Ce qui s'affiche pour un joueur : son pseudo, ou « J1 » / « J2 » à défaut. */
+export const playerLabel = (look: Look, slot: number): string => look.name.trim() || `J${slot + 1}`
 
 /** Couleurs de départ : joueur 1 bleu, joueur 2 rose. */
 export const DEFAULT_COLORS = ['#4fc3f7', '#f06292'] as const
@@ -51,7 +84,7 @@ export const PALETTE: readonly string[] = [
   '#e8eaf0'
 ]
 
-export const defaultLook = (slot: number): Look => ({ color: DEFAULT_COLORS[slot] ?? DEFAULT_COLORS[0], skin: 'none' })
+export const defaultLook = (slot: number): Look => ({ color: DEFAULT_COLORS[slot] ?? DEFAULT_COLORS[0], hat: 'none', weapon: 'none', name: '' })
 
 const HEX = /^#[0-9a-fA-F]{6}$/
 export const isHexColor = (v: unknown): v is string => typeof v === 'string' && HEX.test(v)
@@ -60,8 +93,17 @@ export const isHexColor = (v: unknown): v is string => typeof v === 'string' && 
 export function sanitizeLook(v: unknown, slot = 0): Look {
   const fallback = defaultLook(slot)
   if (typeof v !== 'object' || v === null) return fallback
-  const o = v as { color?: unknown; skin?: unknown }
-  return { color: isHexColor(o.color) ? o.color.toLowerCase() : fallback.color, skin: isSkinId(o.skin) ? o.skin : 'none' }
+  const o = v as { color?: unknown; hat?: unknown; weapon?: unknown; skin?: unknown; name?: unknown }
+  // Ancien format (un seul « skin ») : il devient le chapeau ou le canon selon son emplacement.
+  const legacy = isSkinId(o.skin) ? o.skin : 'none'
+  const hat = isSkinId(o.hat) ? o.hat : legacy
+  const weapon = isSkinId(o.weapon) ? o.weapon : legacy
+  return {
+    color: isHexColor(o.color) ? o.color.toLowerCase() : fallback.color,
+    hat: skinFits(hat, 'hat') ? hat : 'none',
+    weapon: skinFits(weapon, 'weapon') ? weapon : 'none',
+    name: sanitizeName(o.name)
+  }
 }
 
 // ------------------------------------------------------------------ couleurs

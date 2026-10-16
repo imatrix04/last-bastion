@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { SKIN_BY_ID } from '../game/appearance'
-import { CONTROLS, SKIP_WAVE } from '../game/controls'
-import { PERKS, UNLOCKS } from '../game/progress'
+import { SKIN_BY_ID, playerLabel } from '../game/config/appearance'
+import { CONTROLS, SKIP_WAVE } from '../game/config/controls'
+import { PERKS, UNLOCKS } from '../game/config/progress'
 import { session } from '../net'
 import { loadAddress, useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
@@ -129,7 +129,8 @@ export function Menu(): React.JSX.Element {
           <div>
             <dt>Joueur 1</dt>
             <dd>
-              <i className="swatch-dot" style={{ background: look.color }} /> {SKIN_BY_ID[look.skin].name}
+              <i className="swatch-dot" style={{ background: look.color }} /> {playerLabel(look, 0)}
+              <small className="dim"> · {[look.hat, look.weapon].filter((id) => id !== 'none').map((id) => SKIN_BY_ID[id].name).join(' · ') || 'Sans accessoire'}</small>
             </dd>
           </div>
           <div>

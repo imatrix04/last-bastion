@@ -1,4 +1,4 @@
-import { WEB } from './constants'
+import { WEB } from './config/constants'
 import type { FxEvent, GameState, Particle, ParticleShape } from './types'
 
 const MAX_PARTICLES = 700

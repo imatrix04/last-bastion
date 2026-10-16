@@ -1,6 +1,6 @@
-import type { Look } from './appearance'
-import type { BuildKind, EnemyKind } from './constants'
-import type { Branch } from './turrets'
+import type { Look } from './config/appearance'
+import type { BuildKind, EnemyKind } from './config/constants'
+import type { Branch } from './config/turrets'
 
 export interface Vec {
   x: number
@@ -230,7 +230,8 @@ export interface GameState {
   phase: Phase
   countdown: number
   spawnQueue: EnemyKind[]
-  spawnTimer: number
+  /** Délai avant la prochaine apparition à chaque entrée (même ordre que `gates`). */
+  gateTimers: number[]
   /** Points d'apparition de la prochaine vague / de la vague en cours. */
   gates: Vec[]
   waveScale: number

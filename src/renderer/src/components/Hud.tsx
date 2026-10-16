@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { DEFAULT_COLORS } from '../game/appearance'
-import { BUILD_ORDER, BUILDS } from '../game/constants'
-import { CONTROLS, SKIP_WAVE } from '../game/controls'
+import { DEFAULT_COLORS } from '../game/config/appearance'
+import { BUILD_ORDER, BUILDS } from '../game/config/constants'
+import { CONTROLS, SKIP_WAVE } from '../game/config/controls'
 import { useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
 

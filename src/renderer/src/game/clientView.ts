@@ -1,13 +1,13 @@
 import { buildTarget } from './build'
-import { BASE, BULLET_STYLES, ENEMIES, HEIGHT, OVERCLOCK_LEVELS, TILE, WIDTH } from './constants'
-import { CONTROLS, type InputLike } from './controls'
-import { skinAt } from './appearance'
+import { BASE, BULLET_STYLES, ENEMIES, HEIGHT, OVERCLOCK_LEVELS, TILE, WIDTH } from './config/constants'
+import { CONTROLS, type InputLike } from './config/controls'
+import { skinAt } from './config/appearance'
 import { addText, burst, decal, muzzle, ring, updateFx, webShot } from './fx'
 import { buildingAt, idx, inBounds } from './grid'
-import { INTERP_DELAY, buildKindAt, enemyKindAt, type Snap } from './netproto'
-import { KILL_KINDS } from './progress'
+import { INTERP_DELAY, buildKindAt, enemyKindAt, type Snap } from './config/netproto'
+import { KILL_KINDS } from './config/progress'
 import { maxLevelOf, maxHpOf, nextUpgrade, turretStats } from './stats'
-import { TURRET_PLAIN_MAX, type Branch } from './turrets'
+import { TURRET_PLAIN_MAX, type Branch } from './config/turrets'
 import type { Bullet, ChoiceRequest, Enemy, GameState, HudState } from './types'
 import { advanceWebs, decayBuildingFx, movePlayer, nearestEnemy } from './update'
 
@@ -97,7 +97,7 @@ export class ClientView {
       const p = st.players[i]
       p.selected = s.players[i][3]
       const look = s.looks[i]
-      if (i !== LOCAL_ID && look && look[0]) p.look = { color: look[0], skin: skinAt(look[1]) }
+      if (i !== LOCAL_ID && look && look[0]) p.look = { color: look[0], hat: skinAt(look[1]), weapon: skinAt(look[2]), name: look[3] }
       if (i === LOCAL_ID) {
         this.hostPose.x = s.players[i][0]
         this.hostPose.y = s.players[i][1]

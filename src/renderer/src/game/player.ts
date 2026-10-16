@@ -1,5 +1,5 @@
-import { rgba, shade, type Look } from './appearance'
-import { PLAYER } from './constants'
+import { playerLabel, rgba, shade, type Look } from './config/appearance'
+import { PLAYER } from './config/constants'
 import { drawGlow } from './sprites'
 import type { Player } from './types'
 
@@ -194,7 +194,7 @@ function paintAvatar(ctx: CanvasRenderingContext2D, look: Look, r: number, pose:
   // Arme : tube sombre rayé de la couleur du joueur, bouche lumineuse (ou canon en or animé)
   ctx.save()
   ctx.rotate(aim)
-  if (look.skin === 'gold') {
+  if (look.weapon === 'gold') {
     drawGoldBarrel(ctx, r, t)
   } else {
     ctx.fillStyle = '#18242b'
@@ -212,7 +212,7 @@ function paintAvatar(ctx: CanvasRenderingContext2D, look: Look, r: number, pose:
   ctx.restore()
 
   // Accessoire (derrière la tête, pour qu'il paraisse attaché)
-  if (look.skin === 'cat') drawCatEars(ctx, r, t)
+  if (look.hat === 'cat') drawCatEars(ctx, r, t)
 
   // Corps
   ctx.save()
@@ -288,9 +288,10 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, t: number):
   ctx.textBaseline = 'middle'
   ctx.lineWidth = 3
   ctx.strokeStyle = 'rgba(5, 12, 10, 0.85)'
-  ctx.strokeText(`J${p.id + 1}`, p.x, p.y + r + 9)
+  const label = playerLabel(p.look, p.id)
+  ctx.strokeText(label, p.x, p.y + r + 9)
   ctx.fillStyle = '#eef3ee'
-  ctx.fillText(`J${p.id + 1}`, p.x, p.y + r + 9)
+  ctx.fillText(label, p.x, p.y + r + 9)
 }
 
 /** Aperçu animé (boutique, menu) : le personnage au centre (cx, cy), `scale` fois sa taille normale. */

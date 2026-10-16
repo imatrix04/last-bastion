@@ -1,10 +1,10 @@
 import { buildTarget, placementStatus } from './build'
-import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, WIDTH } from './constants'
+import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, WIDTH } from './config/constants'
 import { drawPlayer } from './player'
 import { buildingAt } from './grid'
 import { drawBar, drawEnemy, drawEnemyTrail, drawGlow, drawTurret } from './sprites'
 import { levelName, maxLevelOf, nextUpgrade } from './stats'
-import { TURRET_PLAIN } from './turrets'
+import { TURRET_PLAIN } from './config/turrets'
 import type { Building, GameState } from './types'
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'

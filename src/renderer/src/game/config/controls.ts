@@ -1,3 +1,5 @@
+import { DEV_CONFIG } from './config'
+
 /** Les touches sont identifiées par `event.code` (position physique) : ZQSD sur AZERTY = WASD sur QWERTY. */
 export interface PlayerControls {
   up: string
@@ -45,9 +47,11 @@ export const SKIP_WAVE = 'KeyN'
 
 /** Mode développeur (local et hôte) : or à volonté pour tester. Touche pour l'activer / le couper. */
 export const DEV_TOGGLE = 'F9'
+/** Vrai seulement avec `npm run dev` (Vite) ; faux dans une version installée et dans le script de simulation (Node). */
+export const DEV_ENABLED = !!(import.meta as { env?: { DEV?: boolean } }).env?.DEV
 /** Mode développeur : or gagné par seconde, et multiplicateur des récompenses de monstres. */
-export const DEV_GOLD_PER_SEC = 150
-export const DEV_REWARD_MULT = 10
+export const DEV_GOLD_PER_SEC = DEV_CONFIG.goldPerSecond
+export const DEV_REWARD_MULT = DEV_CONFIG.rewardMult
 
 export interface InputLike {
   isDown(code: string): boolean

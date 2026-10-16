@@ -1,7 +1,7 @@
-import { BASE, COLS, FIRST_PREP, ROWS, START_GOLD, TILE } from './constants'
+import { BASE, COLS, FIRST_PREP, ROWS, START_GOLD, TILE } from './config/constants'
 import { computeFlow } from './pathing'
 import type { GameState, Player } from './types'
-import { KILL_KINDS, emptyLoadout, type Loadout } from './progress'
+import { KILL_KINDS, emptyLoadout, type Loadout } from './config/progress'
 import { pickGates } from './waves'
 
 function makePlayer(id: 0 | 1, x: number, y: number, loadout: Loadout): Player {
@@ -33,7 +33,7 @@ export function createState(playerCount: 1 | 2, loadouts: Loadout[] = []): GameS
     phase: 'prep',
     countdown: FIRST_PREP,
     spawnQueue: [],
-    spawnTimer: 0,
+    gateTimers: [],
     gates: pickGates(1),
     waveScale: 1,
     flow: new Float32Array(COLS * ROWS),

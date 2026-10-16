@@ -1,5 +1,5 @@
-import { ENEMIES, type EnemyKind } from './constants'
-import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_SPEC_LEVEL, turretForm, type Branch } from './turrets'
+import { ENEMIES, type EnemyKind } from './config/constants'
+import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_SPEC_LEVEL, turretForm, type Branch } from './config/turrets'
 import type { Enemy } from './types'
 
 /** Dessin des ennemis et des tourelles. Les corps sont pré-rendus une fois (canvas hors écran), seules les parties animées sont tracées à chaque image. */

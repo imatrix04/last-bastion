@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS } from '../game/constants'
-import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/progress'
-import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_EVOLVE_LEVEL, TURRET_MAX_LEVEL, TURRET_PLAIN, TURRET_PLAIN_MAX, TURRET_SPEC_LEVEL } from '../game/turrets'
+import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS } from '../game/config/constants'
+import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/config/progress'
+import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_EVOLVE_LEVEL, TURRET_MAX_LEVEL, TURRET_PLAIN, TURRET_PLAIN_MAX, TURRET_SPEC_LEVEL } from '../game/config/turrets'
 import { useStore } from '../store'
 import { IconBack, PERK_ICONS, UNLOCK_ICONS } from './icons'
 

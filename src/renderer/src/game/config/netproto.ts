@@ -1,12 +1,12 @@
 import { BUILD_ORDER, type BuildKind, type EnemyKind } from './constants'
 import type { Branch } from './turrets'
 import { CONTROLS, SKIP_WAVE } from './controls'
-import { isHexColor, skinIndex } from './appearance'
+import { isHexColor, sanitizeName, skinIndex } from './appearance'
 import { KILL_KINDS } from './progress'
-import type { FxEvent, GameState } from './types'
+import type { FxEvent, GameState } from '../types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 7
+export const PROTO_VERSION = 9
 export const NET_PORT = 7777
 /** Fréquence d'envoi de l'état du jeu par l'hôte : un état tous les 2 pas de simulation (60 Hz). */
 export const SNAPSHOT_HZ = 30
@@ -83,8 +83,8 @@ export interface Snap {
   kstats: number[]
   /** [x, y, angle de tir, objet sélectionné, dirX, dirY] */
   players: number[][]
-  /** Apparence de chaque joueur : [couleur « #rrggbb », index du skin] */
-  looks: Array<[string, number]>
+  /** Apparence de chaque joueur : [couleur « #rrggbb », index du chapeau, index du canon, pseudo] */
+  looks: Array<[string, number, number, string]>
   /** [id, type, x, y, pv, pvMax, drapeaux : 1 = flash de dégâts, 2 = attaque en cours, 4 = crache une toile] */
   enemies: number[][]
   /** [x, y, vx, vy, style] (style : index dans BULLET_STYLES) */
@@ -114,7 +114,7 @@ export function encodeSnap(state: GameState): Snap {
     over: state.gameOver ? 1 : 0,
     shake: r1(state.shake),
     gates: state.gates.map((g) => [Math.round(g.x), Math.round(g.y)]),
-    looks: state.players.map((p): [string, number] => [p.look.color, skinIndex(p.look.skin)]),
+    looks: state.players.map((p): [string, number, number, string] => [p.look.color, skinIndex(p.look.hat), skinIndex(p.look.weapon), p.look.name]),
     players: state.players.map((p) => [r1(p.x), r1(p.y), Math.round(p.aim * 100) / 100, p.selected, p.dirX, p.dirY]),
     enemies: state.enemies.map((e) => [e.id, ENEMY_KINDS.indexOf(e.kind), r1(e.x), r1(e.y), Math.ceil(e.hp), e.maxHp, (e.flash > 0 ? 1 : 0) | (e.attacking ? 2 : 0) | (e.cast > 0 ? 4 : 0)]),
     bullets: state.bullets.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy), b.style]),
@@ -160,12 +160,12 @@ function decodeFx(v: unknown): FxEvent[] {
   return out
 }
 
-function decodeLooks(v: unknown): Array<[string, number]> {
+function decodeLooks(v: unknown): Array<[string, number, number, string]> {
   if (!Array.isArray(v)) return []
-  const out: Array<[string, number]> = []
+  const out: Array<[string, number, number, string]> = []
   for (const l of v.slice(0, 2)) {
-    if (Array.isArray(l) && isHexColor(l[0]) && isNum(l[1])) out.push([l[0].toLowerCase(), Math.round(l[1])])
-    else out.push(['', 0])
+    if (Array.isArray(l) && isHexColor(l[0]) && isNum(l[1]) && isNum(l[2])) out.push([l[0].toLowerCase(), Math.round(l[1]), Math.round(l[2]), sanitizeName(l[3])])
+    else out.push(['', 0, 0, ''])
   }
   return out
 }

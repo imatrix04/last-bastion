@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { Look } from '../game/appearance'
+import type { Look } from '../game/config/appearance'
 import { drawAvatar } from '../game/player'
 
 /** Aperçu animé du personnage (menu, boutique) : il suit lentement le curseur de la souris s'il est dessus, sinon il balaie du regard. */
