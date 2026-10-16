@@ -15,7 +15,8 @@ import {
   WEB,
   WIDTH
 } from './config/constants'
-import { EXPLOSION, MINIGUN, PLAYER_AIM, WAVES } from './config/config'
+import { activateAbility, activeBurn, tickAbilities } from './abilities'
+import { ABILITY_CONFIG, EXPLOSION, MINIGUN, PLAYER_AIM, WAVES } from './config/config'
 import { CONTROLS, DEV_ENABLED, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './config/controls'
 import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot } from './fx'
 import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
@@ -113,7 +114,8 @@ function fire(
   damage: number,
   range: number,
   style: number,
-  splash = 0
+  splash = 0,
+  burn = 0
 ): void {
   state.bullets.push({
     x,
@@ -123,7 +125,8 @@ function fire(
     life: range / speed + 0.15,
     damage,
     style,
-    splash
+    splash,
+    burn
   })
 }
 
@@ -226,6 +229,12 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
     if (input.wasPressed(c.next)) p.selected = (p.selected + 1) % n
     if (input.wasPressed(c.prev)) p.selected = (p.selected + n - 1) % n
 
+    // Capacités actives : écoulement des durées / recharges, puis déclenchement par les touches 1 à 3
+    tickAbilities(p, dt)
+    c.abilities.forEach((code, i) => {
+      if (input.wasPressed(code)) activateAbility(state, p, i)
+    })
+
     // Amélioration (une pression = une amélioration)
     if (input.wasPressed(c.upgrade)) actUpgrade(state, p)
 
@@ -248,7 +257,8 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
       if (p.shootCd <= 0) {
         const spread = (Math.random() - 0.5) * PLAYER_AIM.spread * (1 - ps.lead * PLAYER_AIM.spreadReductionAtMax)
         const angle = p.aim + spread
-        fire(state, p.x, p.y, angle, ps.bulletSpeed, ps.damage, ps.range, 0)
+        const burn = activeBurn(p)
+        fire(state, p.x, p.y, angle, ps.bulletSpeed, ps.damage, ps.range, burn > 0 ? 5 : 0, 0, burn)
         muzzle(state, p.x + Math.cos(angle) * 22, p.y + Math.sin(angle) * 22, angle, 0)
         p.shootCd = 1 / ps.fireRate
       }
@@ -436,6 +446,11 @@ function updateEnemies(state: GameState, dt: number): void {
     e.age += dt
     e.vx = 0
     e.vy = 0
+    if (e.burnT > 0) {
+      e.burnT -= dt
+      e.hp -= e.burnDps * dt
+      if (e.hp <= 0) continue
+    }
     if (e.kind === 'spider' && spiderAbility(state, e, dt)) {
       e.attacking = false
       continue
@@ -677,6 +692,11 @@ function updateBullets(state: GameState, dt: number): void {
           } else {
             damageEnemy(e, b.damage)
             sparks(state, b.x, b.y, style.color, 3, 150)
+          }
+          // Balle enflammée : le monstre brûle (la brûlure repart de zéro à chaque balle, elle ne s'additionne pas).
+          if (b.burn > 0) {
+            e.burnT = ABILITY_CONFIG.fireBullets.burnSeconds
+            e.burnDps = b.burn
           }
           alive = false
           break

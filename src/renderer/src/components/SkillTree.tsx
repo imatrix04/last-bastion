@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS } from '../game/config/constants'
-import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/config/progress'
+import { ABILITY_CONFIG, ABILITY_SLOTS, TURRET_LIMIT } from '../game/config/config'
+import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type AbilityId, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/config/progress'
 import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_EVOLVE_LEVEL, TURRET_MAX_LEVEL, TURRET_PLAIN, TURRET_PLAIN_MAX, TURRET_SPEC_LEVEL } from '../game/config/turrets'
 import { useStore } from '../store'
 import { IconBack, PERK_ICONS, UNLOCK_ICONS } from './icons'
@@ -75,7 +76,7 @@ const EFFECTS: Record<UnlockId, Row[]> = {
 const BRANCH_TITLES: Record<TreeBranch, string> = { barricade: 'Murs', spikes: 'Pieux', turret: 'Tourelles · niveau 4 à 10', tech: 'Technologie' }
 
 /** Statistiques de base du joueur et leur unité, pour afficher « actuel → prochain rang ». */
-const BASE_VALUES: Record<Exclude<PerkId, 'overclock' | 'precision'>, { base: number; unit: string; digits: number }> = {
+const BASE_VALUES: Record<Exclude<PerkId, 'overclock' | 'precision' | 'turrets' | 'fireBullets'>, { base: number; unit: string; digits: number }> = {
   speed: { base: PLAYER.speed, unit: 'px/s', digits: 0 },
   fireRate: { base: PLAYER.fireRate, unit: 'tirs/s', digits: 1 },
   range: { base: PLAYER.range, unit: 'px', digits: 0 },
@@ -159,6 +160,24 @@ function UnlockDetail({ def }: { def: UnlockDef }): React.JSX.Element {
   )
 }
 
+/** Équipe ou retire une capacité active : jusqu'à ABILITY_SLOTS par partie, déclenchées par les touches 1 à 3 (Z X C par défaut). */
+function EquipButton({ id }: { id: AbilityId }): React.JSX.Element {
+  const equipped = useStore((s) => s.progress.abilities)
+  const toggle = useStore((s) => s.toggleAbility)
+  const on = equipped.includes(id)
+  const full = !on && equipped.length >= ABILITY_SLOTS
+  return (
+    <div className="d-equip">
+      <button className={on ? '' : 'primary'} disabled={full} onClick={() => toggle(id)}>
+        {on ? 'Retirer de la partie' : 'Équiper pour la partie'}
+      </button>
+      <span className="muted">
+        {equipped.length} / {ABILITY_SLOTS} capacités équipées
+      </span>
+    </div>
+  )
+}
+
 function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.Element {
   const points = useStore((s) => s.progress.points)
   const rank = useStore((s) => s.progress.perks[index] ?? 0)
@@ -171,7 +190,17 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
   // Valeur affichée au rang r : statistique du joueur, ou multiplicateur de cadence pour l'Overclocking
   let show: (r: number) => string
   let gain: string
-  if (def.id === 'overclock') {
+  if (def.id === 'turrets') {
+    show = (r) => `${TURRET_LIMIT.base + r} tourelles`
+    gain = show(max)
+  } else if (def.id === 'fireBullets') {
+    const stats = (r: number): string => {
+      const a = ABILITY_CONFIG.fireBullets.ranks[Math.min(ABILITY_CONFIG.fireBullets.ranks.length, r) - 1]
+      return `${a.duration} s d’effet · recharge ${a.cooldown} s · brûlure ${a.burnDps}/s`
+    }
+    show = (r) => (r === 0 ? 'verrouillée' : stats(r))
+    gain = stats(max)
+  } else if (def.id === 'overclock') {
     show = (r) => (r === 0 ? 'aucun' : `× ${OVERCLOCK_LEVELS[r - 1].toFixed(1)}`)
     gain = `× ${OVERCLOCK_LEVELS[max - 1].toFixed(1)} (+${Math.round((OVERCLOCK_LEVELS[max - 1] - 1) * 100)} %)`
   } else if (def.id === 'precision') {
@@ -183,14 +212,15 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
     show = (r) => `${at(r).toFixed(v.digits)} ${v.unit}`
     gain = `${show(max)} (+${Math.round(def.perRank * max * 100)} %)`
   }
-  const tech = def.group === 'tech'
+  const tech = def.group === 'tech' || def.group === 'passive' || def.group === 'ability'
+  const kind = def.group === 'tech' ? 'Technologie' : def.group === 'passive' ? 'Capacité passive' : def.group === 'ability' ? 'Capacité active' : 'Soldat'
   return (
     <>
       <header className="d-head">
         <Icon className="d-ico" />
         <div>
           <p className="d-kind">
-            {tech ? 'Technologie' : 'Soldat'} · rang {rank} / {max}
+            {kind} · rang {rank} / {max}
           </p>
           <h3>{def.name}</h3>
         </div>
@@ -212,6 +242,8 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
           <dd>{gain}</dd>
         </div>
       </dl>
+      {def.group === 'passive' && <p className="d-note">Passive : toujours active une fois débloquée, sans emplacement à équiper.</p>}
+      {def.group === 'ability' && rank > 0 && <EquipButton id={def.id as AbilityId} />}
       <div className="d-buy">
         {maxed ? (
           <p className="d-status ok">Rang maximum</p>
@@ -222,6 +254,25 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
         )}
       </div>
     </>
+  )
+}
+
+/** Les emplacements de capacités et ce qui y est équipé. */
+function EquippedStrip(): React.JSX.Element {
+  const equipped = useStore((s) => s.progress.abilities)
+  return (
+    <div className="ability-slots" aria-label="Capacités équipées">
+      {Array.from({ length: ABILITY_SLOTS }, (_, i) => {
+        const id = equipped[i]
+        const Icon = id ? PERK_ICONS[id] : null
+        return (
+          <div key={i} className={`ability-slot${id ? ' on' : ''}`}>
+            <span className="num">{i + 1}</span>
+            {Icon ? <Icon className="node-ico" /> : <span className="muted">vide</span>}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
@@ -256,7 +307,7 @@ export function SkillTree(): React.JSX.Element {
                   <h3 className="sk-label">{BRANCH_TITLES[b]}</h3>
                   {b === 'tech' &&
                     PERKS.map((p, i) =>
-                      p.group === 'tech' ? (
+                      p.group === 'tech' || p.group === 'passive' ? (
                         <div key={p.id} className="sk-tier">
                           <PerkTile def={p} index={i} selected={sel.kind === 'perk' && sel.id === p.id} onSelect={() => setSel({ kind: 'perk', id: p.id })} />
                         </div>
@@ -285,6 +336,18 @@ export function SkillTree(): React.JSX.Element {
                   <PerkTile key={p.id} def={p} index={i} selected={sel.kind === 'perk' && sel.id === p.id} onSelect={() => setSel({ kind: 'perk', id: p.id })} />
                 ) : null
               )}
+            </div>
+          </section>
+
+          <section className="sk-perks">
+            <h3 className="sk-label">Capacités actives · jusqu’à {ABILITY_SLOTS} par partie</h3>
+            <div className="perk-row">
+              {PERKS.map((p, i) =>
+                p.group === 'ability' ? (
+                  <PerkTile key={p.id} def={p} index={i} selected={sel.kind === 'perk' && sel.id === p.id} onSelect={() => setSel({ kind: 'perk', id: p.id })} />
+                ) : null
+              )}
+              <EquippedStrip />
             </div>
           </section>
         </div>

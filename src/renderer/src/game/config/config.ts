@@ -152,6 +152,9 @@ export const TURRET_COSTS = {
 /** Premier niveau d'évolution (Minigun / Canon explosif) : il demande une compétence de plus. */
 export const TURRET_EVOLVE_AT = 8
 
+/** Tourelles posables par joueur : `base`, plus `perRank` par rang de l'amélioration « Tourelles » (arbre de compétences). */
+export const TURRET_LIMIT = { base: 3, perRank: 1 }
+
 /** Niveaux 1 à 3. */
 export const TURRET_LEVELS_PLAIN: readonly TurretLevel[] = [
   { cost: TURRET_COSTS.place, stats: { damage: 13, fireRate: 2.2, range: 220, hp: 180, bulletSpeed: 560 } },
@@ -249,7 +252,31 @@ export const PERK_BALANCE = {
   damage: { costs: [60, 100, 160, 230, 320], perRank: 0.1 },
   bulletSpeed: { costs: [40, 70, 110, 160, 220], perRank: 0.08 },
   overclock: { costs: [450, 650, 900, 1200, 1600], perRank: 0 },
-  precision: { costs: [50, 90, 140, 200, 280], perRank: 0.2 }
+  precision: { costs: [50, 90, 140, 200, 280], perRank: 0.2 },
+ turrets: { costs: [180, 350, 500, 800, 1200], perRank: 0 },
+  // Capacité active « Balles enflammées » : le rang 1 la débloque, les suivants l'améliorent (voir ABILITY_CONFIG).
+  fireBullets: { costs: [350, 180, 320, 450, 720], perRank: 0 }
+}
+
+/** Capacités actives : touches 1 à 3 du joueur, jusqu'à ABILITY_SLOTS équipées par partie. */
+export const ABILITY_SLOTS = 3
+
+/**
+ * Balles enflammées : pendant `duration` secondes les balles du joueur enflamment les monstres touchés,
+ * qui brûlent `burnSeconds` secondes (la brûlure se relance à chaque nouvelle balle, elle ne s'additionne pas).
+ * Une ligne par rang (1 à 5) : duration = durée de l'effet (s) · cooldown = recharge depuis l'activation (s) · burnDps = dégâts de brûlure par seconde.
+ */
+export const ABILITY_CONFIG = {
+  fireBullets: {
+    burnSeconds: 3,
+    ranks: [
+      { duration: 10, cooldown: 45, burnDps: 10 },
+      { duration: 11, cooldown: 42, burnDps: 12 },
+      { duration: 12, cooldown: 38, burnDps: 16 },
+      { duration: 13, cooldown: 34, burnDps: 21 },
+      { duration: 15, cooldown: 30, burnDps: 27 }
+    ]
+  }
 }
 
 // ───────────────────────────────────────────────────────────── 9. POINTS DE FIN DE PARTIE

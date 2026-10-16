@@ -13,6 +13,8 @@ export interface PlayerControls {
   next: string
   /** Sélection directe des 3 objets de construction. */
   slots: string[]
+  /** Déclenche les capacités actives équipées (emplacements 1 à 3). */
+  abilities: string[]
 }
 
 export const CONTROLS: PlayerControls[] = [
@@ -26,7 +28,8 @@ export const CONTROLS: PlayerControls[] = [
     remove: 'Backspace',
     prev: 'KeyQ',
     next: 'KeyE',
-    slots: ['Digit1', 'Digit2', 'Digit3']
+    slots: ['Digit1', 'Digit2', 'Digit3'],
+    abilities: ['KeyZ', 'KeyX', 'KeyC']
   },
   {
     up: 'ArrowUp',
@@ -38,7 +41,8 @@ export const CONTROLS: PlayerControls[] = [
     remove: 'Delete',
     prev: 'Comma',
     next: 'Period',
-    slots: ['Numpad1', 'Numpad2', 'Numpad3']
+    slots: ['Numpad1', 'Numpad2', 'Numpad3'],
+    abilities: ['Numpad4', 'Numpad5', 'Numpad6']
   }
 ]
 
@@ -60,7 +64,7 @@ export interface InputLike {
 
 /** Touches dont on bloque le comportement par défaut (défilement, focus...) pendant la partie. */
 export const GAME_KEYS: ReadonlySet<string> = new Set([
-  ...CONTROLS.flatMap((c) => [c.up, c.down, c.left, c.right, c.place, c.upgrade, c.remove, c.prev, c.next, ...c.slots]),
+  ...CONTROLS.flatMap((c) => [c.up, c.down, c.left, c.right, c.place, c.upgrade, c.remove, c.prev, c.next, ...c.slots, ...c.abilities]),
   SKIP_WAVE,
   DEV_TOGGLE
 ])

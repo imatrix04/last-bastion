@@ -1,13 +1,14 @@
 // Simulation sans interface : vérifie que la logique de jeu tient la route.
 // Usage : npm run sim
-import { actUpgrade, applyTurretBranch, placeBuilding, upgradeBuilding } from '../src/renderer/src/game/build'
+import { actUpgrade, applyTurretBranch, placeBuilding, placementStatus, turretsOwned, upgradeBuilding } from '../src/renderer/src/game/build'
 import { acceptRemotePose } from '../src/renderer/src/game/update'
 import { defaultLook } from '../src/renderer/src/game/config/appearance'
-import { BASE, BUILDS, COLS, OVERCLOCK_LEVELS, ROWS, STEP, type BuildKind } from '../src/renderer/src/game/config/constants'
+import { BASE, BUILDS, BUILD_ORDER, COLS, OVERCLOCK_LEVELS, ROWS, STEP, type BuildKind } from '../src/renderer/src/game/config/constants'
 import { TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN, turretLevel } from '../src/renderer/src/game/config/turrets'
-import { SKIP_WAVE, type InputLike } from '../src/renderer/src/game/config/controls'
+import { CONTROLS, SKIP_WAVE, type InputLike } from '../src/renderer/src/game/config/controls'
 import { idx, isBaseCell } from '../src/renderer/src/game/grid'
-import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, scoreRun, unlockMask, type Loadout } from '../src/renderer/src/game/config/progress'
+import { ABILITY_CONFIG } from '../src/renderer/src/game/config/config'
+import { ALL_UNLOCKS, PERKS, PERK_INDEX, emptyPerks, sanitizeAbilities, scoreRun, turretCap, unlockMask, type Loadout } from '../src/renderer/src/game/config/progress'
 import { createState } from '../src/renderer/src/game/state'
 import { fireRateMult, maxLevelOf, nextUpgrade, overclockMult, playerStats, spikeStats, turretStats } from '../src/renderer/src/game/stats'
 import type { GameState } from '../src/renderer/src/game/types'
@@ -15,7 +16,7 @@ import { step } from '../src/renderer/src/game/update'
 import { createEnemy } from '../src/renderer/src/game/waves'
 
 /** Compétences débloquées (et améliorations du joueur au rang demandé). */
-const loadout = (unlocks: number, rank = 0): Loadout => ({ unlocks, perks: PERKS.map(() => rank), look: defaultLook(0) })
+const loadout = (unlocks: number, rank = 0): Loadout => ({ unlocks, perks: PERKS.map(() => rank), abilities: [], look: defaultLook(0) })
 /** Les compétences à rangs (Overclocking) au rang demandé. */
 const withOverclock = (unlocks: number, rank: number): Loadout => {
   const l = loadout(unlocks)
@@ -41,6 +42,7 @@ interface Options {
 function tryBuy(state: GameState, kind: BuildKind, col: number, row: number): boolean {
   if (state.grid[idx(col, row)] || isBaseCell(col, row)) return false
   if (state.gold < BUILDS[kind].cost) return false
+  if (kind === 'turret' && turretsOwned(state, 0) >= turretCap(state.players[0].perks)) return false
   state.gold -= BUILDS[kind].cost
   placeBuilding(state, kind, col, row)
   return true
@@ -256,6 +258,22 @@ function checkUnlocks(): boolean {
   actUpgrade(st, st.players[0])
   ok = report('Aucune branche : pas de pop-up', st.choice === null && t2.level === 3) && ok
 
+  // Limite de tourelles : 3 de base par joueur, +1 par rang de l'amélioration « Tourelles »
+  st = fresh(0)
+  const pl = st.players[0]
+  pl.selected = BUILD_ORDER.indexOf('turret')
+  let placed = 0
+  for (let c = 2; c < 10; c++) {
+    if (placementStatus(st, pl, c, 2) === 'ok') {
+      placeBuilding(st, 'turret', c, 2, 0, pl.id)
+      placed++
+    }
+  }
+  const capped = placementStatus(st, pl, 10, 2) === 'limit'
+  pl.perks[PERK_INDEX.turrets] = 2
+  const more = placementStatus(st, pl, 10, 2) === 'ok' && turretCap(pl.perks) === 5 && turretsOwned(st, pl.id) === 3
+  ok = report('Limite de tourelles : 3 de base, +1 par rang', placed === 3 && capped && more) && ok
+
   // Overclocking : de ×1,2 (rang 1) à ×2 (rang 5), pour les tourelles posées par un joueur qui l'a
   st = createState(1, [withOverclock(0, 5)])
   st.gold = 9999
@@ -302,6 +320,44 @@ function checkUnlocks(): boolean {
   const inWall = acceptRemotePose(st, rp, 8 * 40 + 20, 8 * 40 + 20, 1, 0)
   ok = report('Position distante : plausible acceptée', near && Math.abs(rp.x - (x0 + 6)) < 0.01 && rp.dirX === 1) && ok
   ok = report('Position distante : téléportation / mur refusés', !far && !inWall) && ok
+
+  // Balles enflammées : capacité active équipée, déclenchée par la touche 1 des capacités
+  {
+    const cfg = ABILITY_CONFIG.fireBullets
+    const input = (down: string[]): InputLike => ({ isDown: () => false, wasPressed: (c) => down.includes(c) })
+    const noKeys = input([])
+    const lo = loadout(0)
+    lo.perks[PERK_INDEX.fireBullets] = 1
+    lo.abilities = ['fireBullets']
+    const st = createState(1, [lo])
+    const p = st.players[0]
+    p.x = 400
+    p.y = 300
+    st.phase = 'combat'
+    st.spawnQueue = ['grunt']
+    st.gateTimers = st.gates.map(() => 9999)
+    const grunt = createEnemy(st, 'grunt', 440, 300)
+    grunt.hp = grunt.maxHp = 5000
+    st.enemies.push(grunt)
+    step(st, STEP, noKeys)
+    ok = report('Balles enflammées : pas de brûlure au départ', grunt.burnT === 0) && ok
+    step(st, STEP, input([CONTROLS[0].abilities[0]]))
+    ok = report('Balles enflammées : activation', p.abilityOn[0] > cfg.ranks[0].duration - 0.1 && p.abilityCd[0] > cfg.ranks[0].cooldown - 0.1) && ok
+    let burned = false
+    for (let i = 0; i < 120 && !burned; i++) {
+      step(st, STEP, noKeys)
+      burned = grunt.burnT > 0
+    }
+    const hp0 = grunt.hp
+    for (let i = 0; i < 30; i++) step(st, STEP, noKeys)
+    ok = report('Balles enflammées : le monstre brûle', burned && grunt.hp < hp0) && ok
+    // Fin d'effet, puis recharge : une nouvelle activation avant la fin de la recharge est refusée
+    for (let i = 0; i < Math.ceil((cfg.ranks[0].duration + 0.5) / STEP); i++) step(st, STEP, noKeys)
+    ok = report('Balles enflammées : l’effet s’arrête', p.abilityOn[0] === 0 && p.abilityCd[0] > 0) && ok
+    step(st, STEP, input([CONTROLS[0].abilities[0]]))
+    ok = report('Balles enflammées : recharge', p.abilityOn[0] === 0) && ok
+    ok = report('Capacité non débloquée refusée', sanitizeAbilities(['fireBullets'], emptyPerks()).length === 0 && sanitizeAbilities([0, 0, 0], lo.perks).length === 1) && ok
+  }
 
   // Points : (kills pondérés + 10 × vague) × (1 + vague / 10)
   const score = scoreRun([100, 20, 5, 1, 4, 40, 3], 10)

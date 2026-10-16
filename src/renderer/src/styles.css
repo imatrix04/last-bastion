@@ -430,3 +430,88 @@ kbd {
   color: var(--gold);
 }
 
+
+/* ------------------------------------------------------- capacités actives (HUD) */
+
+.buildbar .abilities {
+  display: flex;
+  gap: 0.5em;
+  justify-content: center;
+  margin: 0.45em 0 0.2em;
+}
+.ability {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 0.45em;
+  min-width: 9.5em;
+  padding: 0.3em 0.6em;
+  border-radius: 0.5em;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line);
+  opacity: 0.85;
+}
+.ability .ability-ico {
+  grid-column: 1;
+  grid-row: 1;
+  width: 1.5em;
+  height: 1.5em;
+  color: #ffab40;
+}
+.ability .num {
+  grid-column: 2;
+  grid-row: 1;
+}
+.ability .ability-time {
+  grid-column: 3;
+  grid-row: 1;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--muted);
+}
+.ability-bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 0.35em;
+  margin-top: 0.25em;
+  border-radius: 0.2em;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.ability-bar i {
+  display: block;
+  height: 100%;
+  background: #78909c;
+}
+.ability.ready {
+  opacity: 1;
+  border-color: #ffab40;
+}
+.ability.ready .ability-bar i {
+  background: #ffab40;
+}
+.ability.ready .ability-time {
+  color: #ffcc80;
+  font-weight: 700;
+}
+.ability.active {
+  opacity: 1;
+  border-color: #ff6d00;
+  box-shadow: 0 0 1em rgba(255, 109, 0, 0.6);
+  animation: ability-pulse 0.7s ease-in-out infinite alternate;
+}
+.ability.active .ability-bar i {
+  background: linear-gradient(90deg, #ff6d00, #ffd180);
+}
+.ability.active .ability-time {
+  color: #ffd180;
+  font-weight: 700;
+}
+@keyframes ability-pulse {
+  to {
+    box-shadow: 0 0 1.5em rgba(255, 145, 0, 0.9);
+  }
+}

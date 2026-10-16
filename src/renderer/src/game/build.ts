@@ -8,13 +8,13 @@ import {
 } from './config/constants'
 import { GAME } from './config/config'
 import { addText, burst, ring, smoke, sparks } from './fx'
-import { buildingAt, idx, isBaseCell } from './grid'
-import { PERK_INDEX } from './config/progress'
+import { buildingAt, distToRect, idx, isBaseCell } from './grid'
+import { PERK_INDEX, turretCap } from './config/progress'
 import { branchUnlocked, investedCost, levelName, maxHpOf, nextUpgrade } from './stats'
 import { TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from './config/turrets'
 import type { Building, GameState, Player } from './types'
 
-export type PlacementStatus = 'ok' | 'repair' | 'upgrade' | 'poor' | 'invalid' | 'occupied'
+export type PlacementStatus = 'ok' | 'repair' | 'upgrade' | 'poor' | 'invalid' | 'occupied' | 'limit'
 
 /** Distance maximale (en cases) entre un joueur et la tourelle qu'il spécialise à distance. */
 const PICK_REACH = GAME.pickReach
@@ -29,6 +29,11 @@ export function isBuildable(col: number, row: number): boolean {
   return col >= 1 && row >= 1 && col <= COLS - 2 && row <= ROWS - 2 && !isBaseCell(col, row)
 }
 
+/** Tourelles encore debout posées par ce joueur. */
+export function turretsOwned(state: GameState, owner: number): number {
+  return state.grid.reduce((n, b) => (b && b.kind === 'turret' && b.owner === owner ? n + 1 : n), 0)
+}
+
 export function placementStatus(state: GameState, p: Player, col: number, row: number): PlacementStatus {
   if (!isBuildable(col, row)) return 'invalid'
   const existing = buildingAt(state, col, row)
@@ -40,12 +45,23 @@ export function placementStatus(state: GameState, p: Player, col: number, row: n
   for (const q of state.players) {
     if (Math.floor(q.x / TILE) === col && Math.floor(q.y / TILE) === row) return 'invalid'
   }
+  // Un mur ou une tourelle ne se pose pas sur un monstre : il resterait coincé dedans et ne pourrait plus attaquer.
+  if (BUILDS[BUILD_ORDER[p.selected]].solid && enemyOnTile(state, col, row)) return 'invalid'
+  if (BUILD_ORDER[p.selected] === 'turret' && turretsOwned(state, p.id) >= turretCap(p.perks)) return 'limit'
   return state.gold >= BUILDS[BUILD_ORDER[p.selected]].cost ? 'ok' : 'poor'
+}
+
+/** Un monstre vivant touche-t-il cette case ? */
+function enemyOnTile(state: GameState, col: number, row: number): boolean {
+  for (const e of state.enemies) {
+    if (e.hp > 0 && distToRect(e.x, e.y, col * TILE, row * TILE, TILE, TILE) < e.radius) return true
+  }
+  return false
 }
 
 /** Pose un bâtiment sans contrôle ni paiement (utilisé par la construction et les tests). */
 /** `boost` : rang d'Overclocking du joueur qui construit (0 = aucun). */
-export function placeBuilding(state: GameState, kind: BuildKind, col: number, row: number, boost = 0): Building {
+export function placeBuilding(state: GameState, kind: BuildKind, col: number, row: number, boost = 0, owner = 0): Building {
   const def = BUILDS[kind]
   const b: Building = {
     kind,
@@ -61,7 +77,8 @@ export function placeBuilding(state: GameState, kind: BuildKind, col: number, ro
     recoil: 0,
     side: 1,
     boost,
-    web: 0
+    web: 0,
+    owner
   }
   state.grid[idx(col, row)] = b
   if (def.solid) state.flowDirty = true
@@ -105,7 +122,7 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
     case 'ok': {
       const kind = BUILD_ORDER[p.selected]
       state.gold -= BUILDS[kind].cost
-      const b = placeBuilding(state, kind, col, row, p.perks[PERK_INDEX.overclock] ?? 0)
+      const b = placeBuilding(state, kind, col, row, p.perks[PERK_INDEX.overclock] ?? 0, p.id)
       b.pop = 0.7
       burst(state, cx, cy, '#d7ccc8', 6, 70)
       smoke(state, cx, cy + 8, '#a1887f', 3, 40)
@@ -129,6 +146,9 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
     }
     case 'poor':
       if (press) addText(state, p.x, p.y - 24, "Pas assez d'or", '#ff8a65')
+      return false
+    case 'limit':
+      if (press) addText(state, p.x, p.y - 24, `Limite : ${turretCap(p.perks)} tourelles`, '#ff8a65')
       return false
     case 'invalid':
       if (press) addText(state, p.x, p.y - 24, 'Impossible ici', '#ff8a65')

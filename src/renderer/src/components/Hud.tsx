@@ -2,9 +2,12 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { DEFAULT_COLORS } from '../game/config/appearance'
 import { BUILD_ORDER, BUILDS } from '../game/config/constants'
 import { CONTROLS, SKIP_WAVE } from '../game/config/controls'
+import type { AbilityHud } from '../game/types'
+import { PERK_ICONS } from './icons'
 import { useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
 
+const ABILITY_NAMES = { fireBullets: 'Balles enflammées' } as const
 const GLYPHS = { barricade: '▤', turret: '◉', spikes: '▲' } as const
 
 /** Or affiché : le nombre glisse vers sa nouvelle valeur, la pièce brille à chaque gain, un « +N » s'envole (rouge « −N » à la dépense). */
@@ -120,10 +123,10 @@ export function Hud(): React.JSX.Element {
       <div className="hud-bottom">
         {mode === 'local' ? (
           Array.from({ length: playerCount }, (_, i) => (
-            <BuildBar key={i} index={i} keyIndex={i} selected={hud.selected[i] ?? 0} gold={hud.gold} color={hud.colors[i] ?? DEFAULT_COLORS[i]} />
+            <BuildBar key={i} index={i} keyIndex={i} selected={hud.selected[i] ?? 0} gold={hud.gold} color={hud.colors[i] ?? DEFAULT_COLORS[i]} abilities={hud.abilities[i] ?? []} />
           ))
         ) : (
-          <BuildBar index={myIndex} keyIndex={0} selected={hud.selected[myIndex] ?? 0} gold={hud.gold} color={hud.colors[myIndex] ?? DEFAULT_COLORS[myIndex]} />
+          <BuildBar index={myIndex} keyIndex={0} selected={hud.selected[myIndex] ?? 0} gold={hud.gold} color={hud.colors[myIndex] ?? DEFAULT_COLORS[myIndex]} abilities={hud.abilities[myIndex] ?? []} />
         )}
       </div>
     </div>
@@ -136,13 +139,15 @@ function BuildBar({
   keyIndex,
   selected,
   gold,
-  color
+  color,
+  abilities
 }: {
   index: number
   keyIndex: number
   selected: number
   gold: number
   color: string
+  abilities: AbilityHud[]
 }): React.JSX.Element {
   const label = useKeyLabels()
   const c = CONTROLS[keyIndex]
@@ -164,6 +169,29 @@ function BuildBar({
           )
         })}
       </div>
+      {abilities.length > 0 && (
+        <div className="abilities">
+          {abilities.map((a, i) => {
+            const Icon = PERK_ICONS[a.id]
+            const active = a.on > 0
+            const ready = !active && a.cd <= 0
+            // Pendant l'effet la jauge se vide (durée restante) ; ensuite elle se remplit jusqu'à la recharge complète.
+            const fill = active ? a.on / a.onMax : a.cdMax > 0 ? 1 - a.cd / a.cdMax : 1
+            return (
+              <div key={a.id} className={`ability${active ? ' active' : ready ? ' ready' : ''}`} title={ABILITY_NAMES[a.id]}>
+                <span className="num">
+                  <kbd>{label(c.abilities[i])}</kbd>
+                </span>
+                <Icon className="ability-ico" />
+                <span className="ability-bar">
+                  <i style={{ width: `${Math.max(0, Math.min(1, fill)) * 100}%` }} />
+                </span>
+                <span className="ability-time">{active ? `${Math.ceil(a.on)} s` : ready ? 'Prête' : `${Math.ceil(a.cd)} s`}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
       <div className="keys">
         <kbd>{label(c.prev)}</kbd>
         <kbd>{label(c.next)}</kbd> objet · <kbd>{label(c.place)}</kbd> construire / réparer · <kbd>{label(c.upgrade)}</kbd>{' '}

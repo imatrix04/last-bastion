@@ -1,5 +1,5 @@
 import { defaultLook, isSkinId, sanitizeLook, type Look, type SkinId } from './appearance'
-import { PERK_BALANCE, SCORE, UNLOCK_COST } from './config'
+import { ABILITY_SLOTS, PERK_BALANCE, SCORE, TURRET_LIMIT, UNLOCK_COST } from './config'
 import type { EnemyKind, TierUnlock } from './constants'
 
 /**
@@ -146,12 +146,16 @@ export const isUnlockId = (v: unknown): v is UnlockId => typeof v === 'string' &
 
 // ------------------------------------------------------------- améliorations du joueur
 
-export type PerkId = 'speed' | 'fireRate' | 'range' | 'damage' | 'bulletSpeed' | 'overclock' | 'precision'
+export type PerkId = 'speed' | 'fireRate' | 'range' | 'damage' | 'bulletSpeed' | 'overclock' | 'precision' | 'turrets' | 'fireBullets'
 
 export interface PerkDef {
   id: PerkId
-  /** `soldier` : améliore le joueur · `tech` : améliore ses défenses (colonne Technologie). */
-  group: 'soldier' | 'tech'
+  /**
+   * `soldier` : améliore le joueur · `tech` : améliore ses défenses (colonne Technologie) ·
+   * `passive` : capacité passive, toujours active une fois débloquée (jamais équipée) ·
+   * `ability` : capacité active, à équiper (jusqu'à ABILITY_SLOTS) et à déclencher en jeu.
+   */
+  group: 'soldier' | 'tech' | 'passive' | 'ability'
   name: string
   blurb: string
   /** Prix de chaque rang (la longueur donne le rang maximum). */
@@ -170,12 +174,49 @@ export const PERKS: readonly PerkDef[] = [
   {id: 'bulletSpeed',group: 'soldier',name: 'Vitesse des balles',blurb: 'Des balles plus rapides, moins de tirs manqués.',costs: PERK_BALANCE.bulletSpeed.costs, perRank: PERK_BALANCE.bulletSpeed.perRank },
   {
     id: 'overclock',
-    group: 'tech',
+    group: 'passive',
     name: 'Overclocking',
     blurb: 'Toutes tes tourelles (et futures armes de défense) tirent plus vite : ×1,2 au rang 1, jusqu’à ×2 au rang 5.',
     costs: PERK_BALANCE.overclock.costs, perRank: PERK_BALANCE.overclock.perRank
+  },
+  {
+    id: 'turrets',
+    group: 'tech',
+    name: 'Tourelles',
+    blurb: `Une tourelle de plus par rang : ${TURRET_LIMIT.base} de base, jusqu'à ${TURRET_LIMIT.base + TURRET_LIMIT.perRank * PERK_BALANCE.turrets.costs.length} au rang maximum.`,
+    costs: PERK_BALANCE.turrets.costs, perRank: PERK_BALANCE.turrets.perRank
+  },
+  {
+    id: 'fireBullets',
+    group: 'ability',
+    name: 'Balles enflammées',
+    blurb: 'Capacité active : tes balles enflamment les monstres touchés, qui brûlent pendant 3 secondes. Le rang 1 la débloque ; les rangs suivants allongent sa durée, raccourcissent sa recharge et renforcent la brûlure.',
+    costs: PERK_BALANCE.fireBullets.costs, perRank: PERK_BALANCE.fireBullets.perRank
   }
 ]
+
+// ------------------------------------------------------------- capacités actives
+
+/** L'ordre fixe l'index envoyé sur le réseau : seulement ajouter à la fin. `perk` : l'amélioration qui la débloque (rang 1) et la fait progresser. */
+export const ABILITIES = [{ id: 'fireBullets', perk: 'fireBullets' }] as const
+export type AbilityId = (typeof ABILITIES)[number]['id']
+export { ABILITY_SLOTS }
+
+export const ABILITY_INDEX: Readonly<Record<AbilityId, number>> = Object.fromEntries(ABILITIES.map((a, i) => [a.id, i])) as Record<AbilityId, number>
+
+/** Rang de l'amélioration qui gouverne une capacité (0 = verrouillée). */
+export const abilityRank = (perks: readonly number[], id: AbilityId): number => perks[PERK_INDEX[ABILITIES[ABILITY_INDEX[id]].perk]] ?? 0
+
+/** Capacités équipées reçues du réseau ou de la sauvegarde (identifiants ou index) : uniques, débloquées, au plus ABILITY_SLOTS. */
+export function sanitizeAbilities(v: unknown, perks: readonly number[]): AbilityId[] {
+  const out: AbilityId[] = []
+  if (!Array.isArray(v)) return out
+  for (const x of v) {
+    const a = typeof x === 'number' ? ABILITIES[x] : ABILITIES.find((d) => d.id === x)
+    if (a && !out.includes(a.id) && abilityRank(perks, a.id) > 0 && out.length < ABILITY_SLOTS) out.push(a.id)
+  }
+  return out
+}
 
 export const PERK_INDEX: Readonly<Record<PerkId, number>> = Object.fromEntries(PERKS.map((p, i) => [p.id, i])) as Record<PerkId, number>
 
@@ -191,14 +232,19 @@ export const sanitizePerks = (v: unknown): number[] =>
 /** Multiplicateur appliqué à une statistique de base du joueur. */
 export const perkMult = (perks: readonly number[], id: PerkId): number => 1 + (perks[PERK_INDEX[id]] ?? 0) * PERKS[PERK_INDEX[id]].perRank
 
+/** Nombre de tourelles qu'un joueur peut poser, selon le rang de l'amélioration « Tourelles ». */
+export const turretCap = (perks: readonly number[]): number => TURRET_LIMIT.base + (perks[PERK_INDEX.turrets] ?? 0) * TURRET_LIMIT.perRank
+
 /** Tout ce qu'un joueur apporte en partie : compétences débloquées (bits), rangs d'améliorations et apparence. */
 export interface Loadout {
   unlocks: number
   perks: number[]
+  /** Capacités actives équipées pour la partie (dans l'ordre des touches). */
+  abilities: AbilityId[]
   look: Look
 }
 
-export const emptyLoadout = (slot = 0): Loadout => ({ unlocks: 0, perks: emptyPerks(), look: defaultLook(slot) })
+export const emptyLoadout = (slot = 0): Loadout => ({ unlocks: 0, perks: emptyPerks(), abilities: [], look: defaultLook(slot) })
 
 // -------------------------------------------------------------------------- gains
 
@@ -242,6 +288,8 @@ export interface SavedProgress {
   unlocked: UnlockId[]
   /** Rang de chaque amélioration du joueur, dans l'ordre de PERKS. */
   perks: number[]
+  /** Capacités actives équipées (au plus ABILITY_SLOTS, parmi celles débloquées). */
+  abilities: AbilityId[]
   /** Skins achetés (le skin « aucun » est toujours disponible). */
   skins: SkinId[]
   /** Apparence de chaque emplacement : joueur 1 et joueur 2 (même clavier). La couleur est libre. */
@@ -252,6 +300,7 @@ export const emptyProgress = (): SavedProgress => ({
   points: 0,
   unlocked: [],
   perks: emptyPerks(),
+  abilities: [],
   skins: ['none'],
   looks: [defaultLook(0), defaultLook(1)]
 })
@@ -264,8 +313,7 @@ export const sanitizeLooks = (v: unknown): [Look, Look] => {
 }
 
 /** Ce qu'apporte l'emplacement de joueur `slot` (0 = joueur 1, 1 = joueur 2 au même clavier). */
-export const loadoutOf = (p: SavedProgress, slot = 0): Loadout => ({
-  unlocks: unlockMask(p.unlocked),
-  perks: sanitizePerks(p.perks),
-  look: p.looks[slot] ?? p.looks[0]
-})
+export const loadoutOf = (p: SavedProgress, slot = 0): Loadout => {
+  const perks = sanitizePerks(p.perks)
+  return { unlocks: unlockMask(p.unlocked), perks, abilities: sanitizeAbilities(p.abilities, perks), look: p.looks[slot] ?? p.looks[0] }
+}

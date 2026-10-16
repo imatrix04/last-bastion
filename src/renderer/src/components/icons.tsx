@@ -91,6 +91,13 @@ export const IconExplosive = (p: P): React.JSX.Element => (
   </svg>
 )
 
+export const IconFlame = (p: P): React.JSX.Element => (
+  <svg {...base(p)}>
+    <path d="M12 2c.8 3.2 4.6 5.2 4.6 10A4.6 4.6 0 0 1 12 17a4.6 4.6 0 0 1-4.6-5c0-1.8.8-3 1.8-4 .2 1.4.9 2.2 1.6 2.6C10.6 8 11 5 12 2z" fill="currentColor" fillOpacity="0.25" />
+    <path d="M12 22c-2.6 0-4-1.6-4-3.2M12 22c2.6 0 4-1.6 4-3.2" />
+  </svg>
+)
+
 export const IconBolt = (p: P): React.JSX.Element => (
   <svg {...base(p)}>
     <path d="M13.5 2L5 13.5h6L9.5 22 19 9.8h-6.2z" fill="currentColor" fillOpacity="0.2" />
@@ -164,6 +171,15 @@ export const UNLOCK_ICONS: Record<UnlockId, (p: P) => React.JSX.Element> = {
   explosive: IconExplosive
 }
 
+/** Tourelle : socle et canon. */
+export const IconTurrets = (p: P): React.JSX.Element => (
+  <svg {...base(p)}>
+    <rect x="6" y="14" width="12" height="5" />
+    <path d="M9 14v-4h5v4" />
+    <path d="M14 11h6" />
+  </svg>
+)
+
 export const PERK_ICONS: Record<PerkId, (p: P) => React.JSX.Element> = {
   speed: IconSpeed,
   fireRate: IconFireRate,
@@ -171,5 +187,7 @@ export const PERK_ICONS: Record<PerkId, (p: P) => React.JSX.Element> = {
   damage: IconDamage,
   bulletSpeed: IconBulletSpeed,
   overclock: IconBolt,
+  fireBullets: IconFlame,
+  turrets: IconTurrets,
   precision: IconPrecision
 }

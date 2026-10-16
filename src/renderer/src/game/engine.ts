@@ -16,6 +16,7 @@ import {
   encodeSnap,
   type Action
 } from './config/netproto'
+import { abilityHud } from './abilities'
 import { emptyLoadout, scoreRun, type Loadout } from './config/progress'
 import { HostInput, RemoteInput } from './remoteInput'
 import { createBackground, render } from './render'
@@ -126,6 +127,7 @@ export class Game {
       else if (event.type === 'ready') {
         this.state.players[1].unlocks = session.peerLoadout.unlocks // ses compétences ont pu changer
         this.state.players[1].perks = session.peerLoadout.perks.slice()
+        this.state.players[1].abilities = session.peerLoadout.abilities.slice()
         this.state.players[1].look = { ...session.peerLoadout.look }
         session.send({ t: 'start' }) // le joueur 2 revient en pleine partie
       }
@@ -315,7 +317,8 @@ export class Game {
       dev: s.dev,
       selected: s.players.map((p) => p.selected),
       ping: Math.round(this.peerPing),
-      colors: s.players.map((p) => p.look.color)
+      colors: s.players.map((p) => p.look.color),
+      abilities: s.players.map((p) => abilityHud(p))
     }
   }
 }

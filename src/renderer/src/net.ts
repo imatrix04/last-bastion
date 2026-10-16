@@ -1,6 +1,6 @@
 import { NET_PORT, PROTO_VERSION } from './game/config/netproto'
 import { skinAt, skinIndex, sanitizeLook } from './game/config/appearance'
-import { emptyLoadout, sanitizeMask, sanitizePerks, type Loadout } from './game/config/progress'
+import { ABILITY_INDEX, emptyLoadout, sanitizeAbilities, sanitizeMask, sanitizePerks, type Loadout } from './game/config/progress'
 
 /** Évènements de la session de jeu en ligne, tels que les voit le reste de l'application. */
 export type SessionEvent =
@@ -55,7 +55,7 @@ class Session {
     const result = await net.join(address)
     if (result.ok) {
       this.role = 'client'
-      this.send({ t: 'hello', v: PROTO_VERSION, u: loadout.unlocks, k: loadout.perks, l: [loadout.look.color, skinIndex(loadout.look.hat), skinIndex(loadout.look.weapon), loadout.look.name] })
+      this.send({ t: 'hello', v: PROTO_VERSION, u: loadout.unlocks, k: loadout.perks, a: loadout.abilities.map((id) => ABILITY_INDEX[id]), l: [loadout.look.color, skinIndex(loadout.look.hat), skinIndex(loadout.look.weapon), skinIndex(loadout.look.trail), loadout.look.name] })
     }
     return result
   }
@@ -108,10 +108,12 @@ class Session {
         return
       }
       const l = Array.isArray(msg.l) ? msg.l : []
+      const perks = sanitizePerks(msg.k)
       this.peerLoadout = {
         unlocks: sanitizeMask(msg.u),
-        perks: sanitizePerks(msg.k),
-        look: sanitizeLook({ color: l[0], hat: skinAt(l[1]), weapon: skinAt(l[2]), name: l[3] }, 1)
+        perks,
+        abilities: sanitizeAbilities(msg.a, perks),
+        look: sanitizeLook({ color: l[0], hat: skinAt(l[1]), weapon: skinAt(l[2]), trail: skinAt(l[3]), name: l[4] }, 1)
       }
       if (!this.peerReady) {
         this.peerReady = true

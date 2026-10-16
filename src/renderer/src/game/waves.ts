@@ -93,7 +93,9 @@ export function createEnemy(state: GameState, kind: EnemyKind, x: number, y: num
     checkT: 1.5,
     stuck: false,
     vx: 0,
-    vy: 0
+    vy: 0,
+    burnT: 0,
+    burnDps: 0
   }
 }
 

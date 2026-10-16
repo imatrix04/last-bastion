@@ -1,5 +1,6 @@
 import { buildTarget } from './build'
 import { BASE, BULLET_STYLES, ENEMIES, HEIGHT, OVERCLOCK_LEVELS, TILE, WIDTH } from './config/constants'
+import { abilityHud } from './abilities'
 import { CONTROLS, type InputLike } from './config/controls'
 import { skinAt } from './config/appearance'
 import { addText, burst, decal, muzzle, ring, updateFx, webShot } from './fx'
@@ -96,8 +97,13 @@ export class ClientView {
     for (let i = 0; i < s.players.length && i < st.players.length; i++) {
       const p = st.players[i]
       p.selected = s.players[i][3]
+      // Durée d'effet et recharge de chaque emplacement de capacité (envoyées par l'hôte)
+      for (let k = 0; k < p.abilityOn.length; k++) {
+        p.abilityOn[k] = s.players[i][6 + 2 * k] ?? 0
+        p.abilityCd[k] = s.players[i][7 + 2 * k] ?? 0
+      }
       const look = s.looks[i]
-      if (i !== LOCAL_ID && look && look[0]) p.look = { color: look[0], hat: skinAt(look[1]), weapon: skinAt(look[2]), name: look[3] }
+      if (i !== LOCAL_ID && look && look[0]) p.look = { color: look[0], hat: skinAt(look[1]), weapon: skinAt(look[2]), trail: skinAt(look[3]), name: look[4] }
       if (i === LOCAL_ID) {
         this.hostPose.x = s.players[i][0]
         this.hostPose.y = s.players[i][1]
@@ -112,7 +118,7 @@ export class ClientView {
     // Bâtiments (on garde l'angle et les animations des tourelles, recalculés à chaque image)
     const previous = st.grid.slice()
     st.grid.fill(null)
-    for (const [kindIndex, col, row, hp, rawLevel, rawBranch, rawBoost, rawWeb] of s.buildings) {
+    for (const [kindIndex, col, row, hp, rawLevel, rawBranch, rawBoost, rawWeb, rawOwner] of s.buildings) {
       const kind = buildKindAt(kindIndex)
       if (!kind || !inBounds(col, row)) continue
       const i = idx(col, row)
@@ -130,6 +136,7 @@ export class ClientView {
         angle: same ? old.angle : 0,
         level,
         branch,
+        owner: rawOwner === 1 ? 1 : 0,
         // Un niveau de plus qu'à l'image précédente : rebond d'amélioration.
         pop: same && old.level < level ? 1 : same ? old.pop : 0,
         recoil: same ? old.recoil : 0,
@@ -303,7 +310,9 @@ export class ClientView {
           checkT: 0,
           stuck: false,
           vx: 0,
-          vy: 0
+          vy: 0,
+          burnT: 0,
+          burnDps: 0
         }
         this.enemies.set(id, e)
       }
@@ -321,6 +330,7 @@ export class ClientView {
       e.flash = (ra[6] & 1) !== 0 ? 0.08 : 0
       e.attacking = (ra[6] & 2) !== 0
       e.cast = (ra[6] & 4) !== 0 ? 0.1 : 0
+      e.burnT = (ra[6] & 8) !== 0 ? 1 : 0
       list.push(e)
       seen.add(id)
     }
@@ -343,7 +353,7 @@ export class ClientView {
     const elapsed = Math.min(0.25, Math.max(0, rt - a.t))
     const bullets: Bullet[] = []
     for (const [x, y, vx, vy, style] of a.snap.bullets) {
-      bullets.push({ x: x + vx * elapsed, y: y + vy * elapsed, vx, vy, life: 1, damage: 0, style: style >= 0 && style < BULLET_STYLES.length ? Math.round(style) : 0, splash: 0 })
+      bullets.push({ x: x + vx * elapsed, y: y + vy * elapsed, vx, vy, life: 1, damage: 0, style: style >= 0 && style < BULLET_STYLES.length ? Math.round(style) : 0, splash: 0, burn: 0 })
     }
     st.bullets = bullets
 
@@ -376,7 +386,8 @@ export class ClientView {
       dev: false,
       selected: st.players.map((p) => p.selected),
       ping: Math.round(this.rtt),
-      colors: st.players.map((p) => p.look.color)
+      colors: st.players.map((p) => p.look.color),
+      abilities: st.players.map((p) => abilityHud(p))
     }
   }
 }

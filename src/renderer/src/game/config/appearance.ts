@@ -3,10 +3,10 @@
  * la boutique, le menu et le réseau (chaque joueur envoie la sienne).
  */
 
-export type SkinId = 'none' | 'cat' | 'gold'
+export type SkinId = 'none' | 'cat' | 'gold' | 'hearts' | 'tech'
 
 /** Emplacement d'un skin : un chapeau sur la tête, ou un canon dans la main. Un joueur peut équiper un de chaque. */
-export type SkinPart = 'hat' | 'weapon'
+export type SkinPart = 'hat' | 'weapon' | 'trail'
 
 export interface SkinDef {
   id: SkinId
@@ -34,6 +34,20 @@ export const SKINS: readonly SkinDef[] = [
     name: 'Canon en or',
     blurb: 'Le tube doré, avec un reflet qui glisse le long du canon et des étincelles à la bouche.',
     price: 1050
+  },
+  {
+    id: 'hearts',
+    part: 'trail',
+    name: 'Cœurs',
+    blurb: 'Des petits cœurs rose et bordeaux s’évaporent derrière toi, montent et s’effacent.',
+    price: 480
+  },
+  {
+    id: 'tech',
+    part: 'trail',
+    name: 'Scan',
+    blurb: 'Traînée de données : lignes qui défilent, pixels qui clignotent et curseur en tête.',
+    price: 600
   }
 ]
 
@@ -53,6 +67,8 @@ export interface Look {
   hat: SkinId
   /** Canon équipé (skins de l'emplacement « weapon »). */
   weapon: SkinId
+  /** Traînée équipée (skins de l'emplacement « trail »). */
+  trail: SkinId
   /** Pseudo affiché au-dessus du personnage. Vide = « J1 » / « J2 ». */
   name: string
 }
@@ -84,7 +100,7 @@ export const PALETTE: readonly string[] = [
   '#e8eaf0'
 ]
 
-export const defaultLook = (slot: number): Look => ({ color: DEFAULT_COLORS[slot] ?? DEFAULT_COLORS[0], hat: 'none', weapon: 'none', name: '' })
+export const defaultLook = (slot: number): Look => ({ color: DEFAULT_COLORS[slot] ?? DEFAULT_COLORS[0], hat: 'none', weapon: 'none', trail: 'none', name: '' })
 
 const HEX = /^#[0-9a-fA-F]{6}$/
 export const isHexColor = (v: unknown): v is string => typeof v === 'string' && HEX.test(v)
@@ -93,7 +109,7 @@ export const isHexColor = (v: unknown): v is string => typeof v === 'string' && 
 export function sanitizeLook(v: unknown, slot = 0): Look {
   const fallback = defaultLook(slot)
   if (typeof v !== 'object' || v === null) return fallback
-  const o = v as { color?: unknown; hat?: unknown; weapon?: unknown; skin?: unknown; name?: unknown }
+  const o = v as { color?: unknown; hat?: unknown; weapon?: unknown; trail?: unknown; skin?: unknown; name?: unknown }
   // Ancien format (un seul « skin ») : il devient le chapeau ou le canon selon son emplacement.
   const legacy = isSkinId(o.skin) ? o.skin : 'none'
   const hat = isSkinId(o.hat) ? o.hat : legacy
@@ -102,6 +118,7 @@ export function sanitizeLook(v: unknown, slot = 0): Look {
     color: isHexColor(o.color) ? o.color.toLowerCase() : fallback.color,
     hat: skinFits(hat, 'hat') ? hat : 'none',
     weapon: skinFits(weapon, 'weapon') ? weapon : 'none',
+    trail: isSkinId(o.trail) && skinFits(o.trail, 'trail') ? o.trail : 'none',
     name: sanitizeName(o.name)
   }
 }

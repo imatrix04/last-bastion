@@ -130,7 +130,7 @@ export function Menu(): React.JSX.Element {
             <dt>Joueur 1</dt>
             <dd>
               <i className="swatch-dot" style={{ background: look.color }} /> {playerLabel(look, 0)}
-              <small className="dim"> · {[look.hat, look.weapon].filter((id) => id !== 'none').map((id) => SKIN_BY_ID[id].name).join(' · ') || 'Sans accessoire'}</small>
+              <small className="dim"> · {[look.hat, look.weapon, look.trail].filter((id) => id !== 'none').map((id) => SKIN_BY_ID[id].name).join(' · ') || 'Sans accessoire'}</small>
             </dd>
           </div>
           <div>
@@ -210,6 +210,15 @@ export function Menu(): React.JSX.Element {
                   </td>
                   <td>
                     <kbd>{label(CONTROLS[1].prev)}</kbd> <kbd>{label(CONTROLS[1].next)}</kbd>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Capacités actives</td>
+                  <td>
+                    <kbd>{label(CONTROLS[0].abilities[0])}</kbd> <kbd>{label(CONTROLS[0].abilities[1])}</kbd> <kbd>{label(CONTROLS[0].abilities[2])}</kbd>
+                  </td>
+                  <td>
+                    <kbd>{label(CONTROLS[1].abilities[0])}</kbd> <kbd>{label(CONTROLS[1].abilities[1])}</kbd> <kbd>{label(CONTROLS[1].abilities[2])}</kbd>
                   </td>
                 </tr>
                 <tr>

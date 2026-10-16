@@ -7,7 +7,8 @@ import { IconBack } from './icons'
 /** Un groupe par emplacement : chaque joueur équipe un chapeau et un canon, indépendamment. */
 const GROUPS: readonly { part: SkinPart; title: string }[] = [
   { part: 'hat', title: 'Chapeaux' },
-  { part: 'weapon', title: 'Canons' }
+  { part: 'weapon', title: 'Canons' },
+  { part: 'trail', title: 'Traînées' }
 ]
 
 /** Boutique : couleur libre du personnage (gratuite) et skins achetés avec les points de compétence. */
@@ -113,7 +114,7 @@ export function Shop(): React.JSX.Element {
                   const owned = s.id === 'none' || progress.skins.includes(s.id)
                   const equipped = look[part] === s.id
                   const missing = s.price - progress.points
-                  const equip = (id: SkinId): void => setLook(slot, part === 'hat' ? { hat: id } : { weapon: id })
+                  const equip = (id: SkinId): void => setLook(slot, part === 'hat' ? { hat: id } : part === 'weapon' ? { weapon: id } : { trail: id })
                   return (
                     <li key={s.id} className={`skin-row${equipped ? ' on' : ''}`}>
                       <AvatarCanvas look={{ ...look, [part]: s.id }} scale={2.4} className="skin-thumb" />

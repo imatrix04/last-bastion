@@ -9,6 +9,11 @@ import {
   emptyProgress,
   isUnlockId,
   loadoutOf,
+  ABILITIES,
+  ABILITY_SLOTS,
+  abilityRank,
+  sanitizeAbilities,
+  type AbilityId,
   sanitizeLooks,
   sanitizePerks,
   sanitizeSkins,
@@ -49,7 +54,7 @@ function saveBest(wave: number): void {
 
 function loadProgress(): SavedProgress {
   try {
-    const raw = JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? 'null') as { points?: unknown; unlocked?: unknown; perks?: unknown; skins?: unknown; looks?: unknown } | null
+    const raw = JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? 'null') as { points?: unknown; unlocked?: unknown; perks?: unknown; abilities?: unknown; skins?: unknown; looks?: unknown } | null
     if (!raw) return emptyProgress()
     const points = typeof raw.points === 'number' && Number.isFinite(raw.points) ? Math.max(0, Math.floor(raw.points)) : 0
     const saved = Array.isArray(raw.unlocked) ? raw.unlocked : []
@@ -58,7 +63,7 @@ function loadProgress(): SavedProgress {
     const perks = sanitizePerks(raw.perks)
     // Avant la 1.3, l'Overclocking était une compétence à débloquer : elle devient le rang 1 de la compétence à rangs.
     if (saved.includes('overclock') && perks[PERK_INDEX.overclock] === 0) perks[PERK_INDEX.overclock] = 1
-    return { points, unlocked, perks, skins: sanitizeSkins(raw.skins), looks: sanitizeLooks(raw.looks) }
+    return { points, unlocked, perks, abilities: sanitizeAbilities(raw.abilities, perks), skins: sanitizeSkins(raw.skins), looks: sanitizeLooks(raw.looks) }
   } catch {
     return emptyProgress()
   }
@@ -100,7 +105,8 @@ const initialHud: HudState = {
   dev: false,
   selected: [0, 0],
   ping: 0,
-  colors: [DEFAULT_COLORS[0], DEFAULT_COLORS[1]]
+  colors: [DEFAULT_COLORS[0], DEFAULT_COLORS[1]],
+  abilities: [[], []]
 }
 
 interface Store {
@@ -138,6 +144,8 @@ interface Store {
   buyUnlock: (id: UnlockId) => boolean
   /** Achète le rang suivant d'une amélioration du joueur. */
   buyPerk: (id: PerkId) => boolean
+  /** Équipe ou retire une capacité active (au plus ABILITY_SLOTS équipées). Renvoie false si impossible. */
+  toggleAbility: (id: AbilityId) => boolean
   openShop: () => void
   closeShop: () => void
   /** Achète un skin avec des points de compétence. */
@@ -274,7 +282,24 @@ export const useStore = create<Store>()((set, get) => ({
     if (!def || rank >= def.costs.length || progress.points < def.costs[rank]) return false
     const perks = progress.perks.slice()
     perks[i] = rank + 1
-    const next = { ...progress, points: progress.points - def.costs[rank], perks }
+    // Une capacité active qu'on vient de débloquer est équipée d'office s'il reste de la place.
+    const ability = ABILITIES.find((a) => a.perk === id)
+    const abilities =
+      ability && rank === 0 && progress.abilities.length < ABILITY_SLOTS && !progress.abilities.includes(ability.id) ? [...progress.abilities, ability.id] : progress.abilities
+    const next = { ...progress, points: progress.points - def.costs[rank], perks, abilities }
+    saveProgress(next)
+    set({ progress: next })
+    return true
+  },
+  toggleAbility: (id) => {
+    const { progress } = get()
+    const ability = ABILITIES.find((a) => a.id === id)
+    if (!ability || abilityRank(progress.perks, id) === 0) return false
+    let abilities: AbilityId[]
+    if (progress.abilities.includes(id)) abilities = progress.abilities.filter((a) => a !== id)
+    else if (progress.abilities.length < ABILITY_SLOTS) abilities = [...progress.abilities, id]
+    else return false
+    const next = { ...progress, abilities }
     saveProgress(next)
     set({ progress: next })
     return true
@@ -302,10 +327,11 @@ export const useStore = create<Store>()((set, get) => ({
     const owns = (id: SkinId, part: SkinPart): boolean => skinFits(id, part) && (id === 'none' || progress.skins.includes(id))
     const hat = change.hat !== undefined && owns(change.hat, 'hat') ? change.hat : current.hat
     const weapon = change.weapon !== undefined && owns(change.weapon, 'weapon') ? change.weapon : current.weapon
+    const trail = change.trail !== undefined && owns(change.trail, 'trail') ? change.trail : current.trail
     // Pas de trim ici : on saisit le pseudo caractère par caractère, les espaces doivent rester.
     const name = change.name !== undefined ? change.name.replace(/[\r\n\t]/g, ' ').slice(0, NAME_MAX) : current.name
     const looks: [Look, Look] = [progress.looks[0], progress.looks[1]]
-    looks[slot] = { color, hat, weapon, name }
+    looks[slot] = { color, hat, weapon, trail, name }
     const next = { ...progress, looks }
     saveProgress(next)
     set({ progress: next })

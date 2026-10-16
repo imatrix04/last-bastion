@@ -516,6 +516,28 @@ export function drawEnemyTrail(ctx: CanvasRenderingContext2D, e: Enemy): void {
   }
 }
 
+/** Flammes qui lèchent un monstre en feu (trois langues qui vacillent, en lumière additive). */
+function drawFlames(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, t: number, seed: number): void {
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  drawGlow(ctx, x, y - r * 0.2, r * 1.7, '#ff6d00', 0.3 + 0.08 * Math.sin(t * 12 + seed))
+  for (let k = 0; k < 3; k++) {
+    const phase = t * 9 + k * 2.1 + seed * 1.3
+    const h = r * (1.0 + 0.45 * Math.sin(phase))
+    const fx = x + (k - 1) * r * 0.55 + Math.sin(phase * 0.7) * r * 0.12
+    const base = y + r * 0.1
+    ctx.fillStyle = k === 1 ? '#ffd180' : '#ff9100'
+    ctx.globalAlpha = 0.75
+    ctx.beginPath()
+    ctx.moveTo(fx - r * 0.28, base)
+    ctx.quadraticCurveTo(fx - r * 0.2, base - h * 0.6, fx + Math.sin(phase * 1.4) * r * 0.1, base - h)
+    ctx.quadraticCurveTo(fx + r * 0.2, base - h * 0.6, fx + r * 0.28, base)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
 export function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, t: number): void {
   const def = ENEMIES[e.kind]
   const r = visualRadius(e)
@@ -574,6 +596,8 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, t: number): v
   }
   ctx.restore()
   ctx.globalAlpha = 1
+
+  if (e.burnT > 0) drawFlames(ctx, e.x, e.y, r, t, e.id)
 
   if (e.hp < e.maxHp || e.kind === 'boss') {
     const w = Math.max(18, r * 2)

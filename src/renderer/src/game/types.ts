@@ -1,4 +1,5 @@
 import type { Look } from './config/appearance'
+import type { AbilityId } from './config/progress'
 import type { BuildKind, EnemyKind } from './config/constants'
 import type { Branch } from './config/turrets'
 
@@ -21,6 +22,12 @@ export interface Player {
   unlocks: number
   /** Rangs des améliorations du joueur (ordre de PERKS dans progress.ts). */
   perks: number[]
+  /** Capacités actives équipées (jusqu'à 3, dans l'ordre des touches). */
+  abilities: AbilityId[]
+  /** Par emplacement de capacité : secondes d'effet restantes. */
+  abilityOn: number[]
+  /** Par emplacement de capacité : secondes de recharge restantes. */
+  abilityCd: number[]
   /** Apparence : couleur libre et skin. */
   look: Look
   /** Hôte en ligne : ce joueur est piloté à distance (sa position vient du réseau). */
@@ -61,6 +68,9 @@ export interface Enemy {
   /** Vitesse du dernier déplacement (px/s) : sert au joueur à anticiper son tir. */
   vx: number
   vy: number
+  /** Brûlure : secondes restantes (0 = ne brûle pas) et dégâts par seconde. */
+  burnT: number
+  burnDps: number
 }
 
 export interface Building {
@@ -82,6 +92,8 @@ export interface Building {
   side: number
   /** Rang d'Overclocking du joueur qui l'a construit (0 = aucun, 1 à 5) : voir OVERCLOCK_LEVELS. */
   boost: number
+  /** Numéro du joueur qui a posé le bâtiment (0 ou 1). Sert à compter les tourelles de chacun. */
+  owner: number
   /** Secondes restantes sous une toile d'araignée (cadence de tir réduite). */
   web: number
 }
@@ -97,6 +109,8 @@ export interface Bullet {
   style: number
   /** Rayon de l'explosion à l'impact (0 = aucune). */
   splash: number
+  /** Dégâts de brûlure par seconde infligés au monstre touché (0 = balle normale). */
+  burn: number
 }
 
 /** 0 éclat carré · 1 étincelle (traînée additive) · 2 fumée · 3 lueur additive */
@@ -199,6 +213,19 @@ export interface HudState {
   ping: number
   /** Couleur de chaque joueur (pour l'interface). */
   colors: string[]
+  /** Capacités actives équipées de chaque joueur, avec leur état. */
+  abilities: AbilityHud[][]
+}
+
+/** Une capacité active telle que l'affiche la barre du joueur. */
+export interface AbilityHud {
+  id: AbilityId
+  /** Secondes d'effet restantes / durée totale. */
+  on: number
+  onMax: number
+  /** Secondes de recharge restantes / recharge totale. */
+  cd: number
+  cdMax: number
 }
 
 export interface RunResult {

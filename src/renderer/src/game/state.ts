@@ -1,11 +1,13 @@
 import { BASE, COLS, FIRST_PREP, ROWS, START_GOLD, TILE } from './config/constants'
 import { computeFlow } from './pathing'
 import type { GameState, Player } from './types'
-import { KILL_KINDS, emptyLoadout, type Loadout } from './config/progress'
+import { ABILITY_SLOTS, KILL_KINDS, emptyLoadout, type Loadout } from './config/progress'
 import { pickGates } from './waves'
 
+const ABILITY_ZEROS = (): number[] => Array.from({ length: ABILITY_SLOTS }, () => 0)
+
 function makePlayer(id: 0 | 1, x: number, y: number, loadout: Loadout): Player {
-  return { id, x, y, dirX: 0, dirY: 1, aim: Math.PI / 2, selected: 0, unlocks: loadout.unlocks, perks: loadout.perks.slice(), look: { ...loadout.look }, shootCd: 0, buildCd: 0 }
+  return { id, x, y, dirX: 0, dirY: 1, aim: Math.PI / 2, selected: 0, unlocks: loadout.unlocks, perks: loadout.perks.slice(), abilities: loadout.abilities.slice(), abilityOn: ABILITY_ZEROS(), abilityCd: ABILITY_ZEROS(), look: { ...loadout.look }, shootCd: 0, buildCd: 0 }
 }
 
 /** `loadouts` : compétences et améliorations de chaque joueur ; un joueur sans valeur n'a rien débloqué. */

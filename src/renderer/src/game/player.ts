@@ -17,19 +17,159 @@ interface Pt {
 /** Positions récentes de chaque joueur (affichage seulement) : sert à la traînée et à détecter qu'il court. */
 const trails = new Map<number, Pt[]>()
 const TRAIL_LIFE = 0.32
+/** Historique gardé pour les traînées à longue durée (cœurs). */
+const HISTORY_LIFE = 1
+/** Un cœur naît à chaque tranche de HEART_EVERY secondes de déplacement, et vit HEART_LIFE secondes. */
+const HEART_EVERY = 0.16
+const HEART_LIFE = 0.95
 
 function updateTrail(p: Player, t: number): { pts: Pt[]; moving: boolean } {
   let h = trails.get(p.id) ?? []
   if (h.length > 0 && t < h[h.length - 1].t) h = [] // nouvelle partie : le temps repart de zéro
   const last = h[h.length - 1]
   if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 2.4) h.push({ x: p.x, y: p.y, t })
-  while (h.length > 0 && t - h[0].t > TRAIL_LIFE) h.shift()
+  while (h.length > 0 && t - h[0].t > HISTORY_LIFE) h.shift()
   trails.set(p.id, h)
   const moving = h.some((q) => t - q.t < 0.12 && Math.hypot(p.x - q.x, p.y - q.y) > 3)
   return { pts: h, moving }
 }
 
 // -------------------------------------------------------------------- accessoires
+
+// -------------------------------------------------------------------- traînées
+
+const HEART_COLORS = ['#ff8fb8', '#f06292', '#a0173f', '#6e0f2a']
+const TECH = '#5fd6ee'
+
+/** Cœur centré en (x, y), s = demi-largeur. */
+function heart(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  ctx.beginPath()
+  ctx.moveTo(x, y + s * 0.35)
+  ctx.bezierCurveTo(x - s * 1.1, y - s * 0.25, x - s * 0.55, y - s * 1.0, x, y - s * 0.45)
+  ctx.bezierCurveTo(x + s * 0.55, y - s * 1.0, x + s * 1.1, y - s * 0.25, x, y + s * 0.35)
+  ctx.closePath()
+}
+
+/** Cœurs qui s'évaporent derrière le personnage : ils montent, ondulent, grossissent puis s'effacent. */
+function drawHeartTrail(ctx: CanvasRenderingContext2D, pts: Pt[], r: number, t: number): void {
+  for (let i = 1; i < pts.length; i++) {
+    const q = pts[i]
+    const slot = Math.floor(q.t / HEART_EVERY)
+    if (slot === Math.floor(pts[i - 1].t / HEART_EVERY)) continue // une seule naissance par tranche de temps
+    const age = t - q.t
+    if (age < 0 || age > HEART_LIFE) continue
+    const k = age / HEART_LIFE
+    const sway = Math.sin(age * 7 + slot * 1.7) * r * 0.28
+    const x = q.x + sway
+    const y = q.y - r * 0.2 - k * r * 2.4
+    const s = r * 0.24 * (0.55 + 0.45 * Math.min(1, age * 6)) * (1 - 0.35 * k)
+    ctx.save()
+    ctx.globalAlpha = Math.pow(1 - k, 1.3)
+    ctx.translate(x, y)
+    ctx.rotate(Math.sin(age * 5 + slot) * 0.35)
+    heart(ctx, 0, 0, s)
+    ctx.fillStyle = HEART_COLORS[slot % HEART_COLORS.length]
+    ctx.fill()
+    // Reflet sur le lobe gauche
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)'
+    ctx.beginPath()
+    ctx.ellipse(-s * 0.5, -s * 0.6, s * 0.16, s * 0.1, -0.5, 0, TAU)
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
+/** Traînée de données : trois lignes qui défilent, des pixels qui clignotent de part et d'autre, un curseur en tête. */
+function drawTechTrail(ctx: CanvasRenderingContext2D, pts: Pt[], r: number, t: number): void {
+  const live = pts.filter((q) => t - q.t < 0.4)
+  if (live.length < 2) return
+  const head = live[live.length - 1]
+  const back = live[Math.max(0, live.length - 5)]
+  const len = Math.hypot(head.x - back.x, head.y - back.y) || 1
+  const dx = (head.x - back.x) / len
+  const dy = (head.y - back.y) / len
+  const nx = -dy
+  const ny = dx
+  const tail = live[0]
+
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  const lanes: Array<[number, number, number]> = [
+    [0, 1.6, 0.9],
+    [-0.55, 1, 0.5],
+    [0.55, 1, 0.5]
+  ]
+  for (const [off, w, a] of lanes) {
+    const g = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y)
+    g.addColorStop(0, 'rgba(95, 214, 238, 0)')
+    g.addColorStop(1, 'rgba(95, 214, 238, ' + a + ')')
+    ctx.strokeStyle = g
+    ctx.lineWidth = w
+    ctx.setLineDash([r * 0.3, r * 0.18])
+    ctx.lineDashOffset = -t * r * 10
+    ctx.beginPath()
+    live.forEach((q, i) => {
+      const x = q.x + nx * off * r
+      const y = q.y + ny * off * r
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    })
+    ctx.stroke()
+  }
+  ctx.setLineDash([])
+
+  // Pixels qui clignotent de part et d'autre de la trace
+  for (const q of live) {
+    const seed = Math.floor(q.t * 60)
+    if (seed % 5 !== 0) continue
+    const side = (seed % 2 === 0 ? 1 : -1) * r * (0.7 + ((seed * 7) % 5) * 0.12)
+    const s = r * 0.12
+    ctx.globalAlpha = (1 - (t - q.t) / 0.4) * (0.5 + 0.5 * Math.sin(t * 25 + seed))
+    ctx.fillStyle = seed % 3 === 0 ? '#e6fbff' : TECH
+    ctx.fillRect(q.x + nx * side - s / 2, q.y + ny * side - s / 2, s, s)
+  }
+  ctx.globalAlpha = 1
+
+  // Curseur en tête : un chevron qui pointe dans le sens du mouvement
+  const wing = r * 0.38
+  const behind = r * 0.15
+  ctx.strokeStyle = TECH
+  ctx.lineWidth = 1.6
+  ctx.beginPath()
+  ctx.moveTo(head.x - dx * behind + nx * wing, head.y - dy * behind + ny * wing)
+  ctx.lineTo(head.x + dx * r * 0.55, head.y + dy * r * 0.55)
+  ctx.lineTo(head.x - dx * behind - nx * wing, head.y - dy * behind - ny * wing)
+  ctx.stroke()
+  ctx.fillStyle = '#e6fbff'
+  ctx.beginPath()
+  ctx.arc(head.x, head.y, r * 0.09, 0, TAU)
+  ctx.fill()
+  ctx.restore()
+}
+
+/** Dessine la traînée équipée (ou la lueur de la couleur du joueur, par défaut). */
+function drawTrail(ctx: CanvasRenderingContext2D, trail: Look['trail'], pts: Pt[], r: number, t: number, color: string): void {
+  if (trail === 'hearts') return drawHeartTrail(ctx, pts, r, t)
+  if (trail === 'tech') return drawTechTrail(ctx, pts, r, t)
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  for (const q of pts) {
+    const life = 1 - (t - q.t) / TRAIL_LIFE
+    if (life <= 0) continue
+    drawGlow(ctx, q.x, q.y, r * (0.7 + 0.9 * life), color, 0.32 * life * life)
+  }
+  ctx.restore()
+}
+
+/** Trajet fictif pour l'aperçu de la boutique et du menu : le personnage avance vers la gauche à vitesse constante. */
+function previewPath(r: number, t: number): Pt[] {
+  const pts: Pt[] = []
+  for (let k = 50; k >= 0; k--) {
+    const time = t - k * 0.02
+    pts.push({ x: -k * 0.02 * r * 1.2, y: Math.sin(time * 4) * r * 0.2, t: time })
+  }
+  return pts
+}
 
 /** Oreilles de chat : rose unique, dégradé bordeaux de la base vers la pointe, oreille intérieure plus claire, frémissement. */
 function drawCatEars(ctx: CanvasRenderingContext2D, r: number, t: number): void {
@@ -263,20 +403,21 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, p: Player, t: number):
   const r = PLAYER.radius
   const { pts, moving } = updateTrail(p, t)
 
-  // Traînée
-  ctx.save()
-  ctx.globalCompositeOperation = 'lighter'
-  for (const q of pts) {
-    const life = 1 - (t - q.t) / TRAIL_LIFE
-    if (life <= 0) continue
-    drawGlow(ctx, q.x, q.y, r * (0.7 + 0.9 * life), p.look.color, 0.32 * life * life)
-  }
-  ctx.restore()
+  drawTrail(ctx, p.look.trail, pts, r, t, p.look.color)
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.32)'
   ctx.beginPath()
   ctx.ellipse(p.x + 2, p.y + r - 1, r * 0.9, r * 0.38, 0, 0, TAU)
   ctx.fill()
+
+  // Capacité active en cours (pour l'instant la seule : Balles enflammées) : halo de feu qui vacille.
+  if (p.abilityOn.some((on) => on > 0)) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    drawGlow(ctx, p.x, p.y, r * (2.4 + 0.25 * Math.sin(t * 14)), '#ff6d00', 0.42)
+    drawGlow(ctx, p.x, p.y, r * 1.4, '#ffd180', 0.3)
+    ctx.restore()
+  }
 
   ctx.save()
   ctx.translate(p.x, p.y)
@@ -303,6 +444,7 @@ export function drawAvatar(ctx: CanvasRenderingContext2D, cx: number, cy: number
   ctx.beginPath()
   ctx.ellipse(2, PLAYER.radius - 1, PLAYER.radius * 0.95, PLAYER.radius * 0.4, 0, 0, TAU)
   ctx.fill()
+  if (look.trail !== 'none') drawTrail(ctx, look.trail, previewPath(PLAYER.radius, t), PLAYER.radius, t, look.color)
   paintAvatar(ctx, look, PLAYER.radius, { aim, t, moving: false })
   ctx.restore()
 }

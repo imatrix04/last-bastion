@@ -6,7 +6,7 @@ import { KILL_KINDS } from './progress'
 import type { FxEvent, GameState } from '../types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 9
+export const PROTO_VERSION = 12
 export const NET_PORT = 7777
 /** Fréquence d'envoi de l'état du jeu par l'hôte : un état tous les 2 pas de simulation (60 Hz). */
 export const SNAPSHOT_HZ = 30
@@ -18,7 +18,7 @@ export const INTERP_DELAY = 0.1
 // ------------------------------------------------------------------- entrées
 
 /** Ce que le joueur distant envoie : des actions logiques, indépendantes de la disposition du clavier. */
-export const ACTIONS = ['up', 'down', 'left', 'right', 'place', 'upgrade', 'remove', 'prev', 'next', 's0', 's1', 's2', 'skip'] as const
+export const ACTIONS = ['up', 'down', 'left', 'right', 'place', 'upgrade', 'remove', 'prev', 'next', 's0', 's1', 's2', 'a0', 'a1', 'a2', 'skip'] as const
 export type Action = (typeof ACTIONS)[number]
 const ACTION_SET: ReadonlySet<string> = new Set(ACTIONS)
 
@@ -37,6 +37,9 @@ function codesFor(player: number): Record<Action, string> {
     s0: c.slots[0],
     s1: c.slots[1],
     s2: c.slots[2],
+    a0: c.abilities[0],
+    a1: c.abilities[1],
+    a2: c.abilities[2],
     skip: SKIP_WAVE
   }
 }
@@ -81,11 +84,11 @@ export interface Snap {
   gates: number[][]
   /** Kills par type (ordre de KILL_KINDS) : sert au calcul des points de fin de partie chez l'invité. */
   kstats: number[]
-  /** [x, y, angle de tir, objet sélectionné, dirX, dirY] */
+  /** [x, y, angle de tir, objet sélectionné, dirX, dirY, puis pour chaque emplacement de capacité : durée active restante, recharge restante (s)] */
   players: number[][]
   /** Apparence de chaque joueur : [couleur « #rrggbb », index du chapeau, index du canon, pseudo] */
-  looks: Array<[string, number, number, string]>
-  /** [id, type, x, y, pv, pvMax, drapeaux : 1 = flash de dégâts, 2 = attaque en cours, 4 = crache une toile] */
+  looks: Array<[string, number, number, number, string]>
+  /** [id, type, x, y, pv, pvMax, drapeaux : 1 = flash de dégâts, 2 = attaque en cours, 4 = crache une toile, 8 = en feu] */
   enemies: number[][]
   /** [x, y, vx, vy, style] (style : index dans BULLET_STYLES) */
   bullets: number[][]
@@ -98,7 +101,7 @@ const r1 = (v: number): number => Math.round(v * 10) / 10
 
 export function encodeSnap(state: GameState): Snap {
   const buildings: number[][] = []
-  for (const b of state.grid) if (b) buildings.push([BUILD_ORDER.indexOf(b.kind), b.col, b.row, Math.ceil(b.hp), b.level, b.branch, b.boost, Math.round(b.web * 10)])
+  for (const b of state.grid) if (b) buildings.push([BUILD_ORDER.indexOf(b.kind), b.col, b.row, Math.ceil(b.hp), b.level, b.branch, b.boost, Math.round(b.web * 10), b.owner])
 
   return {
     t: 'snap',
@@ -114,9 +117,15 @@ export function encodeSnap(state: GameState): Snap {
     over: state.gameOver ? 1 : 0,
     shake: r1(state.shake),
     gates: state.gates.map((g) => [Math.round(g.x), Math.round(g.y)]),
-    looks: state.players.map((p): [string, number, number, string] => [p.look.color, skinIndex(p.look.hat), skinIndex(p.look.weapon), p.look.name]),
-    players: state.players.map((p) => [r1(p.x), r1(p.y), Math.round(p.aim * 100) / 100, p.selected, p.dirX, p.dirY]),
-    enemies: state.enemies.map((e) => [e.id, ENEMY_KINDS.indexOf(e.kind), r1(e.x), r1(e.y), Math.ceil(e.hp), e.maxHp, (e.flash > 0 ? 1 : 0) | (e.attacking ? 2 : 0) | (e.cast > 0 ? 4 : 0)]),
+    looks: state.players.map((p): [string, number, number, number, string] => [
+      p.look.color,
+      skinIndex(p.look.hat),
+      skinIndex(p.look.weapon),
+      skinIndex(p.look.trail),
+      p.look.name
+    ]),
+    players: state.players.map((p) => [r1(p.x), r1(p.y), Math.round(p.aim * 100) / 100, p.selected, p.dirX, p.dirY, ...p.abilityOn.flatMap((on, i) => [r1(on), r1(p.abilityCd[i])])]),
+    enemies: state.enemies.map((e) => [e.id, ENEMY_KINDS.indexOf(e.kind), r1(e.x), r1(e.y), Math.ceil(e.hp), e.maxHp, (e.flash > 0 ? 1 : 0) | (e.attacking ? 2 : 0) | (e.cast > 0 ? 4 : 0) | (e.burnT > 0 ? 8 : 0)]),
     bullets: state.bullets.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy), b.style]),
     buildings,
     fx: state.fxLog ? state.fxLog.slice(0, MAX_FX) : []
@@ -160,12 +169,13 @@ function decodeFx(v: unknown): FxEvent[] {
   return out
 }
 
-function decodeLooks(v: unknown): Array<[string, number, number, string]> {
+function decodeLooks(v: unknown): Array<[string, number, number, number, string]> {
   if (!Array.isArray(v)) return []
-  const out: Array<[string, number, number, string]> = []
+  const out: Array<[string, number, number, number, string]> = []
   for (const l of v.slice(0, 2)) {
-    if (Array.isArray(l) && isHexColor(l[0]) && isNum(l[1]) && isNum(l[2])) out.push([l[0].toLowerCase(), Math.round(l[1]), Math.round(l[2]), sanitizeName(l[3])])
-    else out.push(['', 0, 0, ''])
+    if (Array.isArray(l) && isHexColor(l[0]) && isNum(l[1]) && isNum(l[2]) && isNum(l[3])) {
+      out.push([l[0].toLowerCase(), Math.round(l[1]), Math.round(l[2]), Math.round(l[3]), sanitizeName(l[4])])
+    } else out.push(['', 0, 0, 0, ''])
   }
   return out
 }
@@ -193,7 +203,7 @@ export function decodeSnap(raw: Record<string, unknown>): Snap | null {
     looks: decodeLooks(raw.looks),
     enemies: rows(raw.enemies, 7, MAX_ENEMIES),
     bullets: rows(raw.bullets, 5, MAX_BULLETS),
-    buildings: rows(raw.buildings, 8, MAX_BUILDINGS),
+    buildings: rows(raw.buildings, 9, MAX_BUILDINGS),
     fx: decodeFx(raw.fx)
   }
 }

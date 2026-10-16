@@ -1293,3 +1293,44 @@ table.controls td:first-child {
   font-size: 0.78em;
   line-height: 1.4;
 }
+
+/* ------------------------------------------------ capacités actives (arbre de compétences) */
+
+.ability-slots {
+  display: flex;
+  gap: 0.6em;
+  align-items: stretch;
+}
+.ability-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.4em;
+  min-height: 3.4em;
+  border: 1px dashed var(--line);
+  border-radius: 0.6em;
+  color: var(--muted);
+}
+.ability-slot.on {
+  border-style: solid;
+  border-color: #ffab40;
+  color: #ffab40;
+}
+.ability-slot .num {
+  position: absolute;
+  top: 0.15em;
+  left: 0.35em;
+  font-size: 0.7em;
+  color: var(--muted);
+}
+.d-equip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  margin: 0.9em 0 0.3em;
+}
+.d-note {
+  margin: 0.8em 0 0.2em;
+  color: var(--muted);
+  font-size: 0.9em;
+}
