@@ -1,4 +1,4 @@
-import { ENEMIES, isBossKind, type EnemyKind } from './config/constants'
+import { ENEMIES, JUMP, isBossKind, type EnemyKind } from './config/constants'
 import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_SPEC_LEVEL, turretForm, type Branch, type TurretForm } from './config/turrets'
 import type { Enemy } from './types'
 
@@ -244,6 +244,33 @@ const paintSpider: Painter = (g, r, white) => {
   }
 }
 
+/** Cracheur : corps vert acide renflé, grosse poche de venin à l'arrière et gueule ouverte à l'avant. */
+const paintSpitter: Painter = (g, r, white) => {
+  shaded(g, -0.35 * r, 0, 0.95 * r, 0.9 * r, '#e6ff9e', '#9ccc3a', '#4a6b10', white, 2.4)
+  shaded(g, 0.5 * r, 0, 0.62 * r, 0.55 * r, '#d4f58a', '#7cb342', '#33521a', white, 2.2)
+  g.fillStyle = tint('#33691e', white)
+  g.strokeStyle = ink(white)
+  g.lineWidth = 1.4
+  g.beginPath()
+  g.ellipse(0.98 * r, 0, 0.26 * r, 0.3 * r, 0, 0, TAU)
+  g.fill()
+  g.stroke()
+  if (!white) {
+    g.fillStyle = 'rgba(178, 255, 89, 0.55)'
+    for (const [x, y, s] of [[-0.6, -0.3, 0.2], [-0.3, 0.32, 0.16], [-0.8, 0.2, 0.12]]) {
+      g.beginPath()
+      g.arc(x * r, y * r, s * r, 0, TAU)
+      g.fill()
+    }
+  }
+}
+
+/** Sauteur : corps rose ramassé, gros yeux, les pattes arrière sont dessinées à part (drawLimbs). */
+const paintJumper: Painter = (g, r, white) => {
+  shaded(g, -0.1 * r, 0, 1.0 * r, 0.8 * r, '#ffd1e0', '#f48fb1', '#a3446a', white, 2.2)
+  shaded(g, 0.55 * r, 0, 0.5 * r, 0.45 * r, '#ffc1d6', '#ec6f9f', '#8a2f57', white, 2)
+}
+
 /** Colosse enragé : plus sombre, plus de pointes, cornes recourbées et pointes orange incandescentes. */
 const paintRageBoss: Painter = (g, r, white) => {
   const n = 14
@@ -282,6 +309,8 @@ const paintRageBoss: Painter = (g, r, white) => {
 
 const PAINTERS: Record<EnemyKind, Painter> = {
   spider: paintSpider,
+  spitter: paintSpitter,
+  jumper: paintJumper,
   grunt: paintGrunt,
   runner: paintRunner,
   brute: paintBrute,
@@ -372,6 +401,18 @@ function drawLimbs(ctx: CanvasRenderingContext2D, e: Enemy, r: number, ph: numbe
       }
       break
     }
+    case 'jumper': {
+      // Pattes arrière repliées au sol, détendues pendant le bond
+      const air = e.jump > 0
+      for (const s of [-1, 1]) {
+        const kneeX = air ? -0.9 * r : -0.2 * r
+        const footX = air ? -1.5 * r : -0.7 * r
+        limb(ctx, -0.3 * r, s * 0.5 * r, kneeX, s * 0.95 * r, 0.3 * r, '#c2467a', white)
+        limb(ctx, kneeX, s * 0.95 * r, footX, s * (air ? 0.55 : 1.0) * r, 0.2 * r, '#e0608f', white)
+        limb(ctx, 0.5 * r, s * 0.35 * r, 0.95 * r, s * 0.6 * r, 0.16 * r, '#e0608f', white)
+      }
+      break
+    }
     case 'grunt': {
       const sw = Math.sin(ph)
       ctx.fillStyle = tint('#3e5a1c', white)
@@ -457,6 +498,24 @@ function drawFront(ctx: CanvasRenderingContext2D, e: Enemy, r: number, ph: numbe
         ctx.arc(0.8 * r, s * 0.2 * r, 0.035 * r, 0, TAU)
         ctx.fill()
       }
+      break
+    }
+    case 'jumper': {
+      if (white) break
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      for (const s of [-1, 1]) drawGlow(ctx, 0.72 * r, s * 0.2 * r, 0.5 * r, '#ffee58', 0.6)
+      ctx.restore()
+      break
+    }
+    case 'spitter': {
+      if (white) break
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      for (const s of [-1, 1]) drawGlow(ctx, 0.62 * r, s * 0.22 * r, 0.5 * r, '#ff1744', 0.55)
+      // Poche de venin qui gonfle pendant la préparation du tir
+      drawGlow(ctx, 1.0 * r, 0, r * (e.cast > 0 ? 1.7 : 0.9), '#b2ff59', e.cast > 0 ? 0.9 : 0.4)
+      ctx.restore()
       break
     }
     case 'splitter': {
@@ -605,9 +664,11 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, t: number): v
     ctx.restore()
   }
 
+  // Bond du Sauteur : le corps monte en arc au-dessus de son ombre
+  const lift = e.jump > 0 && e.jumpDur > 0 ? Math.sin(Math.PI * (1 - e.jump / e.jumpDur)) * JUMP.height : 0
   ctx.save()
-  ctx.translate(e.x, e.y)
-  ctx.scale(grow, grow)
+  ctx.translate(e.x, e.y - lift)
+  ctx.scale(grow * (1 + lift / 70), grow * (1 + lift / 70))
   // Éclateur sur le point d'éclater : il tremble
   if (e.kind === 'splitter' && e.hp / e.maxHp < 0.35) ctx.translate((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6)
   ctx.rotate(e.face + Math.sin(ph) * (e.kind === 'splitter' ? 0 : 0.07))
@@ -640,6 +701,15 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, t: number): v
   ctx.globalAlpha = 1
 
   if (e.burnT > 0) drawFlames(ctx, e.x, e.y, r, t, e.id)
+
+  // Cible prioritaire du tir du joueur : réticule vert qui pulse autour du Cracheur
+  if (e.kind === 'spitter') {
+    ctx.strokeStyle = `rgba(178, 255, 89, ${0.55 + 0.3 * Math.sin(t * 8)})`
+    ctx.lineWidth = 1.8
+    ctx.beginPath()
+    ctx.arc(e.x, e.y, r + 6 + Math.sin(t * 8) * 1.5, 0, TAU)
+    ctx.stroke()
+  }
 
   if (e.hp < e.maxHp || isBossKind(e.kind)) {
     const w = Math.max(18, r * 2)

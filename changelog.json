@@ -1,6 +1,37 @@
 {
   "releases": [
     {
+      "version": "1.5.0",
+      "date": "2026-10-19",
+      "added": [
+        "Nouveau monstre, le Cracheur (à partir de la vague 9) : il s'arrête dès qu'une tourelle est à portée (200 px) et la bombarde d'acide toutes les 2 secondes (50 dégâts par goutte) jusqu'à sa mort. Une lueur verte annonce chaque tir. Il a 140 PV et rapporte 22 or",
+        "Le tir automatique du joueur vise en priorité un Cracheur à portée, même si d'autres monstres sont plus proches, pour sauver la tourelle attaquée. Les Cracheurs sont entourés d'un réticule vert qui pulse pour les repérer dans la horde",
+        "Nouveau monstre, le Sauteur (à partir de la vague 6) : il ignore les murs dans son trajet et fonce vers la forteresse en bondissant par-dessus tout bâtiment solide (jusqu'à 2 cases d'un coup, en 0,5 seconde). Pendant le bond il ne peut ni attaquer ni être bloqué, mais reste touchable. La forteresse, elle, ne se saute pas. Il a 110 PV et rapporte 16 or",
+        "Le Sauteur a sa propre apparence : corps rose, gros yeux jaunes, pattes arrière qui se détendent en l'air. Son corps monte en arc au-dessus de son ombre, avec de la poussière au décollage et à l'atterrissage",
+        "Ciblage des tourelles : chaque tourelle peut viser l'ennemi le plus proche d'elle (par défaut) ou l'ennemi le plus proche de la forteresse. On bascule d'un mode à l'autre à tout moment, en pleine vague, en se plaçant face à sa tourelle et en appuyant sur G (joueur 1) ou Pavé numérique 0 (joueur 2). Un losange orange sur la tourelle indique le mode « forteresse », et un texte confirme le changement. Les touches sont affichées dans l'aide en jeu et dans le menu des commandes",
+        "Événements aléatoires : à partir de la vague 3, chaque vague a 25 % de chances de déclencher un événement qui dure toute la vague. Une annonce « ÉVÉNEMENT » s'affiche sous celle du biome, et les effets visuels apparaissent et disparaissent en fondu de 2,5 secondes. Le système est prévu pour accueillir d'autres événements (réglages dans EVENTS, config.ts)",
+        "Premier événement, le Brouillard : une brume gris-bleu recouvre la carte et ne laisse voir que les zones éclairées, autour de chaque joueur (200 px), de chaque tourelle (100 px) et de la forteresse (140 px). Les monstres hors de ces zones sont invisibles, et des volutes de brume dérivent à l'écran",
+        "Brouillard : un joueur ne tire que sur les monstres qu'il voit. Une tourelle ne tire que sur un monstre qu'elle voit dans son propre rayon, ou qu'un joueur voit : un joueur proche d'une tourelle lui sert d'éclaireur",
+        "Brouillard : en contrepartie, les monstres vont 20 % plus vite et les tourelles infligent 25 % de dégâts en plus"
+      ],
+      "changed": [
+        "Le jeu démarre plus doucement : les Éclateurs arrivent à la vague 7 (au lieu de 6), les Brutes à la vague 11 (au lieu de 8) et les Araignées à la vague 13 (au lieu de 11)",
+        "Les monstres sont un peu plus robustes : Brute 400 PV (au lieu de 370), Éclateur 240 (au lieu de 230), Araignée 210 (au lieu de 190). Le Colosse enragé rapporte 40 points de fin de partie (au lieu de 45) et l'Araignée 2 (au lieu de 4)",
+        "La toile de l'Araignée est moins punitive : la cadence de tir de la tourelle touchée tombe à 40 % (au lieu de 30 %), mais sa portée de crachat passe à 190 px (au lieu de 180) et sa préparation à 0,70 s (au lieu de 0,75 s)",
+        "Fin de vague : la forteresse récupère 10 % de ses PV max (au lieu de 8 %)",
+        "Bâtiments : mur en bois 180 PV (au lieu de 170), mur en pierre 340 (au lieu de 350), bronze 650 (au lieu de 670), pierre renforcé 900 (au lieu de 940). Pieux en pierre 370 PV (au lieu de 380), pierre renforcé 530 (au lieu de 550)",
+        "Tourelles : portée de base réduite à 200 px aux niveaux 1 et 2 et 210 px au niveau 3 (au lieu de 220), prix du niveau 2 à 175 (au lieu de 150) et du niveau 3 à 250 (au lieu de 225). Les prix des niveaux 4 à 10 augmentent d'environ 5 à 10 % dans les deux branches (par exemple le niveau 10 : Minigun 2000 au lieu de 1800, Canon explosif 2500 au lieu de 2300)",
+        "Le Canon explosif inflige 40 % de ses dégâts au bord de l'explosion (au lieu de 50 %) et le Minigun est moins précis (dispersion 0,2 au lieu de 0,1)",
+        "Arbre de compétences nettement plus cher : Mur en pierre 140 (au lieu de 120), bronze 280 (220), renforcé 450 (350), Pieux en pierre 220 (150), renforcé 450 (320), Double canons 450 (250), Canon lourd 500 (250), Minigun 900 (450), Canon explosif 1000 (450)",
+        "Améliorations du joueur plus chères (par exemple Cadence de tir 150 à 750 au lieu de 60 à 320, Overclocking 700 à 3000 au lieu de 450 à 1600, Tourelles 350 à 1800 au lieu de 180 à 1200), mais chaque rang de Dégâts apporte +25 % (au lieu de +20 %)",
+        "Balles enflammées : recharge allongée (60 à 42 secondes selon le rang, au lieu de 45 à 30) et brûlure plus forte (16 à 44 dégâts par seconde, au lieu de 12 à 32)",
+        "Mode développeur : 200 or par seconde (au lieu de 150)",
+        "Les points de fin de partie comptent les nouveaux monstres : 3 points par Cracheur et 2 par Sauteur",
+        "Protocole réseau en version 18 : l'hôte et l'invité doivent avoir la même version du jeu"
+      ],
+      "fixed": []
+    },
+    {
       "version": "1.4.7",
       "date": "2026-10-16",
       "added": [

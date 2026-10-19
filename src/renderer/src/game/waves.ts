@@ -21,6 +21,8 @@ export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   const splitters = grown(WAVES.splitters)
   const brutes = grown(WAVES.brutes)
   const spiders = grown(WAVES.spiders)
+  const spitters = grown(WAVES.spitters)
+  const jumpers = grown(WAVES.jumpers)
   const bosses = wave % WAVES.boss.every === 0 ? Math.ceil(wave / WAVES.boss.per) : 0
 
   const list: EnemyKind[] = []
@@ -29,6 +31,8 @@ export function composeWave(wave: number, players: 1 | 2): EnemyKind[] {
   for (let i = 0; i < brutes; i++) list.push('brute')
   for (let i = 0; i < splitters; i++) list.push('splitter')
   for (let i = 0; i < spiders; i++) list.push('spider')
+  for (let i = 0; i < spitters; i++) list.push('spitter')
+  for (let i = 0; i < jumpers; i++) list.push('jumper')
   shuffle(list)
   // Aux vagues multiples de 10, le Colosse est remplacé par sa version enragée.
   const bossKind: EnemyKind = wave % WAVES.rageBoss.every === 0 ? 'rageboss' : 'boss'
@@ -43,6 +47,8 @@ export const FIRST_WAVE: Record<EnemyKind, number> = {
   splitter: WAVES.splitters.from,
   brute: WAVES.brutes.from,
   spider: WAVES.spiders.from,
+  spitter: WAVES.spitters.from,
+  jumper: WAVES.jumpers.from,
   boss: WAVES.boss.every,
   rageboss: WAVES.rageBoss.every
 }
@@ -109,7 +115,13 @@ export function createEnemy(state: GameState, kind: EnemyKind, x: number, y: num
     vx: 0,
     vy: 0,
     burnT: 0,
-    burnDps: 0
+    burnDps: 0,
+    jump: 0,
+    jumpDur: 0,
+    jx0: 0,
+    jy0: 0,
+    jx1: 0,
+    jy1: 0
   }
 }
 

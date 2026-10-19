@@ -8,6 +8,8 @@ import {
   SPIKE_TIERS,
   WALL_BASE,
   WALL_TIERS,
+  JUMP_CONFIG,
+  SPIT_CONFIG,
   WEB_CONFIG,
   WORLD
 } from './config'
@@ -99,6 +101,12 @@ export const OVERCLOCK_LEVELS: readonly number[] = OVERCLOCK_CONFIG
 /** Toile de l'araignée : posée sur une arme de défense, elle réduit sa cadence de tir. */
 export const WEB = WEB_CONFIG
 
+/** Acide du Cracheur : tir sur les tourelles. */
+export const SPIT = SPIT_CONFIG
+
+/** Bond du Sauteur par-dessus les bâtiments. */
+export const JUMP = JUMP_CONFIG
+
 /** Apparence des projectiles : 0 joueur, 1 tourelle, 2 obus lourd, 3 minigun, 4 obus explosif, 5 balle enflammée. */
 export const BULLET_STYLES: ReadonlyArray<{ color: string; radius: number }> = [
   { color: '#fff59d', radius: 3 },
@@ -109,7 +117,7 @@ export const BULLET_STYLES: ReadonlyArray<{ color: string; radius: number }> = [
   { color: '#ff5722', radius: 4 }
 ]
 
-export type EnemyKind = 'grunt' | 'runner' | 'brute' | 'splitter' | 'boss' | 'spider' | 'rageboss'
+export type EnemyKind = 'grunt' | 'runner' | 'brute' | 'splitter' | 'boss' | 'spider' | 'spitter' | 'jumper' | 'rageboss'
 
 export interface EnemyDef {
   name: string

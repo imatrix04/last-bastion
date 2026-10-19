@@ -10,7 +10,8 @@ import { KILL_KINDS } from './config/progress'
 import { maxLevelOf, maxHpOf, nextUpgrade, turretStats } from './stats'
 import { TURRET_PLAIN_MAX, type Branch } from './config/turrets'
 import type { Bullet, ChoiceRequest, Enemy, GameState, HudState } from './types'
-import { advanceWebs, decayBuildingFx, movePlayer, nearestEnemy } from './update'
+import { EVENT_KINDS, advanceEvent } from './events'
+import { advanceWebs, decayBuildingFx, movePlayer, turretTarget } from './update'
 
 /** Le joueur distant contrôle toujours le joueur 2 (rose). */
 export const LOCAL_ID = 1
@@ -89,6 +90,7 @@ export class ClientView {
     st.kills = s.kills
     if (s.kstats.length === KILL_KINDS.length) st.kstats = s.kstats
     st.shake = Math.max(st.shake, s.shake)
+    st.event = s.ev > 0 ? (EVENT_KINDS[s.ev - 1] ?? null) : null
     st.gates = s.gates.map(([x, y]) => ({ x, y }))
     this.queued = s.queued
     if (s.over === 1) this.gameOver = true
@@ -118,7 +120,7 @@ export class ClientView {
     // Bâtiments (on garde l'angle et les animations des tourelles, recalculés à chaque image)
     const previous = st.grid.slice()
     st.grid.fill(null)
-    for (const [kindIndex, col, row, hp, rawLevel, rawBranch, rawBoost, rawWeb, rawOwner] of s.buildings) {
+    for (const [kindIndex, col, row, hp, rawLevel, rawBranch, rawBoost, rawWeb, rawOwner, rawTargeting] of s.buildings) {
       const kind = buildKindAt(kindIndex)
       if (!kind || !inBounds(col, row)) continue
       const i = idx(col, row)
@@ -137,6 +139,7 @@ export class ClientView {
         level,
         branch,
         owner: rawOwner === 1 ? 1 : 0,
+        targeting: rawTargeting === 1 ? 1 : 0,
         // Un niveau de plus qu'à l'image précédente : rebond d'amélioration.
         pop: same && old.level < level ? 1 : same ? old.pop : 0,
         recoil: same ? old.recoil : 0,
@@ -172,7 +175,7 @@ export class ClientView {
           decal(st, ev[1], ev[2], ev[3], ev[4])
           break
         case 'w':
-          webShot(st, ev[1], ev[2], ev[3], ev[4])
+          webShot(st, ev[1], ev[2], ev[3], ev[4], -1, -1, ev[5] === 1)
           break
         case 'm':
           muzzle(st, ev[1], ev[2], ev[3], ev[4])
@@ -313,7 +316,13 @@ export class ClientView {
           vx: 0,
           vy: 0,
           burnT: 0,
-          burnDps: 0
+          burnDps: 0,
+          jump: 0,
+          jumpDur: 0,
+          jx0: 0,
+          jy0: 0,
+          jx1: 0,
+          jy1: 0
         }
         this.enemies.set(id, e)
       }
@@ -332,6 +341,9 @@ export class ClientView {
       e.attacking = (ra[6] & 2) !== 0
       e.cast = (ra[6] & 4) !== 0 ? 0.1 : 0
       e.burnT = (ra[6] & 8) !== 0 ? 1 : 0
+      // Bond : l'invité ne connaît que l'état « en l'air », affiché à mi-hauteur
+      e.jump = (ra[6] & 16) !== 0 ? 0.3 : 0
+      e.jumpDur = 0.6
       list.push(e)
       seen.add(id)
     }
@@ -365,11 +377,12 @@ export class ClientView {
       if (bd.kind !== 'turret') continue
       const cx = (bd.col + 0.5) * TILE
       const cy = (bd.row + 0.5) * TILE
-      const target = nearestEnemy(st, cx, cy, turretStats(bd.level, bd.branch).range)
+      const target = turretTarget(st, bd, cx, cy, turretStats(bd.level, bd.branch).range)
       if (target) bd.angle = Math.atan2(target.y - cy, target.x - cx)
     }
 
     advanceWebs(st, dt, false)
+    advanceEvent(st, dt)
     updateFx(st, dt)
   }
 

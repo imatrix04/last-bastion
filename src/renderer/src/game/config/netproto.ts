@@ -3,10 +3,11 @@ import type { Branch } from './turrets'
 import { CONTROLS, SKIP_WAVE } from './controls'
 import { isHexColor, sanitizeName, skinIndex } from './appearance'
 import { KILL_KINDS } from './progress'
+import { EVENT_KINDS } from '../events'
 import type { FxEvent, GameState } from '../types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 15
+export const PROTO_VERSION = 18
 export const NET_PORT = 7777
 /** Fréquence d'envoi de l'état du jeu par l'hôte : un état tous les 2 pas de simulation (60 Hz). */
 export const SNAPSHOT_HZ = 30
@@ -18,7 +19,7 @@ export const INTERP_DELAY = 0.1
 // ------------------------------------------------------------------- entrées
 
 /** Ce que le joueur distant envoie : des actions logiques, indépendantes de la disposition du clavier. */
-export const ACTIONS = ['up', 'down', 'left', 'right', 'place', 'upgrade', 'remove', 'prev', 'next', 's0', 's1', 's2', 'a0', 'a1', 'a2', 'skip'] as const
+export const ACTIONS = ['up', 'down', 'left', 'right', 'place', 'upgrade', 'remove', 'target', 'prev', 'next', 's0', 's1', 's2', 'a0', 'a1', 'a2', 'skip'] as const
 export type Action = (typeof ACTIONS)[number]
 const ACTION_SET: ReadonlySet<string> = new Set(ACTIONS)
 
@@ -32,6 +33,7 @@ function codesFor(player: number): Record<Action, string> {
     place: c.place,
     upgrade: c.upgrade,
     remove: c.remove,
+    target: c.target,
     prev: c.prev,
     next: c.next,
     s0: c.slots[0],
@@ -55,7 +57,7 @@ export function decodeInput(raw: Record<string, unknown>): { d: Action[]; p: Act
 
 // ----------------------------------------------------------------- snapshots
 
-const ENEMY_KINDS: readonly EnemyKind[] = ['grunt', 'runner', 'brute', 'boss', 'splitter', 'spider', 'rageboss']
+const ENEMY_KINDS: readonly EnemyKind[] = ['grunt', 'runner', 'brute', 'boss', 'splitter', 'spider', 'rageboss', 'spitter', 'jumper']
 
 export const enemyKindAt = (i: number): EnemyKind | undefined => ENEMY_KINDS[i]
 export const buildKindAt = (i: number): BuildKind | undefined => BUILD_ORDER[i]
@@ -83,13 +85,15 @@ export interface Snap {
   shake: number
   /** [x, y] */
   gates: number[][]
+  /** Événement en cours : 0 = aucun, sinon 1 + index dans EVENT_KINDS. */
+  ev: number
   /** Kills par type (ordre de KILL_KINDS) : sert au calcul des points de fin de partie chez l'invité. */
   kstats: number[]
   /** [x, y, angle de tir, objet sélectionné, dirX, dirY, puis pour chaque emplacement de capacité : durée active restante, recharge restante (s)] */
   players: number[][]
   /** Apparence de chaque joueur : [couleur « #rrggbb », index du chapeau, index du canon, pseudo] */
   looks: Array<[string, number, number, number, string]>
-  /** [id, type, x, y, pv, pvMax, drapeaux : 1 = flash de dégâts, 2 = attaque en cours, 4 = crache une toile, 8 = en feu] */
+  /** [id, type, x, y, pv, pvMax, drapeaux : 1 = flash de dégâts, 2 = attaque en cours, 4 = crache une toile, 8 = en feu, 16 = en plein bond] */
   enemies: number[][]
   /** [x, y, vx, vy, style] (style : index dans BULLET_STYLES) */
   bullets: number[][]
@@ -102,7 +106,7 @@ const r1 = (v: number): number => Math.round(v * 10) / 10
 
 export function encodeSnap(state: GameState): Snap {
   const buildings: number[][] = []
-  for (const b of state.grid) if (b) buildings.push([BUILD_ORDER.indexOf(b.kind), b.col, b.row, Math.ceil(b.hp), b.level, b.branch, b.boost, Math.round(b.web * 10), b.owner])
+  for (const b of state.grid) if (b) buildings.push([BUILD_ORDER.indexOf(b.kind), b.col, b.row, Math.ceil(b.hp), b.level, b.branch, b.boost, Math.round(b.web * 10), b.owner, b.targeting])
 
   return {
     t: 'snap',
@@ -115,6 +119,7 @@ export function encodeSnap(state: GameState): Snap {
     queued: state.spawnQueue.length,
     kills: state.kills,
     kstats: state.kstats.slice(),
+    ev: state.event ? EVENT_KINDS.indexOf(state.event) + 1 : 0,
     over: state.gameOver ? 1 : 0,
     shake: r1(state.shake),
     gates: state.gates.map((g) => [Math.round(g.x), Math.round(g.y)]),
@@ -126,7 +131,7 @@ export function encodeSnap(state: GameState): Snap {
       p.look.name
     ]),
     players: state.players.map((p) => [r1(p.x), r1(p.y), Math.round(p.aim * 100) / 100, p.selected, p.dirX, p.dirY, ...p.abilityOn.flatMap((on, i) => [r1(on), r1(p.abilityCd[i])])]),
-    enemies: state.enemies.map((e) => [e.id, ENEMY_KINDS.indexOf(e.kind), r1(e.x), r1(e.y), Math.ceil(e.hp), e.maxHp, (e.flash > 0 ? 1 : 0) | (e.attacking ? 2 : 0) | (e.cast > 0 ? 4 : 0) | (e.burnT > 0 ? 8 : 0)]),
+    enemies: state.enemies.map((e) => [e.id, ENEMY_KINDS.indexOf(e.kind), r1(e.x), r1(e.y), Math.ceil(e.hp), e.maxHp, (e.flash > 0 ? 1 : 0) | (e.attacking ? 2 : 0) | (e.cast > 0 ? 4 : 0) | (e.burnT > 0 ? 8 : 0) | (e.jump > 0 ? 16 : 0)]),
     bullets: state.bullets.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy), b.style]),
     buildings,
     fx: state.fxLog ? state.fxLog.slice(0, MAX_FX) : []
@@ -162,7 +167,7 @@ function decodeFx(v: unknown): FxEvent[] {
     } else if (e[0] === 'm' && isNum(e[1]) && isNum(e[2]) && isNum(e[3]) && isNum(e[4])) {
       out.push(['m', e[1], e[2], e[3], clamp(Math.round(e[4]), 0, 3)])
     } else if (e[0] === 'w' && isNum(e[1]) && isNum(e[2]) && isNum(e[3]) && isNum(e[4])) {
-      out.push(['w', e[1], e[2], e[3], e[4]])
+      out.push(['w', e[1], e[2], e[3], e[4], e[5] === 1 ? 1 : 0])
     } else if (e[0] === 'd' && isNum(e[1]) && isNum(e[2]) && typeof e[3] === 'string' && isNum(e[4])) {
       out.push(['d', e[1], e[2], e[3].slice(0, 20), clamp(e[4], 0, 120)])
     }
@@ -197,6 +202,7 @@ export function decodeSnap(raw: Record<string, unknown>): Snap | null {
     queued: clamp(num(raw.queued), 0, 100000),
     kills: num(raw.kills),
     kstats: Array.isArray(raw.kstats) ? raw.kstats.slice(0, KILL_KINDS.length).map((v) => Math.max(0, num(v))) : [],
+    ev: clamp(Math.round(num(raw.ev)), 0, EVENT_KINDS.length),
     over: raw.over === 1 ? 1 : 0,
     shake: clamp(num(raw.shake), 0, 1),
     gates: rows(raw.gates, 2, 8),

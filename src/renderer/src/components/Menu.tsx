@@ -204,6 +204,15 @@ export function Menu(): React.JSX.Element {
                   </td>
                 </tr>
                 <tr>
+                  <td>Cible de la tourelle (proche d'elle / de la forteresse)</td>
+                  <td>
+                    <kbd>{label(CONTROLS[0].target)}</kbd>
+                  </td>
+                  <td>
+                    <kbd>{label(CONTROLS[1].target)}</kbd>
+                  </td>
+                </tr>
+                <tr>
                   <td>Démolir (remboursement partiel)</td>
                   <td>
                     <kbd>{label(CONTROLS[0].remove)}</kbd>

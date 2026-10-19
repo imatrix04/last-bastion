@@ -63,6 +63,51 @@ export function computeFlow(state: GameState): void {
   state.flowDirty = false
 }
 
+/** Champ de distance du Sauteur : les bâtiments ne coûtent rien (il saute par-dessus). Ne change jamais en cours de partie. */
+export function computeAirFlow(state: GameState): void {
+  const dist = state.flowAir
+  dist.fill(Infinity)
+  const queue: number[] = []
+  for (let row = BASE.row; row < BASE.row + BASE.rows; row++) {
+    for (let col = BASE.col; col < BASE.col + BASE.cols; col++) {
+      const i = idx(col, row)
+      dist[i] = 0
+      queue.push(i)
+    }
+  }
+  for (let head = 0; head < queue.length; head++) {
+    const i = queue[head]
+    const col = i % COLS
+    const row = Math.floor(i / COLS)
+    for (const [dc, dr] of DIRS) {
+      const nc = col + dc
+      const nr = row + dr
+      if (!inBounds(nc, nr)) continue
+      const j = idx(nc, nr)
+      if (dist[j] !== Infinity) continue
+      dist[j] = dist[i] + 1
+      queue.push(j)
+    }
+  }
+}
+
+/** Case voisine à rejoindre pour le Sauteur : vers la forteresse en ligne droite, sans tenir compte des bâtiments. */
+export function nextCellAir(state: GameState, col: number, row: number): { col: number; row: number } | null {
+  let best: { col: number; row: number } | null = null
+  let bestVal = Infinity
+  for (const [dc, dr] of DIRS) {
+    const nc = col + dc
+    const nr = row + dr
+    if (!inBounds(nc, nr)) continue
+    const val = state.flowAir[idx(nc, nr)]
+    if (val < bestVal) {
+      bestVal = val
+      best = { col: nc, row: nr }
+    }
+  }
+  return best
+}
+
 /** Case voisine à rejoindre pour se rapprocher de la forteresse au moindre coût. */
 export function nextCell(state: GameState, col: number, row: number): { col: number; row: number } | null {
   let best: { col: number; row: number } | null = null

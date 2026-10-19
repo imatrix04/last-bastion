@@ -1,4 +1,4 @@
-import { actPlace, actRemove, actUpgrade } from './build'
+import { actPlace, actRemove, actToggleTarget, actUpgrade } from './build'
 import {
   BASE,
   BUILD_ORDER,
@@ -9,9 +9,11 @@ import {
   ENEMIES,
   HEIGHT,
   isBossKind,
+  JUMP,
   PLAYER,
   PREP_TIME,
   ROWS,
+  SPIT,
   TILE,
   WEB,
   WIDTH
@@ -22,7 +24,8 @@ import { ABILITY_CONFIG, EXPLOSION, MINIGUN, PLAYER_AIM, WAVES } from './config/
 import { CONTROLS, DEV_ENABLED, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './config/controls'
 import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot } from './fx'
 import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
-import { computeFlow, nextCell } from './pathing'
+import { advanceEvent, eventMods, playerSight, rollEvent, turretSees } from './events'
+import { computeFlow, nextCell, nextCellAir } from './pathing'
 import { killIndex } from './config/progress'
 import { fireRateMult, isWeapon, playerStats, spikeStats, tierOf, turretStats } from './stats'
 import { turretForm } from './config/turrets'
@@ -45,6 +48,7 @@ export function step(state: GameState, dt: number, input: InputLike): void {
 
   updatePlayers(state, dt, input)
   updateWaves(state, dt, input)
+  advanceEvent(state, dt)
   if (state.flowDirty) computeFlow(state)
   updateEnemies(state, dt)
   updateTurrets(state, dt)
@@ -62,11 +66,11 @@ export function step(state: GameState, dt: number, input: InputLike): void {
 
 // ---------------------------------------------------------------- utilitaires
 
-export function nearestEnemy(state: GameState, x: number, y: number, range: number): Enemy | null {
+export function nearestEnemy(state: GameState, x: number, y: number, range: number, canSee?: (e: Enemy) => boolean): Enemy | null {
   let best: Enemy | null = null
   let bestD = range * range
   for (const e of state.enemies) {
-    if (e.hp <= 0) continue
+    if (e.hp <= 0 || (canSee && !canSee(e))) continue
     const dx = e.x - x
     const dy = e.y - y
     const d = dx * dx + dy * dy
@@ -76,6 +80,51 @@ export function nearestEnemy(state: GameState, x: number, y: number, range: numb
     }
   }
   return best
+}
+
+/**
+ * Cible d'une tourelle selon son mode : l'ennemi le plus proche d'elle (0) ou de la forteresse (1), parmi ceux à portée.
+ * Partagé avec l'affichage de l'invité (clientView.ts).
+ */
+export function turretTarget(state: GameState, b: Building, cx: number, cy: number, range: number): Enemy | null {
+  // Sans visuel (brouillard), une tourelle ne tire pas
+  const canSee = (e: Enemy): boolean => turretSees(state, cx, cy, e)
+  if (b.targeting !== 1) return nearestEnemy(state, cx, cy, range, canSee)
+  const bx = (BASE.col + BASE.cols / 2) * TILE
+  const by = (BASE.row + BASE.rows / 2) * TILE
+  let best: Enemy | null = null
+  let bestD = Infinity
+  for (const e of state.enemies) {
+    if (e.hp <= 0 || Math.hypot(e.x - cx, e.y - cy) > range || !canSee(e)) continue
+    const d = Math.hypot(e.x - bx, e.y - by)
+    if (d < bestD) {
+      bestD = d
+      best = e
+    }
+  }
+  return best
+}
+
+/**
+ * Cible du joueur : un Cracheur à portée passe avant tout le monde (il détruit les tourelles),
+ * sinon l'ennemi le plus proche.
+ */
+export function priorityEnemy(state: GameState, x: number, y: number, rawRange: number): Enemy | null {
+  // Brouillard : le joueur ne tire que sur ce qu'il voit
+  const range = Math.min(rawRange, playerSight(state))
+  let best: Enemy | null = null
+  let bestD = range * range
+  for (const e of state.enemies) {
+    if (e.hp <= 0 || e.kind !== 'spitter') continue
+    const dx = e.x - x
+    const dy = e.y - y
+    const d = dx * dx + dy * dy
+    if (d < bestD) {
+      bestD = d
+      best = e
+    }
+  }
+  return best ?? nearestEnemy(state, x, y, range)
 }
 
 /**
@@ -239,6 +288,7 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
 
     // Amélioration (une pression = une amélioration)
     if (input.wasPressed(c.upgrade)) actUpgrade(state, p)
+    if (input.wasPressed(c.target)) actToggleTarget(state, p)
 
     // Construction / réparation / démolition (la touche maintenue répète l'action)
     p.buildCd -= dt
@@ -253,7 +303,7 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
     // Tir automatique sur l'ennemi le plus proche
     p.shootCd -= dt
     const ps = playerStats(p.perks)
-    const target = nearestEnemy(state, p.x, p.y, ps.range)
+    const target = priorityEnemy(state, p.x, p.y, ps.range)
     if (target) {
       p.aim = leadAngle(p.x, p.y, target, ps.bulletSpeed, ps.lead)
       if (p.shootCd <= 0) {
@@ -306,6 +356,7 @@ function updateWaves(state: GameState, dt: number, input: InputLike): void {
 function startWave(state: GameState): void {
   state.wave += 1
   state.spawnQueue = composeWave(state.wave, state.playerCount)
+  state.event = rollEvent(state.wave)
   // Départs décalés pour que les entrées ne crachent pas toutes au même instant.
   state.gateTimers = state.gates.map((_, i) => 0.5 + i * 0.12)
   state.phase = 'combat'
@@ -323,6 +374,7 @@ function endWave(state: GameState): void {
     '#a5d6a7'
   )
   state.phase = 'prep'
+  state.event = null
   state.countdown = PREP_TIME
   state.gates = pickGates(state.wave + 1)
 }
@@ -377,7 +429,53 @@ function spiderAbility(state: GameState, e: Enemy, dt: number): boolean {
   return true
 }
 
-/** Fait voler les toiles ; à l'arrivée (hôte seulement), la toile englue l'arme visée. */
+/** Tourelle la plus proche dans un rayon donné. */
+function nearestTurret(state: GameState, x: number, y: number, range: number): Building | null {
+  let best: Building | null = null
+  let bestD = range * range
+  for (const b of state.grid) {
+    if (!b || b.kind !== 'turret') continue
+    const dx = (b.col + 0.5) * TILE - x
+    const dy = (b.row + 0.5) * TILE - y
+    const d = dx * dx + dy * dy
+    if (d < bestD) {
+      bestD = d
+      best = b
+    }
+  }
+  return best
+}
+
+/**
+ * Le Cracheur s'arrête dès qu'une tourelle est à portée et la bombarde d'acide tant qu'il vit.
+ * Renvoie vrai tant qu'il tient sa position (préparation ou attente entre deux crachats).
+ */
+function spitterAbility(state: GameState, e: Enemy, dt: number): boolean {
+  if (e.cast > 0) {
+    e.cast -= dt
+    turnToward(e, Math.atan2((e.webRow + 0.5) * TILE - e.y, (e.webCol + 0.5) * TILE - e.x), dt * 2)
+    if (e.cast > 0) return true
+    e.cast = 0
+    const b = state.grid[idx(e.webCol, e.webRow)]
+    if (b && b.kind === 'turret') {
+      const a = Math.atan2((e.webRow + 0.5) * TILE - e.y, (e.webCol + 0.5) * TILE - e.x)
+      webShot(state, e.x + Math.cos(a) * e.radius, e.y + Math.sin(a) * e.radius, (e.webCol + 0.5) * TILE, (e.webRow + 0.5) * TILE, e.webCol, e.webRow, true)
+    }
+    return true
+  }
+  e.abilityCd -= dt
+  const target = nearestTurret(state, e.x, e.y, SPIT.range)
+  if (!target) return false
+  turnToward(e, Math.atan2((target.row + 0.5) * TILE - e.y, (target.col + 0.5) * TILE - e.x), dt * 2)
+  if (e.abilityCd > 0) return true
+  e.webCol = target.col
+  e.webRow = target.row
+  e.cast = SPIT.windup
+  e.abilityCd = SPIT.cooldown
+  return true
+}
+
+/** Fait voler les toiles et l'acide ; à l'arrivée (hôte seulement), la toile englue l'arme visée, l'acide blesse la tourelle. */
 export function advanceWebs(state: GameState, dt: number, apply: boolean): void {
   let w = 0
   for (const web of state.webs) {
@@ -389,6 +487,12 @@ export function advanceWebs(state: GameState, dt: number, apply: boolean): void 
     if (!apply || web.col < 0) continue
     const b = state.grid[idx(web.col, web.row)]
     if (!b || !isWeapon(b.kind)) continue
+    if (web.acid) {
+      sparks(state, web.tx, web.ty, '#b2ff59', 10, 130)
+      ring(state, web.tx, web.ty, '#aeea00', 30)
+      damageBuilding(state, b, SPIT.damage)
+      continue
+    }
     b.web = WEB.duration
     sparks(state, web.tx, web.ty, '#f5f5ff', 8, 130)
     ring(state, web.tx, web.ty, '#e8eaf6', 30)
@@ -401,6 +505,46 @@ function turnToward(e: Enemy, target: number, dt: number): void {
   let d = target - e.face
   d = Math.atan2(Math.sin(d), Math.cos(d))
   e.face += d * (1 - Math.exp(-dt * 12))
+}
+
+/**
+ * Le Sauteur bondit par-dessus le bâtiment solide qui lui barre la route, dans la direction `dc, dr`.
+ * Renvoie faux s'il n'y a pas de case libre à portée de bond (il attaque alors l'obstacle comme les autres).
+ */
+function startJump(state: GameState, e: Enemy, dc: number, dr: number, col: number, row: number): boolean {
+  for (let k = 0; k <= JUMP.maxCells; k++) {
+    const c = col + dc * k
+    const r = row + dr * k
+    if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return false
+    if (isBaseCell(c, r)) return false
+    if (isSolidCell(state, c, r)) continue
+    e.jx0 = e.x
+    e.jy0 = e.y
+    e.jx1 = (c + 0.5) * TILE
+    e.jy1 = (r + 0.5) * TILE
+    e.jump = JUMP.duration
+    e.jumpDur = JUMP.duration
+    smoke(state, e.x, e.y, '#bcaaa4', 2, 40)
+    return true
+  }
+  return false
+}
+
+/** Fait avancer le bond en cours. */
+function advanceJump(state: GameState, e: Enemy, dt: number): void {
+  e.jump = Math.max(0, e.jump - dt)
+  const k = 1 - e.jump / e.jumpDur
+  const nx = e.jx0 + (e.jx1 - e.jx0) * k
+  const ny = e.jy0 + (e.jy1 - e.jy0) * k
+  e.vx = (nx - e.x) / dt
+  e.vy = (ny - e.y) / dt
+  e.x = nx
+  e.y = ny
+  turnToward(e, Math.atan2(e.jy1 - e.jy0, e.jx1 - e.jx0), dt)
+  if (e.jump <= 0) {
+    smoke(state, e.x, e.y, '#bcaaa4', 3, 50)
+    ring(state, e.x, e.y, '#d7ccc8', 22)
+  }
 }
 
 /** Attaque ce qui bloque l'ennemi : un bâtiment ou la forteresse. */
@@ -452,7 +596,17 @@ function updateEnemies(state: GameState, dt: number): void {
       e.hp -= e.burnDps * dt
       if (e.hp <= 0) continue
     }
+    if (e.jump > 0) {
+      // En plein bond : ni attaque ni collision, il suit son arc jusqu'à l'atterrissage.
+      e.attacking = false
+      advanceJump(state, e, dt)
+      continue
+    }
     if (e.kind === 'spider' && spiderAbility(state, e, dt)) {
+      e.attacking = false
+      continue
+    }
+    if (e.kind === 'spitter' && spitterAbility(state, e, dt)) {
       e.attacking = false
       continue
     }
@@ -468,7 +622,7 @@ function updateEnemies(state: GameState, dt: number): void {
 
     const col = clamp(Math.floor(e.x / TILE), 0, COLS - 1)
     const row = clamp(Math.floor(e.y / TILE), 0, ROWS - 1)
-    const next = nextCell(state, col, row)
+    const next = e.kind === 'jumper' ? nextCellAir(state, col, row) : nextCell(state, col, row)
     if (!next) continue
 
     const target = state.grid[idx(next.col, next.row)]
@@ -478,6 +632,7 @@ function updateEnemies(state: GameState, dt: number): void {
     if (blocking) {
       const d = distToRect(e.x, e.y, next.col * TILE, next.row * TILE, TILE, TILE)
       if (d <= e.radius + 4) {
+        if (e.kind === 'jumper' && !onBase && startJump(state, e, next.col - col, next.row - row, next.col, next.row)) continue
         e.attacking = true
         turnToward(e, Math.atan2((next.row + 0.5) * TILE - e.y, (next.col + 0.5) * TILE - e.x), dt)
         if (e.attackCd <= 0) strike(state, e, target, onBase)
@@ -487,7 +642,7 @@ function updateEnemies(state: GameState, dt: number): void {
     e.attacking = false
     if (e.stuck) chew(state, e)
 
-    let speed = def.speed
+    let speed = def.speed * eventMods(state).mobSpeed
     const here = state.grid[idx(col, row)]
     if (here && here.kind === 'spikes') speed *= spikeStats(here.level).slow
     const tx = (next.col + 0.5) * TILE
@@ -535,7 +690,7 @@ function updateEnemies(state: GameState, dt: number): void {
     if (e.hp <= 0) continue
     e.x = clamp(e.x, e.radius, WIDTH - e.radius)
     e.y = clamp(e.y, e.radius, HEIGHT - e.radius)
-    resolveTiles(state, e, e.radius)
+    if (e.jump <= 0) resolveTiles(state, e, e.radius)
   }
 }
 
@@ -614,7 +769,7 @@ function updateTurrets(state: GameState, dt: number): void {
     const cx = (b.col + 0.5) * TILE
     const cy = (b.row + 0.5) * TILE
     const stats = turretStats(b.level, b.branch)
-    const target = nearestEnemy(state, cx, cy, stats.range)
+    const target = turretTarget(state, b, cx, cy, stats.range)
     if (!target) continue
     b.angle = Math.atan2(target.y - cy, target.x - cx)
     if (b.cooldown <= 0) {
@@ -630,7 +785,7 @@ function updateTurrets(state: GameState, dt: number): void {
       const my = cy + Math.sin(b.angle) * muzzleLen + Math.cos(b.angle) * lateral
       // Le minigun arrose : léger écart aléatoire à chaque balle.
       const angle = minigun ? b.angle + (Math.random() - 0.5) * MINIGUN.spread : b.angle
-      fire(state, mx, my, angle, stats.bulletSpeed, stats.damage, stats.range, minigun ? 3 : form === 'explosive' ? 4 : heavy ? 2 : 1, stats.splash ?? 0)
+      fire(state, mx, my, angle, stats.bulletSpeed, stats.damage * eventMods(state).turretDamage, stats.range, minigun ? 3 : form === 'explosive' ? 4 : heavy ? 2 : 1, stats.splash ?? 0)
       muzzle(state, mx, my, angle, heavy ? 3 : double ? 2 : 1)
       b.recoil = 1
       if (heavy) state.shake = Math.min(1, state.shake + (form === 'explosive' ? 0.06 : 0.04))

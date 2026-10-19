@@ -1,5 +1,5 @@
 import { BASE, COLS, FIRST_PREP, ROWS, START_GOLD, TILE } from './config/constants'
-import { computeFlow } from './pathing'
+import { computeAirFlow, computeFlow } from './pathing'
 import type { GameState, Player } from './types'
 import { ABILITY_SLOTS, KILL_KINDS, emptyLoadout, type Loadout } from './config/progress'
 import { pickGates } from './waves'
@@ -39,6 +39,11 @@ export function createState(playerCount: 1 | 2, loadouts: Loadout[] = []): GameS
     gateTimers: [],
     gates: pickGates(1),
     flow: new Float32Array(COLS * ROWS),
+    flowAir: new Float32Array(COLS * ROWS),
+    event: null,
+    eventAge: 0,
+    eventShown: null,
+    eventLevel: 0,
     flowDirty: true,
     nextEnemyId: 1,
     kills: 0,
@@ -49,5 +54,6 @@ export function createState(playerCount: 1 | 2, loadouts: Loadout[] = []): GameS
     choice: null
   }
   computeFlow(state)
+  computeAirFlow(state)
   return state
 }

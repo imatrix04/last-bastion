@@ -259,7 +259,7 @@ export const emptyLoadout = (slot = 0): Loadout => ({ unlocks: 0, perks: emptyPe
 // -------------------------------------------------------------------------- gains
 
 /** Ordre des compteurs de kills (partagé avec le réseau). `minion` : petits issus d'une division. */
-export const KILL_KINDS = ['grunt', 'runner', 'brute', 'boss', 'splitter', 'minion', 'spider', 'rageboss'] as const
+export const KILL_KINDS = ['grunt', 'runner', 'brute', 'boss', 'splitter', 'minion', 'spider', 'rageboss', 'spitter', 'jumper'] as const
 export type KillKind = (typeof KILL_KINDS)[number]
 
 export const killIndex = (kind: EnemyKind, minion: boolean): number => (minion ? 5 : KILL_KINDS.indexOf(kind))

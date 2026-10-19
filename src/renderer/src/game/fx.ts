@@ -1,4 +1,4 @@
-import { WEB } from './config/constants'
+import { SPIT, WEB } from './config/constants'
 import type { FxEvent, GameState, Particle, ParticleShape } from './types'
 
 const MAX_PARTICLES = 700
@@ -103,10 +103,10 @@ export function muzzle(state: GameState, x: number, y: number, angle: number, st
  * Toile d'araignée en vol. Sur l'hôte (col/row ≥ 0) elle englue l'arme visée à l'arrivée ;
  * chez le joueur distant elle ne sert qu'à l'affichage.
  */
-export function webShot(state: GameState, x: number, y: number, tx: number, ty: number, col = -1, row = -1): void {
-  log(state, ['w', Math.round(x), Math.round(y), Math.round(tx), Math.round(ty)])
+export function webShot(state: GameState, x: number, y: number, tx: number, ty: number, col = -1, row = -1, acid = false): void {
+  log(state, ['w', Math.round(x), Math.round(y), Math.round(tx), Math.round(ty), acid ? 1 : 0])
   if (state.webs.length >= 40) state.webs.shift()
-  state.webs.push({ x, y, tx, ty, t: 0, dur: WEB.flight, col, row })
+  state.webs.push({ x, y, tx, ty, t: 0, dur: acid ? SPIT.flight : WEB.flight, col, row, acid })
 }
 
 export function addText(state: GameState, x: number, y: number, text: string, color: string): void {

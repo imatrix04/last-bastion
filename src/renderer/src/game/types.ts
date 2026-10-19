@@ -1,6 +1,7 @@
 import type { Look } from './config/appearance'
 import type { AbilityId } from './config/progress'
 import type { BuildKind, EnemyKind } from './config/constants'
+import type { EventKind } from './config/config'
 import type { Branch } from './config/turrets'
 
 export interface Vec {
@@ -73,6 +74,13 @@ export interface Enemy {
   /** Brûlure : secondes restantes (0 = ne brûle pas) et dégâts par seconde. */
   burnT: number
   burnDps: number
+  /** Sauteur : secondes restantes du bond en cours (0 = au sol), durée totale, départ et arrivée (px). */
+  jump: number
+  jumpDur: number
+  jx0: number
+  jy0: number
+  jx1: number
+  jy1: number
 }
 
 export interface Building {
@@ -96,6 +104,8 @@ export interface Building {
   boost: number
   /** Numéro du joueur qui a posé le bâtiment (0 ou 1). Sert à compter les tourelles de chacun. */
   owner: number
+  /** Tourelle : 0 = vise l'ennemi le plus proche d'elle, 1 = le plus proche de la forteresse. */
+  targeting: 0 | 1
   /** Secondes restantes sous une toile d'araignée (cadence de tir réduite). */
   web: number
   /** Secondes avant de pouvoir réparer à nouveau ce bâtiment (hôte seulement, non transmis). */
@@ -165,6 +175,8 @@ export interface Web {
   /** Case visée (-1 : toile purement visuelle, côté joueur distant). */
   col: number
   row: number
+  /** Crachat acide du Cracheur (dégâts à la tourelle) au lieu d'une toile. */
+  acid: boolean
 }
 
 export interface FloatText {
@@ -181,7 +193,7 @@ export type Phase = 'prep' | 'combat'
  * Effet visuel à rejouer chez l'autre joueur :
  * particules ['b', x, y, couleur, nombre, vitesse, style], texte ['t', x, y, texte, couleur],
  * onde de choc ['r', x, y, couleur, rayon], flash de bouche ['m', x, y, angle, style], tache ['d', x, y, couleur, taille],
- * toile d'araignée en vol ['w', x, y, cibleX, cibleY].
+ * toile d'araignée (ou acide du Cracheur si le dernier nombre vaut 1) en vol ['w', x, y, cibleX, cibleY, acide].
  */
 export type FxEvent =
   | ['b', number, number, string, number, number, number]
@@ -189,7 +201,7 @@ export type FxEvent =
   | ['r', number, number, string, number]
   | ['m', number, number, number, number]
   | ['d', number, number, string, number]
-  | ['w', number, number, number, number]
+  | ['w', number, number, number, number, number]
 
 /** Un joueur veut améliorer une tourelle de niveau 2 : l'interface lui propose le choix de branche. */
 export interface ChoiceRequest {
@@ -267,6 +279,14 @@ export interface GameState {
   gates: Vec[]
   /** Coût cumulé jusqu'à la forteresse, par case. */
   flow: Float32Array
+  /** Champ de distance du Sauteur : les bâtiments ne comptent pas. */
+  flowAir: Float32Array
+  /** Événement aléatoire en cours (toute la vague), son temps écoulé (s), et l'état de l'affichage (voir events.ts). */
+  event: EventKind | null
+  eventAge: number
+  /** Dernier événement affiché (reste le temps du fondu de sortie) et intensité de ses effets visuels (0 à 1). */
+  eventShown: EventKind | null
+  eventLevel: number
   flowDirty: boolean
   nextEnemyId: number
   kills: number

@@ -9,6 +9,8 @@ export interface PlayerControls {
   place: string
   upgrade: string
   remove: string
+  /** Change la cible de la tourelle visée : ennemi le plus proche d'elle / de la forteresse. */
+  target: string
   prev: string
   next: string
   /** Sélection directe des 3 objets de construction. */
@@ -26,6 +28,7 @@ export const CONTROLS: PlayerControls[] = [
     place: 'KeyF',
     upgrade: 'KeyR',
     remove: 'Backspace',
+    target: 'KeyG',
     prev: 'KeyQ',
     next: 'KeyE',
     slots: ['Digit1', 'Digit2', 'Digit3'],
@@ -39,6 +42,7 @@ export const CONTROLS: PlayerControls[] = [
     place: 'Enter',
     upgrade: 'ShiftRight',
     remove: 'Delete',
+    target: 'Numpad0',
     prev: 'Comma',
     next: 'Period',
     slots: ['Numpad1', 'Numpad2', 'Numpad3'],
@@ -64,7 +68,7 @@ export interface InputLike {
 
 /** Touches dont on bloque le comportement par défaut (défilement, focus...) pendant la partie. */
 export const GAME_KEYS: ReadonlySet<string> = new Set([
-  ...CONTROLS.flatMap((c) => [c.up, c.down, c.left, c.right, c.place, c.upgrade, c.remove, c.prev, c.next, ...c.slots, ...c.abilities]),
+  ...CONTROLS.flatMap((c) => [c.up, c.down, c.left, c.right, c.place, c.upgrade, c.remove, c.target, c.prev, c.next, ...c.slots, ...c.abilities]),
   SKIP_WAVE,
   DEV_TOGGLE
 ])

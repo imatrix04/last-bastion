@@ -203,7 +203,7 @@ function BuildBar({
       <div className="keys">
         <kbd>{label(c.prev)}</kbd>
         <kbd>{label(c.next)}</kbd> objet · <kbd>{label(c.place)}</kbd> construire / réparer · <kbd>{label(c.upgrade)}</kbd>{' '}
-        améliorer · <kbd>{label(c.remove)}</kbd> démolir
+        améliorer · <kbd>{label(c.remove)}</kbd> démolir · <kbd>{label(c.target)}</kbd> cible tourelle
       </div>
     </div>
   )

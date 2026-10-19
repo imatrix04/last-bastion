@@ -3,6 +3,8 @@ import { buildTarget, placementStatus } from './build'
 import type { BiomeDecor, BiomeDef } from './config/config'
 import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, WIDTH } from './config/constants'
 import { drawPlayer } from './player'
+import { EVENTS } from './config/config'
+import { enemyHidden, lightSources } from './events'
 import { buildingAt } from './grid'
 import { drawBar, drawEnemy, drawEnemyTrail, drawGlow, drawTurret } from './sprites'
 import { levelName, maxLevelOf, nextUpgrade } from './stats'
@@ -275,15 +277,112 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
   drawBase(ctx, state)
   for (const b of state.grid) if (b && b.kind !== 'spikes') drawBuilding(ctx, b, state.time)
   drawGhosts(ctx, state)
-  for (const e of state.enemies) drawEnemyTrail(ctx, e)
-  for (const e of state.enemies) drawEnemy(ctx, e, state.time)
+  for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemyTrail(ctx, e)
+  for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemy(ctx, e, state.time)
   for (const p of state.players) drawPlayer(ctx, p, state.time)
   drawGhostLabels(ctx, state)
   drawBullets(ctx, state)
   drawWebShots(ctx, state)
   drawFx(ctx, state)
+  drawEvent(ctx, state)
   drawAmbient(ctx, biomeOf(state.wave), state.time)
   if (extra.banner) drawBanner(ctx, extra.banner)
+  drawEventBanner(ctx, state)
+  ctx.restore()
+}
+
+// ------------------------------------------------------------ événements aléatoires
+
+/** Calque de brume, à demi-résolution (la brume est floue : inutile de la dessiner en pleine taille). */
+let fogLayer: HTMLCanvasElement | null = null
+const FOG_SCALE = 0.5
+
+/** Effets visuels de l'événement en cours : voile de couleur, brume qui ne laisse voir que les zones éclairées, volutes qui dérivent. */
+function drawEvent(ctx: CanvasRenderingContext2D, state: GameState): void {
+  const kind = state.eventShown
+  const level = state.eventLevel
+  if (!kind || level <= 0.01) return
+  const def = EVENTS.list[kind]
+
+  ctx.fillStyle = def.tint
+  ctx.globalAlpha = level
+  ctx.fillRect(0, 0, WIDTH, HEIGHT)
+  ctx.globalAlpha = 1
+
+  if (kind !== 'fog') return
+  if (!fogLayer) {
+    fogLayer = document.createElement('canvas')
+    fogLayer.width = Math.round(WIDTH * FOG_SCALE)
+    fogLayer.height = Math.round(HEIGHT * FOG_SCALE)
+  }
+  const g = fogLayer.getContext('2d')
+  if (!g) return
+  g.setTransform(FOG_SCALE, 0, 0, FOG_SCALE, 0, 0)
+  g.globalCompositeOperation = 'source-over'
+  g.clearRect(0, 0, WIDTH, HEIGHT)
+  g.fillStyle = `rgba(${def.fogRgb}, 0.9)`
+  g.fillRect(0, 0, WIDTH, HEIGHT)
+  // Zones éclairées : on perce la brume autour des joueurs, des tourelles et de la forteresse
+  g.globalCompositeOperation = 'destination-out'
+  for (const l of lightSources(state)) {
+    const flicker = 1 + 0.03 * Math.sin(state.time * 3 + l.x * 0.05)
+    const r = l.r * flicker
+    const hole = g.createRadialGradient(l.x, l.y, r * 0.25, l.x, l.y, r)
+    hole.addColorStop(0, 'rgba(0, 0, 0, 1)')
+    hole.addColorStop(0.6, 'rgba(0, 0, 0, 0.85)')
+    hole.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    g.fillStyle = hole
+    g.beginPath()
+    g.arc(l.x, l.y, r, 0, Math.PI * 2)
+    g.fill()
+  }
+  g.globalCompositeOperation = 'source-over'
+  ctx.globalAlpha = level
+  ctx.drawImage(fogLayer, 0, 0, WIDTH, HEIGHT)
+
+  // Volutes de brume qui dérivent, par-dessus tout (y compris les zones éclairées, très légèrement)
+  for (let i = 0; i < 7; i++) {
+    const x = ((i * 263 + state.time * (7 + i * 2.5)) % (WIDTH + 400)) - 200
+    const y = 90 + i * 95 + Math.sin(state.time * 0.3 + i * 1.7) * 30
+    const wisp = ctx.createRadialGradient(x, y, 0, x, y, 170)
+    wisp.addColorStop(0, `rgba(${def.fogRgb}, 0.16)`)
+    wisp.addColorStop(1, `rgba(${def.fogRgb}, 0)`)
+    ctx.fillStyle = wisp
+    ctx.fillRect(x - 170, y - 170, 340, 340)
+  }
+  ctx.globalAlpha = 1
+}
+
+/** Annonce de l'événement (sous celle du biome) : apparaît puis s'efface. */
+function drawEventBanner(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (!state.event) return
+  const p = state.eventAge / EVENTS.bannerSeconds
+  const alpha = Math.min(1, p / 0.12, (1 - p) / 0.25)
+  if (alpha <= 0) return
+  const def = EVENTS.list[state.event]
+  const y = 200
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const band = ctx.createLinearGradient(0, y - 40, 0, y + 40)
+  band.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  band.addColorStop(0.5, 'rgba(0, 0, 0, 0.62)')
+  band.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  ctx.fillStyle = band
+  ctx.fillRect(0, y - 40, WIDTH, 80)
+  ctx.font = `600 13px ${FONT}`
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
+  ctx.fillText('ÉVÉNEMENT', WIDTH / 2, y - 22)
+  ctx.font = `800 28px ${FONT}`
+  ctx.lineWidth = 5
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
+  ctx.strokeText(def.name, WIDTH / 2, y + 2)
+  ctx.fillStyle = def.accent
+  ctx.fillText(def.name, WIDTH / 2, y + 2)
+  ctx.font = `italic 600 13px ${FONT}`
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.82)'
+  ctx.fillText(def.tagline, WIDTH / 2, y + 26)
   ctx.restore()
 }
 
@@ -435,6 +534,20 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number):
       ctx.fill()
       ctx.stroke()
     }
+  }
+  // Mode de ciblage « proche de la forteresse » : petit losange orange en haut à droite de la tourelle
+  if (b.kind === 'turret' && b.targeting === 1) {
+    ctx.fillStyle = '#ff9800'
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.moveTo(x + TILE - 6, y + 1)
+    ctx.lineTo(x + TILE - 1, y + 6)
+    ctx.lineTo(x + TILE - 6, y + 11)
+    ctx.lineTo(x + TILE - 11, y + 6)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
   }
   if (b.hp < b.maxHp) {
     const ratio = b.hp / b.maxHp
@@ -731,6 +844,22 @@ function drawWebShots(ctx: CanvasRenderingContext2D, state: GameState): void {
     const k = Math.min(1, w.t / w.dur)
     const px = w.x + (w.tx - w.x) * k
     const py = w.y + (w.ty - w.y) * k - Math.sin(k * Math.PI) * 14
+    if (w.acid) {
+      // Goutte d'acide : boule verte avec un reflet et un halo.
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      drawGlow(ctx, px, py, 16, '#b2ff59', 0.6)
+      ctx.restore()
+      ctx.fillStyle = '#76ff03'
+      ctx.beginPath()
+      ctx.arc(px, py, 5, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+      ctx.beginPath()
+      ctx.arc(px - 1.5, py - 1.5, 1.8, 0, Math.PI * 2)
+      ctx.fill()
+      continue
+    }
     ctx.strokeStyle = 'rgba(240, 242, 255, 0.7)'
     ctx.lineWidth = 1.3
     ctx.beginPath()

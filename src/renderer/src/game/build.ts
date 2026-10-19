@@ -87,7 +87,8 @@ export function placeBuilding(state: GameState, kind: BuildKind, col: number, ro
     boost,
     web: 0,
     repairCd: 0,
-    owner
+    owner,
+    targeting: 0
   }
   state.grid[idx(col, row)] = b
   if (def.solid) state.flowDirty = true
@@ -234,6 +235,24 @@ export function applyTurretBranch(state: GameState, col: number, row: number, br
   upgradeBuilding(state, b, branch)
   upgradeFx(state, b)
   state.shake = Math.min(1, state.shake + 0.08)
+  return true
+}
+
+/** Bascule la tourelle ciblée entre « ennemi le plus proche d'elle » et « ennemi le plus proche de la forteresse ». */
+export function actToggleTarget(state: GameState, p: Player): boolean {
+  const { col, row } = buildTarget(p)
+  const b = buildingAt(state, col, row)
+  if (!b || b.kind !== 'turret') {
+    addText(state, p.x, p.y - 24, 'Visez une tourelle', '#b0bec5')
+    return false
+  }
+  if (b.owner !== p.id) {
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, `Appartient au Joueur ${b.owner + 1}`, '#b0bec5')
+    return false
+  }
+  b.targeting = b.targeting === 0 ? 1 : 0
+  addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 28, b.targeting === 1 ? 'Cible : proche de la forteresse' : 'Cible : proche de la tourelle', '#80deea')
+  ring(state, (col + 0.5) * TILE, (row + 0.5) * TILE, '#80deea', 30)
   return true
 }
 
