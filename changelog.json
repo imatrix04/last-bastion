@@ -1,7 +1,7 @@
 {
   "releases": [
     {
-      "version": "1.5.1",
+      "version": "1.5.2",
       "date": "2026-10-19",
       "added": [
         "Le jeu est disponible en français et en anglais. Nouvel écran Paramètres (menu principal) pour choisir la langue : elle s'applique tout de suite et reste enregistrée. Par défaut, le jeu suit la langue du système",

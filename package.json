@@ -1,6 +1,6 @@
 {
   "name": "last-bastion",
-  "version": "1.5.0",
+  "version": "1.5.2",
   "description": "Base-defense 2D en coop local (Electron + React + TypeScript)",
   "main": "./out/main/index.js",
   "author": "Florent",
