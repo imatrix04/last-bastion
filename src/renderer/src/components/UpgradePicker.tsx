@@ -2,6 +2,8 @@ import { useEffect, useRef, type CSSProperties } from 'react'
 import { DEFAULT_COLORS } from '../game/config/appearance'
 import { TURRET_BASE_MAX_LEVEL, TURRET_BRANCHES, TURRET_MAX_LEVEL, TURRET_PLAIN_MAX, type Branch } from '../game/config/turrets'
 import { gameBridge } from '../game/gameBridge'
+import { useT } from '../i18n'
+import { rich } from '../i18n/rich'
 import { drawTurret } from '../game/sprites'
 import { unlockMask } from '../game/config/progress'
 import { TURRET_SPEC_LEVEL, branchUnlocked, turretStats } from '../game/stats'
@@ -63,6 +65,7 @@ function StatRow({ label, from, to, unit }: { label: string; from: number; to: n
 
 /** Pop-up de choix de la spécialisation (niveau 4) d'une tourelle : deux cartes comparées à la tourelle actuelle, choix à la souris. */
 export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JSX.Element {
+  const t = useT()
   const gold = useStore((s) => s.hud.golds[request.player] ?? 0)
   const color = useStore((s) => s.hud.colors[request.player]) ?? DEFAULT_COLORS[request.player]
   const unlocked = useStore((s) => s.progress.unlocked)
@@ -91,10 +94,10 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
     <div className="screen overlay" onClick={close}>
       <div className="picker" onClick={(e) => e.stopPropagation()} style={{ '--pc': color } as CSSProperties}>
         <h2>
-          <span className="who">J{request.player + 1}</span> Spécialiser la tourelle · niveau {TURRET_SPEC_LEVEL}
+          <span className="who">{t('player.short', { n: request.player + 1 })}</span> {t('picker.title', { n: TURRET_SPEC_LEVEL })}
         </h2>
         <p className="hint">
-          Clique sur une carte (ou <kbd>1</kbd> / <kbd>2</kbd>) · <kbd>Échap</kbd> pour annuler
+          {rich('picker.hint', { k1: <kbd>1</kbd>, k2: <kbd>2</kbd>, esc: <kbd>{t('key.escape')}</kbd> })}
         </p>
         <div className="pcards">
           {CHOICES.map((branch, i) => {
@@ -108,22 +111,22 @@ export function UpgradePicker({ request }: { request: ChoiceRequest }): React.JS
               <button key={branch} className={`pcard b${branch}${poor ? ' poor' : ''}${locked ? ' locked' : ''}`} onClick={() => pick(branch)} disabled={poor || locked}>
                 <span className="pnum">{i + 1}</span>
                 <TurretPreview branch={branch} />
-                <span className="pname">{def.name}</span>
-                <span className="pblurb">{def.blurb}</span>
+                <span className="pname">{t(def.nameKey)}</span>
+                <span className="pblurb">{t(def.blurbKey)}</span>
                 <div className="pstats">
-                  <StatRow label="Vitesse" from={cur.fireRate} to={s.fireRate} unit="tirs/s" />
-                  <StatRow label="Dégâts" from={cur.damage} to={s.damage} />
-                  <StatRow label="PV" from={cur.hp} to={s.hp} />
-                  <StatRow label="Portée" from={cur.range} to={s.range} />
-                  <StatRow label="Dégâts / s" from={Math.round(cur.damage * cur.fireRate)} to={Math.round(s.damage * s.fireRate)} />
+                  <StatRow label={t('picker.speed')} from={cur.fireRate} to={s.fireRate} unit={t('unit.shots')} />
+                  <StatRow label={t('picker.damage')} from={cur.damage} to={s.damage} />
+                  <StatRow label={t('picker.hp')} from={cur.hp} to={s.hp} />
+                  <StatRow label={t('picker.range')} from={cur.range} to={s.range} />
+                  <StatRow label={t('picker.dps')} from={Math.round(cur.damage * cur.fireRate)} to={Math.round(s.damage * s.fireRate)} />
                 </div>
                 <p className="pfoot">
-                  Évolue jusqu’au niveau {TURRET_BASE_MAX_LEVEL} (puis {TURRET_MAX_LEVEL} avec l’évolution) : {top.fireRate} tirs/s · {top.damage} dégâts · {top.range} px
+                  {t('picker.foot', { base: TURRET_BASE_MAX_LEVEL, max: TURRET_MAX_LEVEL, rate: top.fireRate, damage: top.damage, range: top.range })}
                 </p>
                 {locked ? (
-                  <span className="plock">Verrouillé · à débloquer dans Compétences</span>
+                  <span className="plock">{t('picker.locked')}</span>
                 ) : (
-                  <span className="pcost">{poor ? `${first.cost} or (manque ${first.cost - gold})` : `${first.cost} or`}</span>
+                  <span className="pcost">{poor ? t('picker.missing', { cost: first.cost, missing: first.cost - gold }) : t('common.goldAmount', { n: first.cost })}</span>
                 )}
               </button>
             )

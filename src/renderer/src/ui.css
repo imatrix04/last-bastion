@@ -156,7 +156,8 @@ h4 {
 .screen.home,
 .screen.sk,
 .screen.shop,
-.screen.arsenal {
+.screen.arsenal,
+.screen.settings {
   background-image:
     linear-gradient(rgba(170, 205, 185, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(170, 205, 185, 0.045) 1px, transparent 1px);
   background-size: 3.2em 3.2em;
@@ -426,7 +427,8 @@ table.controls td:first-child {
 
 .screen.sk,
 .screen.shop,
-.screen.arsenal {
+.screen.arsenal,
+.screen.settings {
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
@@ -1436,4 +1438,18 @@ table.controls td:first-child {
 }
 .ar-text small {
   color: #ffcc80;
+}
+
+/* ---------------------------------------------------------------- paramètres */
+.lang-choice {
+  display: flex;
+  gap: 0.8em;
+}
+.lang-choice button {
+  min-width: 9em;
+}
+.lang-choice button.on {
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }

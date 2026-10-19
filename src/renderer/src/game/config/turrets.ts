@@ -48,9 +48,9 @@ export const TURRET_PLAIN_MAX = TURRET_PLAIN.length
 export const TURRET_SPEC_LEVEL = TURRET_PLAIN_MAX + 1
 
 export interface TurretBranchDef {
-  name: string
-  /** Phrase affichée sur la carte de choix. */
-  blurb: string
+  /** Clés de traduction (i18n) : nom, et phrase affichée sur la carte de choix. */
+  nameKey: string
+  blurbKey: string
   /** Couleur d'accent du canon (rendu). */
   accent: string
   /** Niveaux de la branche : le premier est le niveau 4 (le choix), puis 5 à 7, puis 8 à 10 (évolution). */

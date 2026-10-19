@@ -1,6 +1,32 @@
 {
   "releases": [
     {
+      "version": "1.5.1",
+      "date": "2026-10-19",
+      "added": [
+        "Le jeu est disponible en français et en anglais. Nouvel écran Paramètres (menu principal) pour choisir la langue : elle s'applique tout de suite et reste enregistrée. Par défaut, le jeu suit la langue du système",
+        "Tout le texte est traduit : menus, interface en jeu, annonces de biome et d'événement, messages flottants, noms des compétences, des skins, des monstres et des bâtiments, noms des touches, erreurs de connexion et changelog de mise à jour",
+        "En ligne, chaque joueur garde sa propre langue : l'hôte et l'invité peuvent jouer dans des langues différentes, y compris pour les messages flottants au-dessus des bâtiments"
+      ],
+      "changed": [
+        "Les anciennes versions du changelog (avant la 1.5.0) restent en français, même quand le jeu est en anglais",
+        "Protocole réseau en version 19 : l'hôte et l'invité doivent avoir la même version du jeu"
+      ],
+      "fixed": [],
+      "en": {
+        "added": [
+          "The game is available in French and English. New Settings screen (main menu) to pick the language: it applies immediately and is saved. By default the game follows the system language",
+          "All text is translated: menus, in-game interface, biome and event announcements, floating messages, skill, skin, monster and building names, key names, connection errors and the update changelog",
+          "Online, each player keeps their own language: host and guest can play in different languages, including the floating messages above buildings"
+        ],
+        "changed": [
+          "Older changelog entries (before 1.5.0) stay in French, even when the game is in English",
+          "Network protocol version 19: host and guest must run the same game version"
+        ],
+        "fixed": []
+      }
+    },
+    {
       "version": "1.5.0",
       "date": "2026-10-19",
       "added": [
@@ -29,7 +55,36 @@
         "Les points de fin de partie comptent les nouveaux monstres : 3 points par Cracheur et 2 par Sauteur",
         "Protocole réseau en version 18 : l'hôte et l'invité doivent avoir la même version du jeu"
       ],
-      "fixed": []
+      "fixed": [],
+      "en": {
+        "added": [
+          "New monster, the Spitter (from wave 9): it stops as soon as a turret is in range (200 px) and bombards it with acid every 2 seconds (50 damage per glob) until it dies. A green glow announces each shot. It has 140 HP and gives 22 gold",
+          "The player's auto-fire targets a Spitter in range first, even if other monsters are closer, to save the turret under attack. Spitters are surrounded by a pulsing green reticle so they stand out in the horde",
+          "New monster, the Jumper (from wave 6): it ignores walls in its path and rushes the fortress, leaping over any solid building (up to 2 tiles at once, in 0.5 seconds). While airborne it can neither attack nor be blocked, but it can still be hit. The fortress itself can't be jumped. It has 110 HP and gives 16 gold",
+          "The Jumper has its own look: pink body, big yellow eyes, hind legs that stretch out in the air. Its body arcs above its shadow, with dust at takeoff and landing",
+          "Turret targeting: each turret can aim at the enemy closest to it (default) or the enemy closest to the fortress. Switch at any time, mid-wave, by facing your turret and pressing G (player 1) or Numpad 0 (player 2). An orange diamond on the turret marks \"fortress\" mode, and a text confirms the change. The keys are shown in the in-game help and in the controls menu",
+          "Random events: from wave 3, each wave has a 25% chance to trigger an event that lasts the whole wave. An \"EVENT\" announcement appears under the biome one, and the visual effects fade in and out over 2.5 seconds. The system is built to host more events (settings in EVENTS, config.ts)",
+          "First event, Fog: a gray-blue mist covers the map and only reveals lit areas around each player (200 px), each turret (100 px) and the fortress (140 px). Monsters outside those areas are invisible, and wisps of fog drift across the screen",
+          "Fog: a player only shoots monsters they can see. A turret only shoots a monster it sees within its own radius, or that a player sees: a player standing near a turret acts as its spotter",
+          "Fog: in exchange, monsters move 20% faster and turrets deal 25% more damage"
+        ],
+        "changed": [
+          "The game starts more gently: Splitters arrive at wave 7 (instead of 6), Brutes at wave 11 (instead of 8) and Spiders at wave 13 (instead of 11)",
+          "Monsters are a bit sturdier: Brute 400 HP (instead of 370), Splitter 240 (instead of 230), Spider 210 (instead of 190). The Enraged Colossus gives 40 end-of-game points (instead of 45) and the Spider 2 (instead of 4)",
+          "The Spider's web is less punishing: the hit turret's fire rate drops to 40% (instead of 30%), but its spitting range goes up to 190 px (instead of 180) and its wind-up to 0.70 s (instead of 0.75 s)",
+          "End of wave: the fortress recovers 10% of its max HP (instead of 8%)",
+          "Buildings: wooden wall 180 HP (instead of 170), stone wall 340 (instead of 350), bronze 650 (instead of 670), reinforced stone 900 (instead of 940). Stone spikes 370 HP (instead of 380), reinforced 530 (instead of 550)",
+          "Turrets: base range reduced to 200 px at levels 1 and 2 and 210 px at level 3 (instead of 220), level 2 price 175 (instead of 150) and level 3 price 250 (instead of 225). Level 4 to 10 prices go up by about 5 to 10% in both branches (for example level 10: Minigun 2000 instead of 1800, Explosive cannon 2500 instead of 2300)",
+          "The Explosive cannon deals 40% of its damage at the edge of the blast (instead of 50%) and the Minigun is less accurate (spread 0.2 instead of 0.1)",
+          "The skill tree is much more expensive: Stone wall 140 (instead of 120), bronze 280 (220), reinforced 450 (350), Stone spikes 220 (150), reinforced 450 (320), Twin cannons 450 (250), Heavy cannon 500 (250), Minigun 900 (450), Explosive cannon 1000 (450)",
+          "Player upgrades are pricier (for example Fire rate 150 to 750 instead of 60 to 320, Overclocking 700 to 3000 instead of 450 to 1600, Turrets 350 to 1800 instead of 180 to 1200), but each Damage rank gives +25% (instead of +20%)",
+          "Fire bullets: longer cooldown (60 to 42 seconds depending on rank, instead of 45 to 30) and stronger burn (16 to 44 damage per second, instead of 12 to 32)",
+          "Developer mode: 200 gold per second (instead of 150)",
+          "End-of-game points count the new monsters: 3 points per Spitter and 2 per Jumper",
+          "Network protocol version 18: host and guest must run the same game version"
+        ],
+        "fixed": []
+      }
     },
     {
       "version": "1.4.7",

@@ -13,6 +13,7 @@ import {
   type Branch,
   type TurretStats
 } from './config/turrets'
+import { spec, t, tr } from '../i18n'
 import type { Building } from './types'
 
 /** Ce qui définit le niveau d'un bâtiment (partagé entre la simulation, l'invité et l'interface). */
@@ -22,7 +23,8 @@ export type Leveled = Pick<Building, 'kind' | 'level' | 'branch'>
 
 /** Un niveau de mur ou de pieux. */
 export interface Tier {
-  name: string
+  /** Clé de traduction (i18n). */
+  nameKey: string
   /** Prix pour atteindre ce niveau depuis le précédent (niveau 1 : prix de pose). */
   cost: number
   hp: number
@@ -34,10 +36,10 @@ export interface Tier {
 }
 
 const WALL_TIERS: readonly Tier[] = [
-  { name: BUILDS.barricade.name, cost: BUILDS.barricade.cost, hp: BUILDS.barricade.hp, breakCost: BUILDS.barricade.breakCost, debris: '#9c6a35' },
+  { nameKey: BUILDS.barricade.nameKey, cost: BUILDS.barricade.cost, hp: BUILDS.barricade.hp, breakCost: BUILDS.barricade.breakCost, debris: '#9c6a35' },
   ...BARRICADE_TIERS
 ]
-const SPIKE_TIERS: readonly Tier[] = SPIKE_LEVELS.map((l) => ({ name: l.name, cost: l.cost, hp: l.hp, breakCost: 0, unlock: l.unlock, debris: l.debris }))
+const SPIKE_TIERS: readonly Tier[] = SPIKE_LEVELS.map((l) => ({ nameKey: l.nameKey, cost: l.cost, hp: l.hp, breakCost: 0, unlock: l.unlock, debris: l.debris }))
 
 /** Niveaux d'un mur ou de pieux (null pour une tourelle, qui a sa propre configuration : turrets.ts). */
 export function tiersOf(kind: BuildKind): readonly Tier[] | null {
@@ -109,31 +111,34 @@ export function nextUpgrade(b: Leveled, unlocks: number): UpgradeStep | null {
     if (b.level === TURRET_PLAIN_MAX) {
       const open = (['double', 'heavy'] as const).filter((id) => hasUnlock(unlocks, id))
       const cheapest = open.length > 0 ? Math.min(...open.map((id) => TURRET_BRANCHES[id === 'double' ? 1 : 2].levels[0].cost)) : cost
-      return { mode: 'choice', cost: cheapest, label: `Niveau ${TURRET_SPEC_LEVEL} : choisir`, locked: open.length === 0 }
+      return { mode: 'choice', cost: cheapest, label: t('level.choose', { n: TURRET_SPEC_LEVEL }), locked: open.length === 0 }
     }
     if (b.level + 1 === TURRET_EVOLVE_LEVEL) {
       const need = b.branch === 1 ? 'minigun' : 'explosive'
-      return { mode: 'direct', cost, label: `Niveau ${b.level + 1} · ${b.branch === 1 ? 'Minigun' : 'Canon explosif'}`, locked: !hasUnlock(unlocks, need) }
+      return { mode: 'direct', cost, label: t('level.evolve', { n: b.level + 1, name: t(b.branch === 1 ? 'unlock.minigun.name' : 'unlock.explosive.name') }), locked: !hasUnlock(unlocks, need) }
     }
-    return { mode: 'direct', cost, label: `Niveau ${b.level + 1}`, locked: false }
+    return { mode: 'direct', cost, label: t('level.n', { 0: b.level + 1 }), locked: false }
   }
   const tiers = tiersOf(b.kind)
   const next = tiers && b.level < tiers.length ? tiers[b.level] : null
   if (!next) return null
-  return { mode: 'direct', cost: next.cost, label: next.name, locked: next.unlock !== undefined && !hasUnlock(unlocks, next.unlock) }
+  return { mode: 'direct', cost: next.cost, label: t(next.nameKey), locked: next.unlock !== undefined && !hasUnlock(unlocks, next.unlock) }
 }
 
 /** Compétence qui débloque une branche de tourelle (1 = double canons, 2 = canon lourd). */
 export const branchUnlocked = (unlocks: number, branch: 1 | 2): boolean => hasUnlock(unlocks, branch === 1 ? 'double' : 'heavy')
 
-export const levelName = (b: Leveled): string => {
+/** Nom d'un bâtiment à son niveau, sous forme de texte « à traduire » (voir `spec` : il peut voyager vers l'autre joueur). */
+export const levelSpec = (b: Leveled): string => {
   if (b.kind === 'turret') {
     const form = turretForm(b.level, b.branch)
-    const name = form === 'minigun' ? 'Minigun' : form === 'explosive' ? 'Canon explosif' : b.branch !== 0 ? TURRET_BRANCHES[b.branch].name : ''
-    return name ? `${name} · niv. ${b.level}` : `Tourelle niv. ${b.level}`
+    const key = form === 'minigun' ? 'level.minigun' : form === 'explosive' ? 'level.explosive' : b.branch !== 0 ? `level.branch${b.branch}` : 'level.plain'
+    return spec(key, b.level)
   }
-  return tierOf(b.kind, b.level)?.name ?? BUILDS[b.kind].name
+  return spec(tierOf(b.kind, b.level)?.nameKey ?? BUILDS[b.kind].nameKey)
 }
+
+export const levelName = (b: Leveled): string => tr(levelSpec(b))
 
 // ------------------------------------------------------------------------- joueur
 

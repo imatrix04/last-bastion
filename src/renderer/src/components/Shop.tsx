@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_COLORS, NAME_MAX, PALETTE, SKINS, SKIN_BY_ID, isHexColor, type SkinId, type SkinPart } from '../game/config/appearance'
+import { useT } from '../i18n'
 import { useStore } from '../store'
 import { AvatarCanvas } from './AvatarCanvas'
 import { IconBack } from './icons'
 
 /** Un groupe par emplacement : chaque joueur équipe un chapeau et un canon, indépendamment. */
-const GROUPS: readonly { part: SkinPart; title: string }[] = [
-  { part: 'hat', title: 'Chapeaux' },
-  { part: 'weapon', title: 'Canons' },
-  { part: 'trail', title: 'Traînées' }
+const GROUPS: readonly { part: SkinPart; titleKey: string }[] = [
+  { part: 'hat', titleKey: 'shop.hats' },
+  { part: 'weapon', titleKey: 'shop.weapons' },
+  { part: 'trail', titleKey: 'shop.trails' }
 ]
 
 /** Boutique : couleur libre du personnage (gratuite) et skins achetés avec les points de compétence. */
 export function Shop(): React.JSX.Element {
+  const t = useT()
   const progress = useStore((s) => s.progress)
   const close = useStore((s) => s.closeShop)
   const setLook = useStore((s) => s.setLook)
@@ -34,23 +36,23 @@ export function Shop(): React.JSX.Element {
     <div className="screen shop">
       <header className="sk-head">
         <button className="back" onClick={close}>
-          <IconBack /> Menu
+          <IconBack /> {t('common.menu')}
         </button>
-        <h2>Boutique</h2>
-        <div className="sk-points" aria-label={`${progress.points} points`}>
+        <h2>{t('shop.title')}</h2>
+        <div className="sk-points" aria-label={`${progress.points} ${t('common.points')}`}>
           <b>{progress.points}</b>
-          <span>points</span>
+          <span>{t('common.points')}</span>
         </div>
       </header>
 
       <div className="shop-body">
         <section className="shop-stage">
-          <div className="tabs" role="tablist" aria-label="Joueur à personnaliser">
+          <div className="tabs" role="tablist" aria-label={t('shop.playerTab')}>
             <button role="tab" aria-selected={slot === 0} className={slot === 0 ? 'on' : ''} onClick={() => setSlot(0)}>
-              Joueur 1
+              {t('player.n', { n: 1 })}
             </button>
             <button role="tab" aria-selected={slot === 1} className={slot === 1 ? 'on' : ''} onClick={() => setSlot(1)}>
-              Joueur 2 · même clavier
+              {t('player.p2Local')}
             </button>
           </div>
 
@@ -59,7 +61,7 @@ export function Shop(): React.JSX.Element {
           </div>
 
           <div className="color-panel">
-            <h3 className="sk-label">Couleur · gratuite, au choix</h3>
+            <h3 className="sk-label">{t('shop.colorTitle')}</h3>
             <div className="swatches">
               {PALETTE.map((c) => (
                 <button
@@ -67,48 +69,48 @@ export function Shop(): React.JSX.Element {
                   className={`swatch${c === look.color ? ' on' : ''}`}
                   style={{ background: c }}
                   onClick={() => setLook(slot, { color: c })}
-                  aria-label={`Couleur ${c}`}
+                  aria-label={t('shop.colorAria', { c })}
                 />
               ))}
             </div>
             <div className="color-row">
               <label className="picker-native">
-                <input type="color" value={look.color} onChange={(e) => setLook(slot, { color: e.target.value })} aria-label="Choisir une couleur" />
-                <span>Palette complète</span>
+                <input type="color" value={look.color} onChange={(e) => setLook(slot, { color: e.target.value })} aria-label={t('shop.pickColor')} />
+                <span>{t('shop.fullPalette')}</span>
               </label>
               <label className="hexfield">
                 <span>HEX</span>
-                <input value={hex} onChange={(e) => typeHex(e.target.value.trim())} maxLength={7} spellCheck={false} aria-label="Code couleur" />
+                <input value={hex} onChange={(e) => typeHex(e.target.value.trim())} maxLength={7} spellCheck={false} aria-label={t('shop.hexAria')} />
               </label>
               <button className="link" onClick={() => setLook(slot, { color: DEFAULT_COLORS[slot] })}>
-                Couleur d’origine
+                {t('shop.resetColor')}
               </button>
             </div>
           </div>
           <div className="name-panel">
-            <h3 className="sk-label">Pseudo</h3>
+            <h3 className="sk-label">{t('shop.nameTitle')}</h3>
             <label className="namefield">
               <input
                 value={look.name}
                 onChange={(e) => setLook(slot, { name: e.target.value })}
                 maxLength={NAME_MAX}
-                placeholder={`Joueur ${slot + 1}`}
+                placeholder={t('player.n', { n: slot + 1 })}
                 spellCheck={false}
-                aria-label="Pseudo"
+                aria-label={t('shop.nameTitle')}
               />
               <span className="dim">
                 {look.name.length}/{NAME_MAX}
               </span>
             </label>
-            <p className="hint">Affiché au-dessus du personnage, en jeu et dans le menu.</p>
+            <p className="hint">{t('shop.nameHint')}</p>
           </div>
-          <p className="hint">En ligne, tu joues avec l’apparence du Joueur 1.</p>
+          <p className="hint">{t('shop.onlineHint')}</p>
         </section>
 
         <section className="shop-list">
-          {GROUPS.map(({ part, title }) => (
+          {GROUPS.map(({ part, titleKey }) => (
             <div key={part} className="skin-group">
-              <h3 className="sk-label">{title}</h3>
+              <h3 className="sk-label">{t(titleKey)}</h3>
               <ul>
                 {[SKIN_BY_ID.none, ...SKINS.filter((s) => s.part === part)].map((s) => {
                   const owned = s.id === 'none' || progress.skins.includes(s.id)
@@ -119,14 +121,14 @@ export function Shop(): React.JSX.Element {
                     <li key={s.id} className={`skin-row${equipped ? ' on' : ''}`}>
                       <AvatarCanvas look={{ ...look, [part]: s.id }} scale={2.4} className="skin-thumb" />
                       <div className="skin-info">
-                        <h4>{s.name}</h4>
-                        <p>{s.blurb}</p>
+                        <h4>{t(s.nameKey)}</h4>
+                        <p>{t(s.blurbKey)}</p>
                       </div>
                       <div className="skin-act">
                         {equipped ? (
-                          <span className="tag on">Équipé</span>
+                          <span className="tag on">{t('shop.equipped')}</span>
                         ) : owned ? (
-                          <button onClick={() => equip(s.id)}>Équiper</button>
+                          <button onClick={() => equip(s.id)}>{t('shop.equip')}</button>
                         ) : (
                           <button
                             className={missing > 0 ? '' : 'primary'}
@@ -135,7 +137,7 @@ export function Shop(): React.JSX.Element {
                               if (buySkin(s.id)) equip(s.id)
                             }}
                           >
-                            {s.price} pts{missing > 0 ? ` · manque ${missing}` : ''}
+                            {missing > 0 ? t('shop.priceMissing', { price: s.price, missing }) : t('shop.price', { price: s.price })}
                           </button>
                         )}
                       </div>
@@ -145,7 +147,7 @@ export function Shop(): React.JSX.Element {
               </ul>
             </div>
           ))}
-          <p className="hint">Un chapeau et un canon peuvent être équipés en même temps. Les points se gagnent à chaque partie.</p>
+          <p className="hint">{t('shop.footHint')}</p>
         </section>
       </div>
     </div>

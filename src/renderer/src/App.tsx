@@ -5,6 +5,7 @@ import { Hud } from './components/Hud'
 import { Lobby } from './components/Lobby'
 import { Menu } from './components/Menu'
 import { Shop } from './components/Shop'
+import { Settings } from './components/Settings'
 import { SkillTree } from './components/SkillTree'
 import { UpgradePicker } from './components/UpgradePicker'
 import { GameOverOverlay, PauseOverlay } from './components/Overlays'
@@ -54,6 +55,7 @@ export default function App(): React.JSX.Element {
         {screen === 'skills' && <SkillTree />}
         {screen === 'arsenal' && <Arsenal />}
         {screen === 'shop' && <Shop />}
+        {screen === 'settings' && <Settings />}
         <UpdateDialog />
       </div>
     </div>

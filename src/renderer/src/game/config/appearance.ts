@@ -1,3 +1,5 @@
+import { t } from '../../i18n'
+
 /**
  * Apparence du personnage : une couleur libre et un skin (accessoire). Sans dépendance : partagé entre le jeu,
  * la boutique, le menu et le réseau (chaque joueur envoie la sienne).
@@ -12,41 +14,38 @@ export interface SkinDef {
   id: SkinId
   /** Emplacement, `null` pour « Aucun ». */
   part: SkinPart | null
-  name: string
-  blurb: string
+  /** Clés de traduction (i18n) : nom et description. */
+  nameKey: string
+  blurbKey: string
   /** Prix en points de compétence. */
   price: number
 }
 
 /** L'ordre fixe l'index envoyé sur le réseau : ne jamais réordonner, seulement ajouter à la fin. */
 export const SKINS: readonly SkinDef[] = [
-  { id: 'none', part: null, name: 'Aucun', blurb: 'Rien de particulier.', price: 0 },
+  { id: 'none', part: null, nameKey: 'skin.none.name', blurbKey: 'skin.none.blurb', price: 0 },
   {
     id: 'cat',
     part: 'hat',
-    name: 'Oreilles de chat',
-    blurb: 'Rose unique, dégradé bordeaux, avec des oreilles qui frémissent.',
+    nameKey: 'skin.cat.name', blurbKey: 'skin.cat.blurb',
     price: 720
   },
   {
     id: 'gold',
     part: 'weapon',
-    name: 'Canon en or',
-    blurb: 'Le tube doré, avec un reflet qui glisse le long du canon et des étincelles à la bouche.',
+    nameKey: 'skin.gold.name', blurbKey: 'skin.gold.blurb',
     price: 1050
   },
   {
     id: 'hearts',
     part: 'trail',
-    name: 'Cœurs',
-    blurb: 'Des petits cœurs rose et bordeaux s’évaporent derrière toi, montent et s’effacent.',
+    nameKey: 'skin.hearts.name', blurbKey: 'skin.hearts.blurb',
     price: 480
   },
   {
     id: 'tech',
     part: 'trail',
-    name: 'Scan',
-    blurb: 'Traînée de données : lignes qui défilent, pixels qui clignotent et curseur en tête.',
+    nameKey: 'skin.tech.name', blurbKey: 'skin.tech.blurb',
     price: 600
   }
 ]
@@ -79,7 +78,7 @@ export const NAME_MAX = 12
 export const sanitizeName = (v: unknown): string => (typeof v === 'string' ? v.replace(/[\r\n\t]/g, ' ').trim().slice(0, NAME_MAX) : '')
 
 /** Ce qui s'affiche pour un joueur : son pseudo, ou « J1 » / « J2 » à défaut. */
-export const playerLabel = (look: Look, slot: number): string => look.name.trim() || `J${slot + 1}`
+export const playerLabel = (look: Look, slot: number): string => look.name.trim() || t('player.short', { n: slot + 1 })
 
 /** Couleurs de départ : joueur 1 bleu, joueur 2 rose. */
 export const DEFAULT_COLORS = ['#4fc3f7', '#f06292'] as const

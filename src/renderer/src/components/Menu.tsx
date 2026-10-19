@@ -3,6 +3,8 @@ import { SKIN_BY_ID, playerLabel } from '../game/config/appearance'
 import { ABILITY_SLOTS } from '../game/config/config'
 import { CONTROLS, SKIP_WAVE } from '../game/config/controls'
 import { PERKS, UNLOCKS } from '../game/config/progress'
+import { tr, useT } from '../i18n'
+import { rich } from '../i18n/rich'
 import { session } from '../net'
 import { loadAddress, useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
@@ -10,6 +12,7 @@ import { AvatarCanvas } from './AvatarCanvas'
 import logo from '../assets/logo.png'
 
 export function Menu(): React.JSX.Element {
+  const t = useT()
   const start = useStore((s) => s.start)
   const hostLobby = useStore((s) => s.hostLobby)
   const joinLobby = useStore((s) => s.joinLobby)
@@ -18,6 +21,7 @@ export function Menu(): React.JSX.Element {
   const openSkills = useStore((s) => s.openSkills)
   const openShop = useStore((s) => s.openShop)
   const openArsenal = useStore((s) => s.openArsenal)
+  const openSettings = useStore((s) => s.openSettings)
   const progress = useStore((s) => s.progress)
   const label = useKeyLabels()
   const [address, setAddress] = useState(loadAddress)
@@ -45,29 +49,29 @@ export function Menu(): React.JSX.Element {
             <h1>
               Last <span>Bastion</span>
             </h1>
-            <p className="tagline">Tenez la forteresse. Barricadez, bâtissez, tirez.</p>
+            <p className="tagline">{t('menu.tagline')}</p>
           </div>
         </header>
 
-        <nav className="menu-list" aria-label="Menu principal">
+        <nav className="menu-list" aria-label={t('menu.navLabel')}>
           <button className="mi primary" onClick={() => start(1)}>
             <span className="mi-n">01</span>
-            <span className="mi-label">Solo</span>
+            <span className="mi-label">{t('menu.solo')}</span>
           </button>
           <button className="mi" onClick={() => start(2)}>
             <span className="mi-n">02</span>
-            <span className="mi-label">Coop · même clavier</span>
+            <span className="mi-label">{t('menu.coop')}</span>
           </button>
           {session.available && (
             <button className={`mi${online ? ' open' : ''}`} onClick={() => setOnline((o) => !o)} aria-expanded={online}>
               <span className="mi-n">03</span>
-              <span className="mi-label">Coop en ligne</span>
+              <span className="mi-label">{t('menu.online')}</span>
               <span className="mi-meta">{online ? '−' : '+'}</span>
             </button>
           )}
           {session.available && online && (
             <div className="online-box">
-              <button onClick={() => void hostLobby()}>Héberger une partie</button>
+              <button onClick={() => void hostLobby()}>{t('online.host')}</button>
               <form
                 className="join"
                 onSubmit={(e) => {
@@ -78,53 +82,57 @@ export function Menu(): React.JSX.Element {
                 <input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Adresse de l'hôte"
+                  placeholder={t('online.addressPlaceholder')}
                   spellCheck={false}
                   autoComplete="off"
-                  aria-label="Adresse de l'hôte"
+                  aria-label={t('online.addressPlaceholder')}
                 />
                 <button type="submit" disabled={!address.trim()}>
-                  Rejoindre
+                  {t('online.join')}
                 </button>
               </form>
-              {netError && <p className="error">{netError}</p>}
-              <p className="hint">
-                En ligne, chacun joue avec les touches du Joueur 1 (<kbd>{move(0)}</kbd>). L&apos;hôte est le Joueur 1, l&apos;invité le Joueur 2.
-              </p>
+              {netError && <p className="error">{tr(netError)}</p>}
+              <p className="hint">{rich('online.hint', { keys: <kbd>{move(0)}</kbd> })}</p>
             </div>
           )}
 
           <div className="mi-sep" />
           <button className="mi" onClick={openSkills}>
             <span className="mi-n">04</span>
-            <span className="mi-label">Compétences</span>
-            <span className="mi-meta amber">{progress.points} pts</span>
+            <span className="mi-label">{t('menu.skills')}</span>
+            <span className="mi-meta amber">
+              {progress.points} {t('common.pts')}
+            </span>
           </button>
           <button className="mi" onClick={openArsenal}>
             <span className="mi-n">05</span>
-            <span className="mi-label">Arsenal</span>
+            <span className="mi-label">{t('menu.arsenal')}</span>
             <span className="mi-meta">
               {progress.abilities.length} / {ABILITY_SLOTS}
             </span>
           </button>
           <button className="mi" onClick={openShop}>
             <span className="mi-n">06</span>
-            <span className="mi-label">Boutique</span>
+            <span className="mi-label">{t('menu.shop')}</span>
           </button>
           <button className="mi" onClick={() => setSheet(true)}>
             <span className="mi-n">07</span>
-            <span className="mi-label">Commandes</span>
+            <span className="mi-label">{t('menu.controls')}</span>
+          </button>
+          <button className="mi" onClick={openSettings}>
+            <span className="mi-n">08</span>
+            <span className="mi-label">{t('menu.settings')}</span>
           </button>
         </nav>
 
         <footer className="home-foot">
           <span>
-            {bestWave > 0 ? `Record · vague ${bestWave}` : 'Aucune partie jouée'}
+            {bestWave > 0 ? t('menu.record', { n: bestWave }) : t('menu.noGame')}
             {version && <span className="dim"> · v{version}</span>}
           </span>
           {window.api && (
             <button className="link" onClick={() => void window.api?.quit()}>
-              Quitter
+              {t('menu.quit')}
             </button>
           )}
         </footer>
@@ -136,48 +144,51 @@ export function Menu(): React.JSX.Element {
         </div>
         <dl className="hero-meta">
           <div>
-            <dt>Joueur 1</dt>
+            <dt>{t('player.n', { n: 1 })}</dt>
             <dd>
               <i className="swatch-dot" style={{ background: look.color }} /> {playerLabel(look, 0)}
-              <small className="dim"> · {[look.hat, look.weapon, look.trail].filter((id) => id !== 'none').map((id) => SKIN_BY_ID[id].name).join(' · ') || 'Sans accessoire'}</small>
+              <small className="dim">
+                {' '}
+                · {[look.hat, look.weapon, look.trail].filter((id) => id !== 'none').map((id) => t(SKIN_BY_ID[id].nameKey)).join(' · ') || t('menu.noAccessory')}
+              </small>
             </dd>
           </div>
           <div>
-            <dt>Points</dt>
+            <dt>{t('common.points')}</dt>
             <dd className="amber">{progress.points}</dd>
           </div>
           <div>
-            <dt>Progression</dt>
+            <dt>{t('menu.progress')}</dt>
             <dd>
               {done} <span className="dim">/ {total}</span>
             </dd>
           </div>
         </dl>
         <button className="link hero-edit" onClick={openShop}>
-          Personnaliser le personnage
+          {t('menu.customize')}
         </button>
       </aside>
 
       {sheet && (
         <div className="sheet-back" onClick={() => setSheet(false)}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Commandes">
+          <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t('controls.title')}>
             <header>
-              <h2>Commandes</h2>
+              <h2>{t('controls.title')}</h2>
               <button className="link" onClick={() => setSheet(false)}>
-                Fermer
+                {t('common.close')}
               </button>
             </header>
             <table className="controls">
               <thead>
                 <tr>
                   <th />
-                  <th>Joueur 1</th>
-                  <th>Joueur 2 · même clavier</th>
+                  <th>{t('controls.player1')}</th>
+                  <th>{t('player.p2Local')}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Se déplacer</td>
+                  <td>{t('controls.move')}</td>
                   <td>
                     <kbd>{move(0)}</kbd>
                   </td>
@@ -186,7 +197,7 @@ export function Menu(): React.JSX.Element {
                   </td>
                 </tr>
                 <tr>
-                  <td>Construire / réparer</td>
+                  <td>{t('controls.build')}</td>
                   <td>
                     <kbd>{label(CONTROLS[0].place)}</kbd>
                   </td>
@@ -195,7 +206,7 @@ export function Menu(): React.JSX.Element {
                   </td>
                 </tr>
                 <tr>
-                  <td>Améliorer</td>
+                  <td>{t('controls.upgrade')}</td>
                   <td>
                     <kbd>{label(CONTROLS[0].upgrade)}</kbd>
                   </td>
@@ -204,7 +215,7 @@ export function Menu(): React.JSX.Element {
                   </td>
                 </tr>
                 <tr>
-                  <td>Cible de la tourelle (proche d'elle / de la forteresse)</td>
+                  <td>{t('controls.target')}</td>
                   <td>
                     <kbd>{label(CONTROLS[0].target)}</kbd>
                   </td>
@@ -213,7 +224,7 @@ export function Menu(): React.JSX.Element {
                   </td>
                 </tr>
                 <tr>
-                  <td>Démolir (remboursement partiel)</td>
+                  <td>{t('controls.demolish')}</td>
                   <td>
                     <kbd>{label(CONTROLS[0].remove)}</kbd>
                   </td>
@@ -222,7 +233,7 @@ export function Menu(): React.JSX.Element {
                   </td>
                 </tr>
                 <tr>
-                  <td>Objet précédent / suivant</td>
+                  <td>{t('controls.prevNext')}</td>
                   <td>
                     <kbd>{label(CONTROLS[0].prev)}</kbd> <kbd>{label(CONTROLS[0].next)}</kbd>
                   </td>
@@ -231,7 +242,7 @@ export function Menu(): React.JSX.Element {
                   </td>
                 </tr>
                 <tr>
-                  <td>Capacités actives</td>
+                  <td>{t('controls.abilities')}</td>
                   <td>
                     <kbd>{label(CONTROLS[0].abilities[0])}</kbd> <kbd>{label(CONTROLS[0].abilities[1])}</kbd> <kbd>{label(CONTROLS[0].abilities[2])}</kbd>
                   </td>
@@ -240,19 +251,22 @@ export function Menu(): React.JSX.Element {
                   </td>
                 </tr>
                 <tr>
-                  <td>Choix direct de l&apos;objet</td>
+                  <td>{t('controls.direct')}</td>
                   <td>
                     <kbd>1</kbd>–<kbd>3</kbd>
                   </td>
                   <td>
-                    <kbd>Pavé 1</kbd>–<kbd>3</kbd>
+                    <kbd>{t('key.pad', { n: 1 })}</kbd>–<kbd>3</kbd>
                   </td>
                 </tr>
               </tbody>
             </table>
             <p className="hint">
-              On tire automatiquement sur l&apos;ennemi le plus proche et on construit sur la case devant soi. Lancer la vague plus tôt (
-              <kbd>{label(SKIP_WAVE)}</kbd>) rapporte un bonus · Pause <kbd>Échap</kbd> · Plein écran <kbd>F11</kbd>
+              {rich('controls.hint', {
+                skip: <kbd>{label(SKIP_WAVE)}</kbd>,
+                pause: <kbd>{label('Escape')}</kbd>,
+                full: <kbd>F11</kbd>
+              })}
             </p>
           </div>
         </div>

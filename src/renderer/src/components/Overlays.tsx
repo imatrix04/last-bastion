@@ -1,6 +1,8 @@
+import { useT } from '../i18n'
 import { useStore } from '../store'
 
 export function PauseOverlay(): React.JSX.Element {
+  const t = useT()
   const resume = useStore((s) => s.resume)
   const toMenu = useStore((s) => s.toMenu)
   const mode = useStore((s) => s.mode)
@@ -8,13 +10,13 @@ export function PauseOverlay(): React.JSX.Element {
   return (
     <div className="screen overlay">
       <div className="panel small">
-        <h2>{mode === 'local' ? 'Pause' : 'Menu'}</h2>
-        {mode !== 'local' && <p className="hint">En ligne, le jeu continue pendant que ce menu est ouvert.</p>}
+        <h2>{mode === 'local' ? t('pause.title') : t('pause.onlineTitle')}</h2>
+        {mode !== 'local' && <p className="hint">{t('pause.onlineHint')}</p>}
         <div className="buttons column">
           <button className="primary" onClick={resume}>
-            Reprendre
+            {t('pause.resume')}
           </button>
-          <button onClick={toMenu}>{mode === 'local' ? 'Menu principal' : 'Quitter la partie'}</button>
+          <button onClick={toMenu}>{mode === 'local' ? t('pause.toMenu') : t('pause.leave')}</button>
         </div>
       </div>
     </div>
@@ -22,6 +24,7 @@ export function PauseOverlay(): React.JSX.Element {
 }
 
 export function GameOverOverlay(): React.JSX.Element {
+  const t = useT()
   const result = useStore((s) => s.result)
   const restart = useStore((s) => s.restart)
   const toMenu = useStore((s) => s.toMenu)
@@ -38,37 +41,36 @@ export function GameOverOverlay(): React.JSX.Element {
   return (
     <div className="screen overlay">
       <div className="panel small">
-        <h2 className="danger">La forteresse est tombée</h2>
+        <h2 className="danger">{t('over.title')}</h2>
         <div className="stats">
           <div>
             <b>{result?.wave ?? 0}</b>
-            <span>vague atteinte</span>
+            <span>{t('over.wave')}</span>
           </div>
           <div>
             <b>{result?.kills ?? 0}</b>
-            <span>monstres abattus</span>
+            <span>{t('over.kills')}</span>
           </div>
         </div>
         {result && (
           <div className="earn">
-            <span className="total">+{result.points} points</span>
+            <span className="total">{t('over.earned', { n: result.points })}</span>
             <span className="calc">
-              ({Math.round(result.score.kills)} pts de monstres + {result.score.waves} pts de vagues) × {result.score.mult.toFixed(1)} · total{' '}
-              {total}
+              {t('over.calc', { kills: Math.round(result.score.kills), waves: result.score.waves, mult: result.score.mult.toFixed(1), total })}
             </span>
           </div>
         )}
-        <p className="hint">{result?.newRecord ? 'Nouveau record !' : `Record : vague ${bestWave}`}</p>
+        <p className="hint">{result?.newRecord ? t('over.newRecord') : t('over.record', { n: bestWave })}</p>
         <div className="buttons column">
           {mode === 'client' ? (
-            <p className="waiting">En attente de l&apos;hôte pour rejouer</p>
+            <p className="waiting">{t('over.waitHost')}</p>
           ) : (
             <button className="primary" onClick={restart}>
-              Rejouer
+              {t('over.replay')}
             </button>
           )}
-          <button onClick={toSkills}>Compétences</button>
-          <button onClick={toMenu}>{mode === 'local' ? 'Menu principal' : 'Quitter la partie'}</button>
+          <button onClick={toSkills}>{t('over.skills')}</button>
+          <button onClick={toMenu}>{mode === 'local' ? t('pause.toMenu') : t('pause.leave')}</button>
         </div>
       </div>
     </div>

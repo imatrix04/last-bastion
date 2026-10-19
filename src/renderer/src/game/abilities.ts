@@ -1,5 +1,6 @@
 import { ABILITY_CONFIG } from './config/config'
 import { abilityRank, type AbilityId } from './config/progress'
+import { floating } from '../i18n'
 import { addText, burst, ring, sparks } from './fx'
 import type { AbilityHud, GameState, Player } from './types'
 
@@ -47,7 +48,7 @@ export function activateAbility(state: GameState, p: Player, slot: number): bool
   ring(state, p.x, p.y, '#ff7043', 60)
   sparks(state, p.x, p.y, '#ffab40', 14, 220)
   burst(state, p.x, p.y, '#ff5722', 8, 120)
-  addText(state, p.x, p.y - 28, 'Balles enflammées !', '#ffab40')
+  addText(state, p.x, p.y - 28, floating('float.fireBullets'), '#ffab40')
   return true
 }
 

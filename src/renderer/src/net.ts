@@ -38,7 +38,7 @@ class Session {
 
   async host(): Promise<HostResult> {
     const net = window.api?.net
-    if (!net) return { ok: false, error: "Le jeu en ligne nécessite l'application Electron." }
+    if (!net) return { ok: false, error: 'net.needElectron' }
     this.reset()
     this.bind()
     const result = await net.host(NET_PORT)
@@ -49,7 +49,7 @@ class Session {
   /** `loadout` : compétences et améliorations du joueur qui rejoint, envoyées à l'hôte. */
   async join(address: string, loadout: Loadout = emptyLoadout(0)): Promise<JoinResult> {
     const net = window.api?.net
-    if (!net) return { ok: false, error: "Le jeu en ligne nécessite l'application Electron." }
+    if (!net) return { ok: false, error: 'net.needElectron' }
     this.reset()
     this.bind()
     const result = await net.join(address)
@@ -103,7 +103,7 @@ class Session {
 
     if (this.role === 'host' && msg.t === 'hello') {
       if (msg.v !== PROTO_VERSION) {
-        this.send({ t: 'reject', reason: 'Version du jeu différente : mettez à jour les deux PC.' })
+        this.send({ t: 'reject', reason: 'net.versionMismatch' })
         setTimeout(() => void window.api?.net.kick(), 300)
         return
       }
@@ -126,7 +126,7 @@ class Session {
       return
     }
     if (msg.t === 'reject') {
-      this.emit({ type: 'rejected', reason: typeof msg.reason === 'string' ? msg.reason.slice(0, 200) : "Refusé par l'hôte." })
+      this.emit({ type: 'rejected', reason: typeof msg.reason === 'string' ? msg.reason.slice(0, 200) : 'net.rejected' })
       return
     }
     this.emit({ type: 'message', msg })

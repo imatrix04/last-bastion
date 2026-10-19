@@ -1,22 +1,32 @@
 import { useEffect, useState } from 'react'
+import { getLang, useT } from '../i18n'
 import { useStore } from '../store'
 import logo from '../assets/logo.png'
+
+type Release = Extract<UpdateEvent, { type: 'available' }>['releases'][number]
 
 type State = Extract<UpdateEvent, { type: 'available' }> & { phase: 'ask' | 'downloading' | 'ready'; percent: number }
 
 const SECTIONS = [
-  ['added', 'Ajouts'],
-  ['changed', 'Modifications'],
-  ['fixed', 'Corrections']
+  ['added', 'update.added'],
+  ['changed', 'update.changed'],
+  ['fixed', 'update.fixed']
 ] as const
 
-/** « 2026-10-15 » → « 15 octobre 2026 » */
+/** « 2026-10-15 » → « 15 octobre 2026 » / « October 15, 2026 » */
 function formatDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00`)
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString(getLang() === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/** Lignes d'une section dans la langue choisie ; une version sans traduction anglaise reste en français. */
+function linesOf(r: Release, key: 'added' | 'changed' | 'fixed'): string[] {
+  const en = getLang() === 'en' ? r.en?.[key] : undefined
+  return en && en.length > 0 ? en : r[key]
 }
 
 export function UpdateDialog(): React.JSX.Element | null {
+  const t = useT()
   const [state, setState] = useState<State | null>(null)
   const [dismissed, setDismissed] = useState(false)
   const screen = useStore((s) => s.screen)
@@ -41,7 +51,7 @@ export function UpdateDialog(): React.JSX.Element | null {
         <header className="update-head">
           <img className="update-mark" src={logo} alt="" />
           <div>
-            <p className="kicker">Nouvelle version disponible</p>
+            <p className="kicker">{t('update.available')}</p>
             <h2 id="update-title">v{state.version}</h2>
           </div>
         </header>
@@ -53,21 +63,22 @@ export function UpdateDialog(): React.JSX.Element | null {
                 <span className="cl-version">v{r.version}</span>
                 {r.date && <time className="cl-date">{formatDate(r.date)}</time>}
               </header>
-              {SECTIONS.map(([key, title]) =>
-                r[key].length ? (
+              {SECTIONS.map(([key, titleKey]) => {
+                const lines = linesOf(r, key)
+                return lines.length ? (
                   <div key={key} className={`cl-sec ${key}`}>
                     <h4>
-                      {title}
-                      <span className="cl-count">{r[key].length}</span>
+                      {t(titleKey)}
+                      <span className="cl-count">{lines.length}</span>
                     </h4>
                     <ul>
-                      {r[key].map((line, i) => (
+                      {lines.map((line, i) => (
                         <li key={i}>{line}</li>
                       ))}
                     </ul>
                   </div>
                 ) : null
-              )}
+              })}
             </section>
           ))}
         </div>
@@ -76,16 +87,16 @@ export function UpdateDialog(): React.JSX.Element | null {
           {state.phase === 'ask' && (
             <div className="buttons">
               <button className="primary" onClick={() => void window.api?.update.download()}>
-                Mettre à jour
+                {t('update.install')}
               </button>
-              <button onClick={() => setDismissed(true)}>Plus tard</button>
+              <button onClick={() => setDismissed(true)}>{t('update.later')}</button>
             </div>
           )}
           {state.phase === 'downloading' && (
             <div
               className="update-progress"
               role="progressbar"
-              aria-label="Téléchargement de la mise à jour"
+              aria-label={t('update.downloadLabel')}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={percent}
@@ -93,7 +104,7 @@ export function UpdateDialog(): React.JSX.Element | null {
               <div className="bar">
                 <i style={{ width: `${percent}%` }} />
               </div>
-              <p className="hint">Téléchargement… {percent} %</p>
+              <p className="hint">{t('update.downloading', { n: percent })}</p>
             </div>
           )}
           {state.phase === 'ready' && (
@@ -101,7 +112,7 @@ export function UpdateDialog(): React.JSX.Element | null {
               <div className="bar">
                 <i style={{ width: '100%' }} />
               </div>
-              <p className="hint">Redémarrage de l'application…</p>
+              <p className="hint">{t('update.restarting')}</p>
             </div>
           )}
         </footer>

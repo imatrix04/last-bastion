@@ -42,7 +42,8 @@ export type BuildKind = 'barricade' | 'turret' | 'spikes'
 
 export interface BuildDef {
   kind: BuildKind
-  name: string
+  /** Clé de traduction (i18n). */
+  nameKey: string
   /** Prix de pose (niveau 1). */
   cost: number
   /** PV au niveau 1. */
@@ -55,7 +56,7 @@ export interface BuildDef {
 
 /** Niveaux des pieux : bois, pierre, pierre renforcé. Le niveau 1 se paie à la pose. */
 export interface SpikeLevel {
-  name: string
+  nameKey: string
   cost: number
   hp: number
   /** Dégâts par seconde aux ennemis qui marchent dessus. */
@@ -70,9 +71,9 @@ export interface SpikeLevel {
 export const SPIKE_LEVELS: readonly SpikeLevel[] = SPIKE_TIERS
 
 export const BUILDS: Record<BuildKind, BuildDef> = {
-  barricade: { kind: 'barricade', name: 'Mur en bois', cost: WALL_BASE.cost, hp: WALL_BASE.hp, solid: true, breakCost: WALL_BASE.breakCost },
-  turret: { kind: 'turret', name: 'Tourelle', cost: TURRET_PLACE_COST, hp: TURRET_PLAIN[0].stats.hp, solid: true, breakCost: TURRET_BREAK_COST },
-  spikes: { kind: 'spikes', name: 'Pieux', cost: SPIKE_LEVELS[0].cost, hp: SPIKE_LEVELS[0].hp, solid: false, breakCost: 0 }
+  barricade: { kind: 'barricade', nameKey: 'build.barricade', cost: WALL_BASE.cost, hp: WALL_BASE.hp, solid: true, breakCost: WALL_BASE.breakCost },
+  turret: { kind: 'turret', nameKey: 'build.turret', cost: TURRET_PLACE_COST, hp: TURRET_PLAIN[0].stats.hp, solid: true, breakCost: TURRET_BREAK_COST },
+  spikes: { kind: 'spikes', nameKey: 'build.spikes', cost: SPIKE_LEVELS[0].cost, hp: SPIKE_LEVELS[0].hp, solid: false, breakCost: 0 }
 }
 export const BUILD_ORDER: BuildKind[] = ['barricade', 'turret', 'spikes']
 
@@ -84,7 +85,7 @@ export type TierUnlock = 'stone' | 'bronze' | 'reinforced' | 'spikeStone' | 'spi
  * Pour changer l'ordre ou en ajouter : modifier ce tableau, et la chaîne `requires` des compétences dans progress.ts.
  */
 export interface WallTier {
-  name: string
+  nameKey: string
   /** Prix pour passer au niveau précédent → celui-ci. */
   cost: number
   hp: number
@@ -120,7 +121,8 @@ export const BULLET_STYLES: ReadonlyArray<{ color: string; radius: number }> = [
 export type EnemyKind = 'grunt' | 'runner' | 'brute' | 'splitter' | 'boss' | 'spider' | 'spitter' | 'jumper' | 'rageboss'
 
 export interface EnemyDef {
-  name: string
+  /** Clé de traduction (i18n). */
+  nameKey: string
   hp: number
   speed: number
   radius: number

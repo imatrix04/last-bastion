@@ -115,15 +115,15 @@ export const WAVES = {
 
 /** hp : PV (avant la hausse par vague) · speed : px/s · damage : par coup · interval : secondes entre deux coups · reward : or. */
 export const ENEMY_STATS: Record<EnemyKind, EnemyDef> = {
-  grunt: { name: 'Rôdeur', hp: 50, speed: 62, radius: 11, damage: 10, interval: 0.9, reward: 8, color: '#8bc34a' },
-  runner: { name: 'Coureur', hp: 35, speed: 115, radius: 9, damage: 8, interval: 0.7, reward: 10, color: '#ffb74d' },
-  brute: { name: 'Brute', hp: 400, speed: 40, radius: 15, damage: 38, interval: 1.3, reward: 36, color: '#ba68c8' },
-  splitter: { name: 'Éclateur', hp: 240, speed: 46, radius: 14, damage: 25, interval: 1.2, reward: 16, color: '#26c6a2' },
-  spider: { name: 'Araignée', hp: 210, speed: 72, radius: 15, damage: 14, interval: 0.9, reward: 24, color: '#9c2a4a' },
-  jumper: { name: 'Sauteur', hp: 110, speed: 80, radius: 10, damage: 12, interval: 0.8, reward: 16, color: '#f48fb1' },
-  spitter: { name: 'Cracheur', hp: 140, speed: 52, radius: 12, damage: 6, interval: 1, reward: 22, color: '#b2ff59' },
-  rageboss: { name: 'Colosse enragé', hp: 3600, speed: 40, radius: 21, damage: 140, interval: 1.1, reward: 600, color: '#8e0000' },
-  boss: { name: 'Colosse', hp: 1300, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 220, color: '#e53935' }
+  grunt: { nameKey: 'enemy.grunt', hp: 50, speed: 62, radius: 11, damage: 10, interval: 0.9, reward: 8, color: '#8bc34a' },
+  runner: { nameKey: 'enemy.runner', hp: 35, speed: 115, radius: 9, damage: 8, interval: 0.7, reward: 10, color: '#ffb74d' },
+  brute: { nameKey: 'enemy.brute', hp: 400, speed: 40, radius: 15, damage: 38, interval: 1.3, reward: 36, color: '#ba68c8' },
+  splitter: { nameKey: 'enemy.splitter', hp: 240, speed: 46, radius: 14, damage: 25, interval: 1.2, reward: 16, color: '#26c6a2' },
+  spider: { nameKey: 'enemy.spider', hp: 210, speed: 72, radius: 15, damage: 14, interval: 0.9, reward: 24, color: '#9c2a4a' },
+  jumper: { nameKey: 'enemy.jumper', hp: 110, speed: 80, radius: 10, damage: 12, interval: 0.8, reward: 16, color: '#f48fb1' },
+  spitter: { nameKey: 'enemy.spitter', hp: 140, speed: 52, radius: 12, damage: 6, interval: 1, reward: 22, color: '#b2ff59' },
+  rageboss: { nameKey: 'enemy.rageboss', hp: 3600, speed: 40, radius: 21, damage: 140, interval: 1.1, reward: 600, color: '#8e0000' },
+  boss: { nameKey: 'enemy.boss', hp: 1300, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 220, color: '#e53935' }
 }
 
 // ───────────────────────────────────────────────────────────── 5. CONSTRUCTIONS
@@ -133,16 +133,16 @@ export const WALL_BASE = { cost: 15, hp: 180, breakCost: 5 }
 
 /** Niveaux de mur à partir du niveau 2 (débloqués par l'arbre de compétences). cost : prix pour atteindre ce niveau. */
 export const WALL_TIERS: readonly WallTier[] = [
-  { name: 'Mur en pierre', cost: 45, hp: 340, breakCost: 14, unlock: 'stone', debris: '#a9afbd' },
-  { name: 'Mur en bronze', cost: 60, hp: 650, breakCost: 19, unlock: 'bronze', debris: '#c47a3a' },
-  { name: 'Mur en pierre renforcé', cost: 80, hp: 900, breakCost: 26, unlock: 'reinforced', debris: '#cfd8dc' }
+  { nameKey: 'tier.stone', cost: 45, hp: 340, breakCost: 14, unlock: 'stone', debris: '#a9afbd' },
+  { nameKey: 'tier.bronze', cost: 60, hp: 650, breakCost: 19, unlock: 'bronze', debris: '#c47a3a' },
+  { nameKey: 'tier.reinforced', cost: 80, hp: 900, breakCost: 26, unlock: 'reinforced', debris: '#cfd8dc' }
 ]
 
 /** Pieux. dps : dégâts/s aux ennemis dessus · wearPerSec : usure · slow : multiplicateur de vitesse (0,65 = −35 %). */
 export const SPIKE_TIERS: readonly SpikeLevel[] = [
-  { name: 'Pieux en bois', cost: 45, hp: 220, dps: 30, wearPerSec: 14, slow: 0.75, debris: '#b08a55' },
-  { name: 'Pieux en pierre', cost: 60, hp: 370, dps: 44, wearPerSec: 12, slow: 0.7, unlock: 'spikeStone', debris: '#a9afbd' },
-  { name: 'Pieux en pierre renforcé', cost: 90, hp: 530, dps: 62, wearPerSec: 9, slow: 0.6, unlock: 'spikeReinforced', debris: '#cfd8dc' }
+  { nameKey: 'tier.spikeWood', cost: 45, hp: 220, dps: 30, wearPerSec: 14, slow: 0.75, debris: '#b08a55' },
+  { nameKey: 'tier.spikeStone', cost: 60, hp: 370, dps: 44, wearPerSec: 12, slow: 0.7, unlock: 'spikeStone', debris: '#a9afbd' },
+  { nameKey: 'tier.spikeReinforced', cost: 90, hp: 530, dps: 62, wearPerSec: 9, slow: 0.6, unlock: 'spikeReinforced', debris: '#cfd8dc' }
 ]
 
 // ───────────────────────────────────────────────────────────── 6. TOURELLES
@@ -181,8 +181,8 @@ export const TURRET_LEVELS_PLAIN: readonly TurretLevel[] = [
 /** Branches : name / blurb / accent (texte et couleur) + `levels` = niveaux 4 à 10. */
 export const TURRET_BRANCH_CONFIG: Record<1 | 2, TurretBranchDef> = {
   1: {
-    name: 'Double canons',
-    blurb: 'Deux canons en alternance : la cadence explose à chaque niveau.',
+    nameKey: 'turret.branch.1.name',
+    blurbKey: 'turret.branch.1.blurb',
     accent: '#4dd0e1',
     levels: [
       // Niveaux 4 à 7 : double canons
@@ -197,8 +197,8 @@ export const TURRET_BRANCH_CONFIG: Record<1 | 2, TurretBranchDef> = {
     ]
   },
   2: {
-    name: 'Canon lourd',
-    blurb: 'Un obus massif : des dégâts énormes, de plus en plus loin.',
+    nameKey: 'turret.branch.2.name',
+    blurbKey: 'turret.branch.2.blurb',
     accent: '#ff9800',
     levels: [
       // Niveaux 4 à 7 : canon lourd
@@ -273,9 +273,9 @@ export const JUMP_CONFIG = {
 export type EventKind = 'fog'
 
 export interface EventDef {
-  name: string
-  /** Phrase affichée à l'arrivée de l'événement. */
-  tagline: string
+  /** Clés de traduction (i18n) : nom et phrase affichée à l'arrivée de l'événement. */
+  nameKey: string
+  taglineKey: string
   /** Couleur de l'annonce. */
   accent: string
   /** Voile de couleur posé sur toute la scène pendant l'événement. */
@@ -305,8 +305,8 @@ export const EVENTS: { from: number; chance: number; fadeSeconds: number; banner
   bannerSeconds: 4.5,
   list: {
     fog: {
-      name: 'Brouillard',
-      tagline: 'Une brume épaisse engloutit le terrain : on n’y voit plus rien',
+      nameKey: 'event.fog.name',
+      taglineKey: 'event.fog.tagline',
       accent: '#b0bec5',
       tint: 'rgba(110, 140, 165, 0.14)',
       fogRgb: '150, 168, 184',
@@ -403,9 +403,9 @@ export const DEV_CONFIG = {
 export type BiomeDecor = 'meadow' | 'forest' | 'desert' | 'volcano' | 'void'
 
 export interface BiomeDef {
-  name: string
-  /** Phrase affichée à l'arrivée dans le biome. */
-  tagline: string
+  /** Clés de traduction (i18n) : nom et phrase affichée à l'arrivée dans le biome. */
+  nameKey: string
+  taglineKey: string
   /** Couleur de l'annonce. */
   accent: string
   /** Deux teintes du damier. */
@@ -440,8 +440,8 @@ export const BIOMES: { every: number; fadeSeconds: number; list: readonly BiomeD
   fadeSeconds: 2.5,
   list: [
     {
-      name: 'Plaine',
-      tagline: 'Le calme avant la tempête',
+      nameKey: 'biome.0.name',
+      taglineKey: 'biome.0.tagline',
       accent: '#a5d6a7',
       tileA: '#1f3324',
       tileB: '#1c2f21',
@@ -458,8 +458,8 @@ export const BIOMES: { every: number; fadeSeconds: number; list: readonly BiomeD
       ambient: { color: '#fff59d', count: 14, speed: 6, size: 1.4, drift: 10, rise: false }
     },
     {
-      name: 'Forêt maudite',
-      tagline: 'Les arbres se referment, les monstres se multiplient',
+      nameKey: 'biome.1.name',
+      taglineKey: 'biome.1.tagline',
       accent: '#9ccc65',
       tileA: '#16261d',
       tileB: '#13211a',
@@ -476,8 +476,8 @@ export const BIOMES: { every: number; fadeSeconds: number; list: readonly BiomeD
       ambient: { color: '#9ccc65', count: 22, speed: 10, size: 1.7, drift: 18, rise: true }
     },
     {
-      name: 'Terres brûlées',
-      tagline: 'Le sol craque sous la chaleur : la horde s’épaissit',
+      nameKey: 'biome.2.name',
+      taglineKey: 'biome.2.tagline',
       accent: '#ffcc80',
       tileA: '#4a3a22',
       tileB: '#43341f',
@@ -494,8 +494,8 @@ export const BIOMES: { every: number; fadeSeconds: number; list: readonly BiomeD
       ambient: { color: '#d7b377', count: 28, speed: 4, size: 1.5, drift: 55, rise: false }
     },
     {
-      name: 'Cendres du volcan',
-      tagline: 'La roche fond : plus aucun répit',
+      nameKey: 'biome.3.name',
+      taglineKey: 'biome.3.tagline',
       accent: '#ff8a65',
       tileA: '#2a2524',
       tileB: '#262120',
@@ -512,8 +512,8 @@ export const BIOMES: { every: number; fadeSeconds: number; list: readonly BiomeD
       ambient: { color: '#ff7043', count: 36, speed: 30, size: 1.8, drift: 14, rise: true }
     },
     {
-      name: 'Néant',
-      tagline: 'Au bord de l’abîme, tout est perdu d’avance',
+      nameKey: 'biome.4.name',
+      taglineKey: 'biome.4.tagline',
       accent: '#b388ff',
       tileA: '#1c1530',
       tileB: '#181229',

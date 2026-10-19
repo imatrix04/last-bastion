@@ -1,9 +1,17 @@
-export interface ChangelogRelease {
-  version: string
-  date?: string
+export interface ChangelogSections {
   added: string[]
   changed: string[]
   fixed: string[]
+}
+
+/**
+ * Les listes à la racine sont en français. `en` (facultatif) donne les mêmes listes en anglais : une application
+ * plus ancienne, qui ne connaît pas ce champ, l'ignore et affiche le français sans erreur.
+ */
+export interface ChangelogRelease extends ChangelogSections {
+  version: string
+  date?: string
+  en?: ChangelogSections
 }
 
 export interface Changelog {

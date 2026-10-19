@@ -53,16 +53,16 @@ function friendlyError(err: unknown): string {
   const e = err as NodeJS.ErrnoException
   switch (e.code) {
     case 'ECONNREFUSED':
-      return "Connexion refusée : l'hôte n'a pas lancé la partie, ou le port est bloqué (pare-feu, box)."
+      return 'net.refused'
     case 'ENOTFOUND':
     case 'EAI_AGAIN':
-      return 'Adresse introuvable.'
+      return 'net.notFound'
     case 'ETIMEDOUT':
     case 'EHOSTUNREACH':
     case 'ENETUNREACH':
-      return "Hôte injoignable : vérifie l'adresse et que le port est ouvert."
+      return 'net.unreachable'
     default:
-      return /timed out|timeout/i.test(e.message) ? "Délai dépassé : vérifie l'adresse et que le port est ouvert." : e.message
+      return /timed out|timeout/i.test(e.message) ? 'net.timeout' : e.message
   }
 }
 
@@ -134,7 +134,7 @@ export function registerNetHandlers(): void {
         // Avant 'listening' : échec du démarrage (port déjà pris...). Après : on ignore.
         resolve({
           ok: false,
-          error: err.code === 'EADDRINUSE' ? `Le port ${p} est déjà utilisé (une autre partie est-elle ouverte ?).` : err.message
+          error: err.code === 'EADDRINUSE' ? `net.portInUse|${p}` : err.message
         })
       })
     })
@@ -144,7 +144,7 @@ export function registerNetHandlers(): void {
     shutdown()
     target = event.sender
     const url = toUrl(address)
-    if (!url) return Promise.resolve({ ok: false, error: 'Adresse invalide (exemple : 192.168.1.20 ou 192.168.1.20:7777).' })
+    if (!url) return Promise.resolve({ ok: false, error: 'net.badAddress' })
     return new Promise((resolve) => {
       const ws = new WebSocket(url, { maxPayload: MAX_PAYLOAD, handshakeTimeout: 6000 })
       ws.once('open', () => {

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { DEFAULT_COLORS } from '../game/config/appearance'
+import { useT } from '../i18n'
+import { rich } from '../i18n/rich'
 import { BUILD_ORDER, BUILDS } from '../game/config/constants'
 import { CONTROLS, SKIP_WAVE } from '../game/config/controls'
 import type { AbilityHud } from '../game/types'
@@ -7,11 +9,12 @@ import { PERK_ICONS } from './icons'
 import { useStore } from '../store'
 import { useKeyLabels } from '../useKeyLabels'
 
-const ABILITY_NAMES = { fireBullets: 'Balles enflammées' } as const
+const ABILITY_NAMES = { fireBullets: 'perk.fireBullets.name' } as const
 const GLYPHS = { barricade: '▤', turret: '◉', spikes: '▲' } as const
 
 /** Or affiché : le nombre glisse vers sa nouvelle valeur, la pièce brille à chaque gain, un « +N » s'envole (rouge « −N » à la dépense). */
 function GoldChip({ gold, tag, color }: { gold: number; tag?: string; color?: string }): React.JSX.Element {
+  const t = useT()
   const [shown, setShown] = useState(gold)
   const [pops, setPops] = useState<{ id: number; amount: number }[]>([])
   const [flash, setFlash] = useState<'gain' | 'spend' | ''>('')
@@ -30,8 +33,8 @@ function GoldChip({ gold, tag, color }: { gold: number; tag?: string; color?: st
       window.setTimeout(() => setPops((p) => p.filter((x) => x.id !== id)), 900)
     }
     setFlash(delta > 0 ? 'gain' : 'spend')
-    const t = window.setTimeout(() => setFlash(''), 260)
-    return () => window.clearTimeout(t)
+    const timer = window.setTimeout(() => setFlash(''), 260)
+    return () => window.clearTimeout(timer)
   }, [gold])
 
   useEffect(() => {
@@ -51,7 +54,7 @@ function GoldChip({ gold, tag, color }: { gold: number; tag?: string; color?: st
       {tag && <span className="gold-tag">{tag}</span>}
       <span className="coin" />
       <b>{Math.round(shown)}</b>
-      <span className="muted">or</span>
+      <span className="muted">{t('hud.gold')}</span>
       {pops.map((p) => (
         <span key={p.id} className={`gold-pop ${p.amount > 0 ? 'up' : 'down'}`}>
           {p.amount > 0 ? '+' : '−'}
@@ -63,6 +66,7 @@ function GoldChip({ gold, tag, color }: { gold: number; tag?: string; color?: st
 }
 
 export function Hud(): React.JSX.Element {
+  const t = useT()
   const hud = useStore((s) => s.hud)
   const playerCount = useStore((s) => s.playerCount)
   const mode = useStore((s) => s.mode)
@@ -82,7 +86,7 @@ export function Hud(): React.JSX.Element {
             <GoldChip
               key={i}
               gold={hud.golds[i] ?? 0}
-              tag={playerCount > 1 ? `J${i + 1}` : undefined}
+              tag={playerCount > 1 ? t('player.short', { n: i + 1 }) : undefined}
               color={playerCount > 1 ? (hud.colors[i] ?? DEFAULT_COLORS[i]) : undefined}
             />
           ))}
@@ -91,29 +95,27 @@ export function Hud(): React.JSX.Element {
               ☠
             </span>
             <b>{hud.kills}</b>
-            <span className="muted">monstres tués</span>
+            <span className="muted">{t('hud.kills')}</span>
           </div>
-          {hud.dev && <div className="chip dev">MODE DEV · or rapide (F9 pour couper)</div>}
+          {hud.dev && <div className="chip dev">{t('hud.dev')}</div>}
         </div>
 
         <div className="chip wave">
           {hud.phase === 'prep' ? (
             <>
-              Vague <b>{hud.wave + 1}</b> dans <b>{hud.countdown}s</b>
-              <span className="muted">
-                <kbd>{label(SKIP_WAVE)}</kbd> pour lancer
-              </span>
+              {rich('hud.waveIn', { wave: <b>{hud.wave + 1}</b>, time: <b>{hud.countdown}s</b> })}
+              <span className="muted">{rich('hud.skip', { key: <kbd>{label(SKIP_WAVE)}</kbd> })}</span>
             </>
           ) : (
             <>
-              Vague <b>{hud.wave}</b>
-              <span className="muted">{hud.enemies} ennemis</span>
+              {rich('hud.wave', { wave: <b>{hud.wave}</b> })}
+              <span className="muted">{t('hud.enemies', { n: hud.enemies })}</span>
             </>
           )}
         </div>
 
         <div className="chip base">
-          <span className="muted">Forteresse</span>
+          <span className="muted">{t('hud.base')}</span>
           <div className="bar">
             <div className="fill" style={{ width: `${ratio * 100}%`, background: barColor }} />
           </div>
@@ -123,10 +125,10 @@ export function Hud(): React.JSX.Element {
 
       {mode === 'host' && (
         <div className={`chip net-status ${peerOnline ? 'on' : 'off'}`}>
-          {peerOnline ? `Joueur 2 connecté${hud.ping > 0 ? ` · ${hud.ping} ms` : ''}` : 'Joueur 2 déconnecté : il peut se reconnecter'}
+          {peerOnline ? `${t('hud.p2On')}${hud.ping > 0 ? ` · ${hud.ping} ms` : ''}` : t('hud.p2Off')}
         </div>
       )}
-      {mode === 'client' && hud.ping > 0 && <div className={`chip net-status ${hud.ping < 120 ? 'on' : 'off'}`}>Latence {hud.ping} ms</div>}
+      {mode === 'client' && hud.ping > 0 && <div className={`chip net-status ${hud.ping < 120 ? 'on' : 'off'}`}>{t('hud.latency', { n: hud.ping })}</div>}
 
       <div className="hud-bottom">
         {mode === 'local' ? (
@@ -157,12 +159,13 @@ function BuildBar({
   color: string
   abilities: AbilityHud[]
 }): React.JSX.Element {
+  const t = useT()
   const label = useKeyLabels()
   const c = CONTROLS[keyIndex]
 
   return (
     <div className="buildbar" style={{ '--pc': color } as CSSProperties}>
-      <div className="who">J{index + 1}</div>
+      <div className="who">{t('player.short', { n: index + 1 })}</div>
       <div className="slots">
         {BUILD_ORDER.map((kind, i) => {
           const def = BUILDS[kind]
@@ -171,7 +174,7 @@ function BuildBar({
             <div key={kind} className={cls}>
               <span className="num">{i + 1}</span>
               <span className={`glyph ${kind}`}>{GLYPHS[kind]}</span>
-              <span className="name">{def.name}</span>
+              <span className="name">{t(def.nameKey)}</span>
               <span className="cost">{def.cost}</span>
             </div>
           )
@@ -186,7 +189,7 @@ function BuildBar({
             // Pendant l'effet la jauge se vide (durée restante) ; ensuite elle se remplit jusqu'à la recharge complète.
             const fill = active ? a.on / a.onMax : a.cdMax > 0 ? 1 - a.cd / a.cdMax : 1
             return (
-              <div key={a.id} className={`ability${active ? ' active' : ready ? ' ready' : ''}`} title={ABILITY_NAMES[a.id]}>
+              <div key={a.id} className={`ability${active ? ' active' : ready ? ' ready' : ''}`} title={t(ABILITY_NAMES[a.id])}>
                 <span className="num">
                   <kbd>{label(c.abilities[i])}</kbd>
                 </span>
@@ -194,16 +197,21 @@ function BuildBar({
                 <span className="ability-bar">
                   <i style={{ width: `${Math.max(0, Math.min(1, fill)) * 100}%` }} />
                 </span>
-                <span className="ability-time">{active ? `${Math.ceil(a.on)} s` : ready ? 'Prête' : `${Math.ceil(a.cd)} s`}</span>
+                <span className="ability-time">{active ? `${Math.ceil(a.on)} s` : ready ? t('hud.ready') : `${Math.ceil(a.cd)} s`}</span>
               </div>
             )
           })}
         </div>
       )}
       <div className="keys">
-        <kbd>{label(c.prev)}</kbd>
-        <kbd>{label(c.next)}</kbd> objet · <kbd>{label(c.place)}</kbd> construire / réparer · <kbd>{label(c.upgrade)}</kbd>{' '}
-        améliorer · <kbd>{label(c.remove)}</kbd> démolir · <kbd>{label(c.target)}</kbd> cible tourelle
+        {rich('hud.keys', {
+          prev: <kbd>{label(c.prev)}</kbd>,
+          next: <kbd>{label(c.next)}</kbd>,
+          place: <kbd>{label(c.place)}</kbd>,
+          upgrade: <kbd>{label(c.upgrade)}</kbd>,
+          remove: <kbd>{label(c.remove)}</kbd>,
+          target: <kbd>{label(c.target)}</kbd>
+        })}
       </div>
     </div>
   )

@@ -7,10 +7,11 @@ import {
   type BuildKind
 } from './config/constants'
 import { GAME } from './config/config'
+import { floating } from '../i18n'
 import { addText, burst, ring, smoke, sparks } from './fx'
 import { buildingAt, distToRect, idx, isBaseCell } from './grid'
 import { PERK_INDEX, spikeCap, turretCap } from './config/progress'
-import { branchUnlocked, investedCost, levelName, maxHpOf, nextUpgrade } from './stats'
+import { branchUnlocked, investedCost, levelSpec, maxHpOf, nextUpgrade } from './stats'
 import { TURRET_BRANCHES, TURRET_PLAIN_MAX, type Branch } from './config/turrets'
 import type { Building, GameState, Player } from './types'
 
@@ -119,7 +120,7 @@ function upgradeFx(state: GameState, b: Building): void {
   ring(state, cx, cy, '#ffd54a', 44)
   sparks(state, cx, cy, '#ffe082', 14, 190)
   smoke(state, cx, cy + 6, '#d7ccc8', 3, 45)
-  const label = b.kind === 'turret' && b.branch === 0 ? `Niveau ${b.level}` : levelName(b)
+  const label = b.kind === 'turret' && b.branch === 0 ? floating('level.n', b.level) : '@' + levelSpec(b)
   addText(state, cx, cy - 40, label, '#ffe082')
 }
 
@@ -142,7 +143,7 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
       const b = buildingAt(state, col, row)
       if (!b) return false
       if (b.repairCd > 0) {
-        if (press) addText(state, cx, cy - 20, `Réparation prête dans ${Math.ceil(b.repairCd)} s`, '#90caf9')
+        if (press) addText(state, cx, cy - 20, floating('float.repairIn', Math.ceil(b.repairCd)), '#90caf9')
         return false
       }
       // Chaque réparation rend une part des PV max (50 % par défaut), puis la case est en recharge.
@@ -150,7 +151,7 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
       // Une réparation complète coûte environ la moitié de l'or investi dans le bâtiment.
       const cost = Math.ceil((investedCost(b) * 0.5 * amount) / b.maxHp)
       if (p.gold < cost) {
-        if (press) addText(state, p.x, p.y - 24, "Pas assez d'or", '#ff8a65')
+        if (press) addText(state, p.x, p.y - 24, floating('float.noGold'), '#ff8a65')
         return false
       }
       p.gold -= cost
@@ -162,16 +163,16 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
       return true
     }
     case 'poor':
-      if (press) addText(state, p.x, p.y - 24, "Pas assez d'or", '#ff8a65')
+      if (press) addText(state, p.x, p.y - 24, floating('float.noGold'), '#ff8a65')
       return false
     case 'limit':
       if (press) {
         const spikes = BUILD_ORDER[p.selected] === 'spikes'
-        addText(state, p.x, p.y - 24, spikes ? `Limite : ${spikeCap(p.perks)} pieux` : `Limite : ${turretCap(p.perks)} tourelles`, '#ff8a65')
+        addText(state, p.x, p.y - 24, spikes ? floating('float.limitSpikes', spikeCap(p.perks)) : floating('float.limitTurrets', turretCap(p.perks)), '#ff8a65')
       }
       return false
     case 'invalid':
-      if (press) addText(state, p.x, p.y - 24, 'Impossible ici', '#ff8a65')
+      if (press) addText(state, p.x, p.y - 24, floating('float.invalid'), '#ff8a65')
       return false
     default:
       return false
@@ -186,24 +187,24 @@ export function actUpgrade(state: GameState, p: Player): boolean {
   const { col, row } = buildTarget(p)
   const b = buildingAt(state, col, row)
   if (!b) {
-    addText(state, p.x, p.y - 24, 'Rien à améliorer', '#b0bec5')
+    addText(state, p.x, p.y - 24, floating('float.nothingToUpgrade'), '#b0bec5')
     return false
   }
   if (b.owner !== p.id) {
-    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, `Appartient au Joueur ${b.owner + 1}`, '#b0bec5')
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, floating('float.owner', b.owner + 1), '#b0bec5')
     return false
   }
   const next = nextUpgrade(b, p.unlocks)
   if (!next) {
-    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, 'Niveau max', '#b0bec5')
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, floating('float.maxLevel'), '#b0bec5')
     return false
   }
   if (next.locked) {
-    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, 'Verrouillé (Compétences)', '#ce93d8')
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, floating('float.locked'), '#ce93d8')
     return false
   }
   if (p.gold < next.cost) {
-    addText(state, p.x, p.y - 24, "Pas assez d'or", '#ff8a65')
+    addText(state, p.x, p.y - 24, floating('float.noGold'), '#ff8a65')
     return false
   }
   if (next.mode === 'choice') {
@@ -228,7 +229,7 @@ export function applyTurretBranch(state: GameState, col: number, row: number, br
   if (Math.hypot(player.x - (col + 0.5) * TILE, player.y - (row + 0.5) * TILE) > PICK_REACH * TILE) return false
   const cost = TURRET_BRANCHES[branch].levels[0].cost
   if (player.gold < cost) {
-    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, "Pas assez d'or", '#ff8a65')
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, floating('float.noGold'), '#ff8a65')
     return false
   }
   player.gold -= cost
@@ -243,15 +244,15 @@ export function actToggleTarget(state: GameState, p: Player): boolean {
   const { col, row } = buildTarget(p)
   const b = buildingAt(state, col, row)
   if (!b || b.kind !== 'turret') {
-    addText(state, p.x, p.y - 24, 'Visez une tourelle', '#b0bec5')
+    addText(state, p.x, p.y - 24, floating('float.aimTurret'), '#b0bec5')
     return false
   }
   if (b.owner !== p.id) {
-    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, `Appartient au Joueur ${b.owner + 1}`, '#b0bec5')
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, floating('float.owner', b.owner + 1), '#b0bec5')
     return false
   }
   b.targeting = b.targeting === 0 ? 1 : 0
-  addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 28, b.targeting === 1 ? 'Cible : proche de la forteresse' : 'Cible : proche de la tourelle', '#80deea')
+  addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 28, floating(b.targeting === 1 ? 'float.targetFortress' : 'float.targetTurret'), '#80deea')
   ring(state, (col + 0.5) * TILE, (row + 0.5) * TILE, '#80deea', 30)
   return true
 }
@@ -262,7 +263,7 @@ export function actRemove(state: GameState, p: Player): boolean {
   const b = buildingAt(state, col, row)
   if (!b) return false
   if (b.owner !== p.id) {
-    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, `Appartient au Joueur ${b.owner + 1}`, '#b0bec5')
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, floating('float.owner', b.owner + 1), '#b0bec5')
     return false
   }
   const refund = Math.round(investedCost(b) * 0.5 * (b.hp / b.maxHp))

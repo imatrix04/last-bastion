@@ -24,7 +24,7 @@ import {
 import type { ChoiceRequest, HudState, RunResult } from './game/types'
 import { session } from './net'
 
-export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover' | 'skills' | 'shop' | 'arsenal'
+export type Screen = 'menu' | 'lobby' | 'playing' | 'paused' | 'gameover' | 'skills' | 'shop' | 'arsenal' | 'settings'
 /** local : une machine · host : héberge la partie en ligne · client : a rejoint la partie d'un hôte */
 export type Mode = 'local' | 'host' | 'client'
 
@@ -140,6 +140,8 @@ interface Store {
   setHud: (hud: HudState) => void
   openArsenal: () => void
   closeArsenal: () => void
+  openSettings: () => void
+  closeSettings: () => void
   /** Décale une capacité équipée d'un emplacement (-1 = vers la première touche, +1 = vers la dernière). */
   moveAbility: (id: AbilityId, dir: -1 | 1) => void
   openSkills: () => void
@@ -267,6 +269,12 @@ export const useStore = create<Store>()((set, get) => ({
   },
   closeArsenal: () => {
     if (get().screen === 'arsenal') set({ screen: 'menu' })
+  },
+  openSettings: () => {
+    if (get().screen === 'menu') set({ screen: 'settings' })
+  },
+  closeSettings: () => {
+    if (get().screen === 'settings') set({ screen: 'menu' })
   },
   moveAbility: (id, dir) => {
     const { progress } = get()
@@ -402,7 +410,7 @@ session.subscribe((event) => {
           mode: 'local',
           lobby: null,
           peerOnline: false,
-          netError: s.netError ?? "Connexion perdue avec l'hôte."
+          netError: s.netError ?? 'net.lost'
         })
       }
       break

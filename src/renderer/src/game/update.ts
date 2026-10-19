@@ -22,6 +22,7 @@ import { fmtGold, shareGold } from './economy'
 import { activateAbility, activeBurn, tickAbilities } from './abilities'
 import { ABILITY_CONFIG, EXPLOSION, MINIGUN, PLAYER_AIM, WAVES } from './config/config'
 import { CONTROLS, DEV_ENABLED, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './config/controls'
+import { floating } from '../i18n'
 import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot } from './fx'
 import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
 import { advanceEvent, eventMods, playerSight, rollEvent, turretSees } from './events'
@@ -42,7 +43,7 @@ export function step(state: GameState, dt: number, input: InputLike): void {
   // Mode développeur : seulement avec `npm run dev` (absent des versions installées).
   if (DEV_ENABLED && input.wasPressed(DEV_TOGGLE)) {
     state.dev = !state.dev
-    addText(state, WIDTH / 2, 70, state.dev ? 'MODE DEV : or rapide' : 'Mode dev coupé', state.dev ? '#ffd54a' : '#b0bec5')
+    addText(state, WIDTH / 2, 70, floating(state.dev ? 'float.devOn' : 'float.devOff'), state.dev ? '#ffd54a' : '#b0bec5')
   }
   if (state.dev) for (const p of state.players) p.gold += DEV_GOLD_PER_SEC * dt
 
@@ -330,7 +331,7 @@ function updateWaves(state: GameState, dt: number, input: InputLike): void {
       const bonus = Math.floor(state.countdown) * WAVES.skipBonusPerSecond
       if (bonus > 0) {
         shareGold(state, bonus)
-        addText(state, BASE.col * TILE + (BASE.cols * TILE) / 2, BASE.row * TILE - 30, `+${bonus} (appel anticipé)`, '#ffd54a')
+        addText(state, BASE.col * TILE + (BASE.cols * TILE) / 2, BASE.row * TILE - 30, floating('float.skipBonus', bonus), '#ffd54a')
       }
       state.countdown = 0
     }
@@ -370,7 +371,7 @@ function endWave(state: GameState): void {
     state,
     BASE.col * TILE + (BASE.cols * TILE) / 2,
     BASE.row * TILE - 30,
-    `Vague ${state.wave} repoussée  +${bonus}`,
+    floating('float.waveRepelled', state.wave, bonus),
     '#a5d6a7'
   )
   state.phase = 'prep'

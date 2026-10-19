@@ -1,3 +1,4 @@
+import { floatingText, t } from '../i18n'
 import { biomeOf } from './biomes'
 import { buildTarget, placementStatus } from './build'
 import type { BiomeDecor, BiomeDef } from './config/config'
@@ -240,16 +241,16 @@ function drawBanner(ctx: CanvasRenderingContext2D, banner: BiomeBanner): void {
   ctx.fillRect(0, y - 46, WIDTH, 92)
   ctx.font = `600 13px ${FONT}`
   ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
-  ctx.fillText(`BIOME ${banner.index}`, WIDTH / 2, y - 24)
+  ctx.fillText(t('biome.label', { n: banner.index }), WIDTH / 2, y - 24)
   ctx.font = `800 32px ${FONT}`
   ctx.lineWidth = 5
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
-  ctx.strokeText(banner.biome.name, WIDTH / 2, y + 2)
+  ctx.strokeText(t(banner.biome.nameKey), WIDTH / 2, y + 2)
   ctx.fillStyle = banner.biome.accent
-  ctx.fillText(banner.biome.name, WIDTH / 2, y + 2)
+  ctx.fillText(t(banner.biome.nameKey), WIDTH / 2, y + 2)
   ctx.font = `italic 600 14px ${FONT}`
   ctx.fillStyle = 'rgba(255, 255, 255, 0.82)'
-  ctx.fillText(banner.biome.tagline, WIDTH / 2, y + 28)
+  ctx.fillText(t(banner.biome.taglineKey), WIDTH / 2, y + 28)
   ctx.restore()
 }
 
@@ -373,16 +374,16 @@ function drawEventBanner(ctx: CanvasRenderingContext2D, state: GameState): void 
   ctx.fillRect(0, y - 40, WIDTH, 80)
   ctx.font = `600 13px ${FONT}`
   ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
-  ctx.fillText('ÉVÉNEMENT', WIDTH / 2, y - 22)
+  ctx.fillText(t('event.label'), WIDTH / 2, y - 22)
   ctx.font = `800 28px ${FONT}`
   ctx.lineWidth = 5
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
-  ctx.strokeText(def.name, WIDTH / 2, y + 2)
+  ctx.strokeText(t(def.nameKey), WIDTH / 2, y + 2)
   ctx.fillStyle = def.accent
-  ctx.fillText(def.name, WIDTH / 2, y + 2)
+  ctx.fillText(t(def.nameKey), WIDTH / 2, y + 2)
   ctx.font = `italic 600 13px ${FONT}`
   ctx.fillStyle = 'rgba(255, 255, 255, 0.82)'
-  ctx.fillText(def.tagline, WIDTH / 2, y + 26)
+  ctx.fillText(t(def.taglineKey), WIDTH / 2, y + 26)
   ctx.restore()
 }
 
@@ -791,7 +792,7 @@ function drawGhostLabels(ctx: CanvasRenderingContext2D, state: GameState): void 
     let color = '#e0e0e0'
     if (target.owner !== p.id) {
       // Le bâtiment d'un autre joueur : on peut le réparer, pas l'améliorer ni le démolir.
-      text += `  · Joueur ${target.owner + 1}`
+      text += `  · ${t('player.n', { n: target.owner + 1 })}`
       color = '#b0bec5'
     } else if (next && next.locked) {
       text += `  🔒 ${next.label}`
@@ -800,7 +801,7 @@ function drawGhostLabels(ctx: CanvasRenderingContext2D, state: GameState): void 
       text += `  ▲ ${next.label} · ${next.cost}${next.mode === 'choice' ? '+' : ''}`
       color = p.gold >= next.cost ? '#ffe082' : '#ffab91'
     } else {
-      text += '  · niveau max'
+      text += `  · ${t('level.max')}`
     }
     const lx = col * TILE + TILE / 2
     const ly = Math.max(10, row * TILE - 14)
@@ -980,9 +981,9 @@ function drawFx(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'
   for (const t of state.texts) {
     ctx.globalAlpha = Math.min(1, t.life * 2)
-    ctx.strokeText(t.text, t.x, t.y)
+    ctx.strokeText(floatingText(t.text), t.x, t.y)
     ctx.fillStyle = t.color
-    ctx.fillText(t.text, t.x, t.y)
+    ctx.fillText(floatingText(t.text), t.x, t.y)
   }
   ctx.globalAlpha = 1
 }

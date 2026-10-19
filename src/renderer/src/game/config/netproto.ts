@@ -7,7 +7,7 @@ import { EVENT_KINDS } from '../events'
 import type { FxEvent, GameState } from '../types'
 
 /** À incrémenter à chaque changement du protocole : l'hôte refuse un client d'une autre version. */
-export const PROTO_VERSION = 18
+export const PROTO_VERSION = 19
 export const NET_PORT = 7777
 /** Fréquence d'envoi de l'état du jeu par l'hôte : un état tous les 2 pas de simulation (60 Hz). */
 export const SNAPSHOT_HZ = 30
