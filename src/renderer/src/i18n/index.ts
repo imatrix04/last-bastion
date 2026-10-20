@@ -34,7 +34,9 @@ let current: Lang = detect()
 const listeners = new Set<() => void>()
 
 function applyDocumentLang(): void {
-  if (typeof document !== 'undefined') document.documentElement.lang = current
+  // via globalThis : ce module est aussi typé côté node (scripts/simulate.ts), sans lib DOM
+  const doc = (globalThis as { document?: { documentElement: { lang: string } } }).document
+  if (doc) doc.documentElement.lang = current
 }
 applyDocumentLang()
 
