@@ -82,6 +82,8 @@ export const fr = {
   'hud.p2Off': 'Joueur 2 déconnecté : il peut se reconnecter',
   'hud.latency': 'Latence {n} ms',
   'hud.ready': 'Prête',
+  'hud.fold': 'Replier la barre',
+  'hud.unfold': 'Déplier la barre',
   'hud.keys': '{prev}{next} objet · {place} construire / réparer · {upgrade} améliorer · {remove} démolir · {target} cible tourelle',
 
   // ------------------------------------------------------------------ pause et fin de partie

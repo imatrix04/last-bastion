@@ -81,6 +81,8 @@ export const en: Record<keyof typeof fr, string> = {
   'hud.p2Off': 'Player 2 disconnected: they can reconnect',
   'hud.latency': 'Latency {n} ms',
   'hud.ready': 'Ready',
+  'hud.fold': 'Collapse the bar',
+  'hud.unfold': 'Expand the bar',
   'hud.keys': '{prev}{next} item · {place} build / repair · {upgrade} upgrade · {remove} demolish · {target} turret target',
 
   // ------------------------------------------------------------------ pause and game over

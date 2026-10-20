@@ -3,7 +3,7 @@ import { DEFAULT_COLORS } from '../game/config/appearance'
 import { useT } from '../i18n'
 import { rich } from '../i18n/rich'
 import { BUILD_ORDER, BUILDS } from '../game/config/constants'
-import { CONTROLS, SKIP_WAVE } from '../game/config/controls'
+import { CONTROLS, FOLD_HUD, SKIP_WAVE } from '../game/config/controls'
 import type { AbilityHud } from '../game/types'
 import { PERK_ICONS } from './icons'
 import { useStore } from '../store'
@@ -65,8 +65,41 @@ function GoldChip({ gold, tag, color }: { gold: number; tag?: string; color?: st
   )
 }
 
+const FOLD_KEY = 'lb.hudFolded'
+
+/** Barre de construction repliée ou non, retenue d'une partie à l'autre ; la touche H la bascule. */
+function useFolded(): [boolean, () => void] {
+  const [folded, setFolded] = useState(() => {
+    try {
+      return localStorage.getItem(FOLD_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggle = (): void =>
+    setFolded((f) => {
+      try {
+        localStorage.setItem(FOLD_KEY, f ? '0' : '1')
+      } catch {
+        /* stockage indisponible : le repli ne sera pas retenu */
+      }
+      return !f
+    })
+  const toggleRef = useRef(toggle)
+  toggleRef.current = toggle
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.code === FOLD_HUD && !e.repeat) toggleRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  return [folded, toggle]
+}
+
 export function Hud(): React.JSX.Element {
   const t = useT()
+  const [folded, toggleFold] = useFolded()
   const hud = useStore((s) => s.hud)
   const playerCount = useStore((s) => s.playerCount)
   const mode = useStore((s) => s.mode)
@@ -133,10 +166,10 @@ export function Hud(): React.JSX.Element {
       <div className="hud-bottom">
         {mode === 'local' ? (
           Array.from({ length: playerCount }, (_, i) => (
-            <BuildBar key={i} index={i} keyIndex={i} selected={hud.selected[i] ?? 0} gold={hud.golds[i] ?? 0} color={hud.colors[i] ?? DEFAULT_COLORS[i]} abilities={hud.abilities[i] ?? []} />
+            <BuildBar key={i} index={i} keyIndex={i} selected={hud.selected[i] ?? 0} gold={hud.golds[i] ?? 0} color={hud.colors[i] ?? DEFAULT_COLORS[i]} abilities={hud.abilities[i] ?? []} folded={folded} onFold={toggleFold} />
           ))
         ) : (
-          <BuildBar index={myIndex} keyIndex={0} selected={hud.selected[myIndex] ?? 0} gold={hud.golds[myIndex] ?? 0} color={hud.colors[myIndex] ?? DEFAULT_COLORS[myIndex]} abilities={hud.abilities[myIndex] ?? []} />
+          <BuildBar index={myIndex} keyIndex={0} selected={hud.selected[myIndex] ?? 0} gold={hud.golds[myIndex] ?? 0} color={hud.colors[myIndex] ?? DEFAULT_COLORS[myIndex]} abilities={hud.abilities[myIndex] ?? []} folded={folded} onFold={toggleFold} />
         )}
       </div>
     </div>
@@ -150,7 +183,9 @@ function BuildBar({
   selected,
   gold,
   color,
-  abilities
+  abilities,
+  folded,
+  onFold
 }: {
   index: number
   keyIndex: number
@@ -158,15 +193,33 @@ function BuildBar({
   gold: number
   color: string
   abilities: AbilityHud[]
+  folded: boolean
+  onFold: () => void
 }): React.JSX.Element {
   const t = useT()
   const label = useKeyLabels()
   const c = CONTROLS[keyIndex]
 
   return (
-    <div className="buildbar" style={{ '--pc': color } as CSSProperties}>
-      <div className="who">{t('player.short', { n: index + 1 })}</div>
-      <div className="slots">
+    <div className={`buildbar${folded ? ' folded' : ''}`} style={{ '--pc': color } as CSSProperties}>
+      <div className="head">
+        <div className="who">{t('player.short', { n: index + 1 })}</div>
+        {folded && (
+          <span className="current">
+            <span className={`glyph ${BUILD_ORDER[selected]}`}>{GLYPHS[BUILD_ORDER[selected]]}</span>
+            {t(BUILDS[BUILD_ORDER[selected]].nameKey)}
+          </span>
+        )}
+        <button
+          className="fold"
+          title={t(folded ? 'hud.unfold' : 'hud.fold')}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onFold}
+        >
+          {folded ? '▲' : '▼'} <kbd>{label(FOLD_HUD)}</kbd>
+        </button>
+      </div>
+      {!folded && <div className="slots">
         {BUILD_ORDER.map((kind, i) => {
           const def = BUILDS[kind]
           const cls = ['slot', i === selected ? 'on' : '', gold < def.cost ? 'poor' : ''].join(' ')
@@ -179,8 +232,8 @@ function BuildBar({
             </div>
           )
         })}
-      </div>
-      {abilities.length > 0 && (
+      </div>}
+      {!folded && abilities.length > 0 && (
         <div className="abilities">
           {abilities.map((a, i) => {
             const Icon = PERK_ICONS[a.id]
@@ -203,7 +256,7 @@ function BuildBar({
           })}
         </div>
       )}
-      <div className="keys">
+      {!folded && <div className="keys">
         {rich('hud.keys', {
           prev: <kbd>{label(c.prev)}</kbd>,
           next: <kbd>{label(c.next)}</kbd>,
@@ -212,7 +265,7 @@ function BuildBar({
           remove: <kbd>{label(c.remove)}</kbd>,
           target: <kbd>{label(c.target)}</kbd>
         })}
-      </div>
+      </div>}
     </div>
   )
 }

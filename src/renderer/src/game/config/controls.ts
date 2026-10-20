@@ -53,6 +53,9 @@ export const CONTROLS: PlayerControls[] = [
 /** Lance la vague suivante sans attendre la fin du compte à rebours. */
 export const SKIP_WAVE = 'KeyN'
 
+/** Replie / déplie la barre de construction en bas de l'écran (affichage seulement). */
+export const FOLD_HUD = 'KeyH'
+
 /** Mode développeur (local et hôte) : or à volonté pour tester. Touche pour l'activer / le couper. */
 export const DEV_TOGGLE = 'F9'
 /** Vrai seulement avec `npm run dev` (Vite) ; faux dans une version installée et dans le script de simulation (Node). */

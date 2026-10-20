@@ -1453,3 +1453,74 @@ table.controls td:first-child {
   color: var(--text);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
+
+/* ------------------------------------------------------------------ menu DEV (npm run dev seulement) */
+.devmenu {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  max-width: 230px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 12px;
+}
+.devmenu .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.devmenu button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.devmenu .title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--accent);
+  font-family: var(--display);
+  letter-spacing: 0.08em;
+}
+
+/* ------------------------------------------------ barre de construction repliable */
+.buildbar .head {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+}
+.buildbar .head .who {
+  flex: none;
+}
+.buildbar .current {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.85em;
+  color: var(--text);
+}
+.buildbar .fold {
+  margin-left: auto;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 0.1em 0.5em;
+  font-size: 0.8em;
+  line-height: 1.4;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.buildbar .fold:hover {
+  color: var(--text);
+  border-color: var(--edge);
+}
+.buildbar.folded {
+  padding-top: 0.3em;
+  padding-bottom: 0.3em;
+}

@@ -363,6 +363,30 @@ function startWave(state: GameState): void {
   state.phase = 'combat'
 }
 
+/** Outils de développement (menu DEV) : saute à la vague n, en préparation de la suivante, sans ennemis. */
+export function devSetWave(state: GameState, wave: number): void {
+  state.wave = Math.max(0, Math.floor(wave))
+  state.enemies.length = 0
+  state.spawnQueue = []
+  state.bullets.length = 0
+  state.event = null
+  state.phase = 'prep'
+  state.countdown = PREP_TIME
+  state.gates = pickGates(state.wave + 1)
+}
+
+/** Outils de développement : lance tout de suite la vague suivante. */
+export function devLaunchWave(state: GameState): void {
+  if (state.phase === 'prep') state.countdown = 0
+}
+
+/** Outils de développement : retire tous les ennemis, la vague en cours se termine (avec sa récompense). */
+export function devClearWave(state: GameState): void {
+  if (state.phase !== 'combat') return
+  state.enemies.length = 0
+  state.spawnQueue = []
+}
+
 function endWave(state: GameState): void {
   const bonus = WAVES.reward.goldBase + state.wave * WAVES.reward.goldPerWave
   shareGold(state, bonus)

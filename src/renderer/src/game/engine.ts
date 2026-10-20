@@ -24,8 +24,8 @@ import { BIOMES } from './config/config'
 import { createBackground, render } from './render'
 import { createState } from './state'
 import type { ChoiceRequest, GameState, HudState, RunResult } from './types'
-import { acceptRemotePose, step } from './update'
-import type { InputLike } from './config/controls'
+import { acceptRemotePose, devClearWave, devLaunchWave, devSetWave, step } from './update'
+import { DEV_ENABLED, type InputLike } from './config/controls'
 
 export interface GameCallbacks {
   onHud(hud: HudState): void
@@ -180,6 +180,14 @@ export class Game {
     } else if (!this.ended) {
       applyTurretBranch(this.state, request.col, request.row, branch, this.state.players[request.player])
     }
+  }
+
+  /** Outils de développement (menu DEV, `npm run dev` seulement) : jamais pour l'invité, la partie appartient à l'hôte. */
+  dev(action: 'jump' | 'launch' | 'clear', wave = 0): void {
+    if (!DEV_ENABLED || this.mode === 'client' || this.ended) return
+    if (action === 'jump') devSetWave(this.state, wave)
+    else if (action === 'launch') devLaunchWave(this.state)
+    else devClearWave(this.state)
   }
 
   /** Résolution interne adaptée à la taille réelle affichée (écrans HiDPI, plein écran). */

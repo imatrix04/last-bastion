@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { DevMenu } from './components/DevMenu'
 import { Arsenal } from './components/Arsenal'
 import { GameCanvas } from './components/GameCanvas'
 import { Hud } from './components/Hud'
@@ -47,6 +48,7 @@ export default function App(): React.JSX.Element {
       <div className="stage">
         {inGame && <GameCanvas key={runId} />}
         {inGame && <Hud />}
+        {import.meta.env.DEV && (screen === 'playing' || screen === 'paused') && <DevMenu />}
         {screen === 'playing' && choice && <UpgradePicker request={choice} />}
         {screen === 'paused' && <PauseOverlay />}
         {screen === 'gameover' && <GameOverOverlay />}

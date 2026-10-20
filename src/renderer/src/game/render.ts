@@ -6,11 +6,14 @@ import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, WIDTH } fro
 import { drawPlayer } from './player'
 import { EVENTS } from './config/config'
 import { enemyHidden, lightSources } from './events'
-import { buildingAt } from './grid'
+import { buildingAt, idx } from './grid'
 import { drawBar, drawEnemy, drawEnemyTrail, drawGlow, drawTurret } from './sprites'
 import { levelName, maxLevelOf, nextUpgrade } from './stats'
 import { TURRET_PLAIN } from './config/turrets'
 import type { Building, GameState } from './types'
+import { drawFortress } from './fortress'
+import { drawSpikes } from './spikes'
+import { drawWall, wallLinks } from './walls'
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'
 
@@ -274,9 +277,11 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
 
   drawDecals(ctx, state)
   drawGates(ctx, state)
-  for (const b of state.grid) if (b && b.kind === 'spikes') drawBuilding(ctx, b, state.time)
+  const trampled = new Set<number>()
+  for (const e of state.enemies) trampled.add(idx(Math.floor(e.x / TILE), Math.floor(e.y / TILE)))
+  for (const b of state.grid) if (b && b.kind === 'spikes') drawBuilding(ctx, b, state.time, 0, trampled.has(idx(b.col, b.row)))
   drawBase(ctx, state)
-  for (const b of state.grid) if (b && b.kind !== 'spikes') drawBuilding(ctx, b, state.time)
+  for (const b of state.grid) if (b && b.kind !== 'spikes') drawBuilding(ctx, b, state.time, b.kind === 'barricade' ? wallLinks(state, b.col, b.row) : 0)
   drawGhosts(ctx, state)
   for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemyTrail(ctx, e)
   for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemy(ctx, e, state.time)
@@ -435,64 +440,12 @@ function drawBase(ctx: CanvasRenderingContext2D, state: GameState): void {
   const x = BASE.col * TILE
   const y = BASE.row * TILE
   const w = BASE.cols * TILE
-  const h = BASE.rows * TILE
   const ratio = state.baseHp / BASE.maxHp
-
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)'
-  ctx.fillRect(x + 6, y + 9, w, h)
-  ctx.fillStyle = '#5d6270'
-  ctx.fillRect(x, y, w, h)
-  ctx.fillStyle = '#8a90a0'
-  ctx.fillRect(x + 6, y + 6, w - 12, h - 12)
-  ctx.fillStyle = '#464a56'
-  ctx.fillRect(x + 18, y + 18, w - 36, h - 36)
-
-  // Créneaux
-  ctx.fillStyle = '#a3a9b8'
-  for (let i = 0; i < BASE.cols * 2; i++) {
-    const mx = x + 3 + i * (TILE / 2)
-    ctx.fillRect(mx, y - 4, 14, 8)
-    ctx.fillRect(mx, y + h - 4, 14, 8)
-  }
-  for (let i = 0; i < BASE.rows * 2; i++) {
-    const my = y + 3 + i * (TILE / 2)
-    ctx.fillRect(x - 4, my, 8, 14)
-    ctx.fillRect(x + w - 4, my, 8, 14)
-  }
-
-  // Cristal central
-  const pulse = 0.5 + 0.5 * Math.sin(state.time * 3)
-  const cx = x + w / 2
-  const cy = y + h / 2
-  // Le cristal est dessiné pour une forteresse de 160 px de côté : on le met à l'échelle de la taille réelle.
-  const k = Math.min(w, h) / 160
-  const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 64 * k)
-  glow.addColorStop(0, `rgba(120, 230, 255, ${0.5 + 0.25 * pulse})`)
-  glow.addColorStop(1, 'rgba(120, 230, 255, 0)')
-  ctx.fillStyle = glow
-  ctx.beginPath()
-  ctx.arc(cx, cy, 64 * k, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = '#7fe7ff'
-  ctx.strokeStyle = '#e0fbff'
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(cx, cy - 28 * k)
-  ctx.lineTo(cx + 17 * k, cy)
-  ctx.lineTo(cx, cy + 28 * k)
-  ctx.lineTo(cx - 17 * k, cy)
-  ctx.closePath()
-  ctx.fill()
-  ctx.stroke()
-
-  if (ratio < 1) {
-    ctx.fillStyle = `rgba(255, 40, 30, ${0.3 * (1 - ratio)})`
-    ctx.fillRect(x, y, w, h)
-  }
+  drawFortress(ctx, state)
   drawBar(ctx, x + 8, y - 16, w - 16, 7, ratio, ratio > 0.5 ? '#66bb6a' : ratio > 0.25 ? '#ffa726' : '#ef5350')
 }
 
-function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number): void {
+function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number, links = 0, active = false): void {
   const x = b.col * TILE
   const y = b.row * TILE
   const popped = b.kind !== 'turret' && b.pop > 0
@@ -505,10 +458,7 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number):
   }
   switch (b.kind) {
     case 'barricade': {
-      if (b.level >= 4) drawReinforcedWall(ctx, x, y)
-      else if (b.level === 3) drawBronzeWall(ctx, x, y)
-      else if (b.level === 2) drawStoneWall(ctx, x, y)
-      else drawWoodBarricade(ctx, x, y)
+      drawWall(ctx, b, links, time)
       break
     }
     case 'turret': {
@@ -516,7 +466,7 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number):
       break
     }
     case 'spikes': {
-      drawSpikes(ctx, x, y, b.level)
+      drawSpikes(ctx, b, active, time)
       break
     }
   }
@@ -554,186 +504,6 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number):
     const ratio = b.hp / b.maxHp
     drawBar(ctx, x + 4, y - 5, TILE - 8, 4, ratio, ratio > 0.5 ? '#9ccc65' : ratio > 0.25 ? '#ffb74d' : '#e57373')
   }
-}
-
-/** Mur en bronze : plaques de métal chaud rivetées, reflets cuivrés. */
-function drawBronzeWall(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.32)'
-  ctx.fillRect(x + 3, y + 6, TILE, TILE)
-  ctx.fillStyle = '#5b3513'
-  ctx.fillRect(x, y, TILE, TILE)
-  const plate = ctx.createLinearGradient(x, y, x + TILE, y + TILE)
-  plate.addColorStop(0, '#e0a05a')
-  plate.addColorStop(0.5, '#b87333')
-  plate.addColorStop(1, '#7d4a1d')
-  ctx.fillStyle = plate
-  for (const [px, py] of [
-    [2, 2],
-    [21, 2],
-    [2, 21],
-    [21, 21]
-  ]) {
-    ctx.fillRect(x + px, y + py, 17, 17)
-  }
-  ctx.fillStyle = 'rgba(255, 240, 200, 0.35)'
-  for (const [px, py] of [
-    [2, 2],
-    [21, 2],
-    [2, 21],
-    [21, 21]
-  ]) {
-    ctx.fillRect(x + px, y + py, 17, 2)
-    ctx.fillRect(x + px, y + py, 2, 17)
-  }
-  ctx.fillStyle = '#3e2410'
-  for (const [px, py] of [
-    [5, 5],
-    [16, 5],
-    [24, 5],
-    [35, 5],
-    [5, 16],
-    [16, 16],
-    [24, 16],
-    [35, 16],
-    [5, 24],
-    [16, 24],
-    [24, 24],
-    [35, 24],
-    [5, 35],
-    [16, 35],
-    [24, 35],
-    [35, 35]
-  ]) {
-    ctx.beginPath()
-    ctx.arc(x + px, y + py, 1.3, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  ctx.strokeStyle = '#f0c27a'
-  ctx.lineWidth = 1.2
-  ctx.strokeRect(x + 0.6, y + 0.6, TILE - 1.2, TILE - 1.2)
-}
-
-/** Pieux : bois taillé (1), pierre (2), acier renforcé (3). */
-function drawSpikes(ctx: CanvasRenderingContext2D, x: number, y: number, level: number): void {
-  const style =
-    level >= 3
-      ? { bed: 'rgba(24, 30, 38, 0.8)', body: '#aab6c2', tip: '#f1f5f9', edge: '#4b5563', frame: '#cfd8dc' }
-      : level === 2
-        ? { bed: 'rgba(40, 40, 46, 0.7)', body: '#8d93a0', tip: '#d3d8e2', edge: '#4a4f5c', frame: null }
-        : { bed: 'rgba(30, 20, 15, 0.6)', body: '#a07840', tip: '#e6c88e', edge: '#4a3118', frame: null }
-  ctx.fillStyle = style.bed
-  ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4)
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 3; j++) {
-      const px = x + 7 + i * 13
-      const py = y + 7 + j * 13
-      ctx.fillStyle = style.body
-      ctx.strokeStyle = style.edge
-      ctx.lineWidth = 1.1
-      ctx.beginPath()
-      ctx.moveTo(px, py - 6)
-      ctx.lineTo(px + 5, py + 5)
-      ctx.lineTo(px - 5, py + 5)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-      ctx.fillStyle = style.tip
-      ctx.beginPath()
-      ctx.moveTo(px, py - 6)
-      ctx.lineTo(px + 1.8, py - 1)
-      ctx.lineTo(px - 1.8, py - 1)
-      ctx.closePath()
-      ctx.fill()
-      if (level >= 2) {
-        // Base maçonnée
-        ctx.fillStyle = style.edge
-        ctx.fillRect(px - 5.5, py + 5, 11, 2)
-      }
-    }
-  }
-  if (style.frame) {
-    ctx.strokeStyle = style.frame
-    ctx.lineWidth = 2
-    ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE - 4)
-  }
-}
-
-function drawWoodBarricade(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-  ctx.fillRect(x + 5, y + 7, TILE - 6, TILE - 6)
-  ctx.fillStyle = '#4a2f18'
-  ctx.fillRect(x + 3, y + 3, TILE - 6, TILE - 6)
-  for (let i = 0; i < 3; i++) {
-    ctx.fillStyle = i % 2 === 0 ? '#9c6a35' : '#8b5a2b'
-    ctx.fillRect(x + 5, y + 5 + i * 10, TILE - 10, 8)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
-    ctx.fillRect(x + 5, y + 5 + i * 10, TILE - 10, 2)
-  }
-  ctx.fillStyle = '#cfd8dc'
-  for (let i = 0; i < 3; i++) {
-    ctx.fillRect(x + 8, y + 8 + i * 10, 2, 2)
-    ctx.fillRect(x + TILE - 10, y + 8 + i * 10, 2, 2)
-  }
-}
-
-function drawReinforcedWall(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-  drawStoneWall(ctx, x, y)
-  // Cadre d'acier, renforts en croix et rivets
-  ctx.fillStyle = 'rgba(38, 44, 56, 0.55)'
-  ctx.fillRect(x, y, TILE, 5)
-  ctx.fillRect(x, y + TILE - 5, TILE, 5)
-  ctx.fillRect(x, y, 5, TILE)
-  ctx.fillRect(x + TILE - 5, y, 5, TILE)
-  ctx.strokeStyle = '#3b4252'
-  ctx.lineWidth = 3
-  ctx.beginPath()
-  ctx.moveTo(x + 5, y + 5)
-  ctx.lineTo(x + TILE - 5, y + TILE - 5)
-  ctx.moveTo(x + TILE - 5, y + 5)
-  ctx.lineTo(x + 5, y + TILE - 5)
-  ctx.stroke()
-  ctx.strokeStyle = '#cfd8dc'
-  ctx.lineWidth = 1.5
-  ctx.strokeRect(x + 0.75, y + 0.75, TILE - 1.5, TILE - 1.5)
-  ctx.fillStyle = '#eceff1'
-  for (const [px, py] of [
-    [3, 3],
-    [TILE - 3, 3],
-    [3, TILE - 3],
-    [TILE - 3, TILE - 3],
-    [TILE / 2, TILE / 2]
-  ]) {
-    ctx.beginPath()
-    ctx.arc(x + px, y + py, 1.8, 0, Math.PI * 2)
-    ctx.fill()
-  }
-}
-
-function drawStoneWall(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-  ctx.fillRect(x + 3, y + 6, TILE, TILE)
-  ctx.fillStyle = '#8d93a0'
-  ctx.fillRect(x, y, TILE, TILE)
-  ctx.strokeStyle = '#575c68'
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(x, y + 13)
-  ctx.lineTo(x + TILE, y + 13)
-  ctx.moveTo(x, y + 26)
-  ctx.lineTo(x + TILE, y + 26)
-  ctx.moveTo(x + 20, y)
-  ctx.lineTo(x + 20, y + 13)
-  ctx.moveTo(x + 10, y + 13)
-  ctx.lineTo(x + 10, y + 26)
-  ctx.moveTo(x + 30, y + 13)
-  ctx.lineTo(x + 30, y + 26)
-  ctx.moveTo(x + 20, y + 26)
-  ctx.lineTo(x + 20, y + TILE)
-  ctx.stroke()
-  ctx.strokeStyle = '#b4bac6'
-  ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2)
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-  ctx.fillRect(x + 2, y + 2, TILE - 4, 3)
 }
 
 function drawGhosts(ctx: CanvasRenderingContext2D, state: GameState): void {
