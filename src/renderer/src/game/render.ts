@@ -2,6 +2,7 @@ import { floatingText, t } from '../i18n'
 import { biomeOf } from './biomes'
 import { buildTarget, placementStatus } from './build'
 import type { BiomeDecor, BiomeDef } from './config/config'
+import { GFX } from './config/graphics'
 import { BASE, BUILD_ORDER, BULLET_STYLES, COLS, HEIGHT, ROWS, TILE, WIDTH } from './config/constants'
 import { drawPlayer } from './player'
 import { EVENTS } from './config/config'
@@ -283,7 +284,7 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
   drawBase(ctx, state)
   for (const b of state.grid) if (b && b.kind !== 'spikes') drawBuilding(ctx, b, state.time, b.kind === 'barricade' ? wallLinks(state, b.col, b.row) : 0)
   drawGhosts(ctx, state)
-  for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemyTrail(ctx, e)
+  if (GFX.trails) for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemyTrail(ctx, e)
   for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemy(ctx, e, state.time)
   for (const p of state.players) drawPlayer(ctx, p, state.time)
   drawGhostLabels(ctx, state)
@@ -291,7 +292,7 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
   drawWebShots(ctx, state)
   drawFx(ctx, state)
   drawEvent(ctx, state)
-  drawAmbient(ctx, biomeOf(state.wave), state.time)
+  if (GFX.ambient) drawAmbient(ctx, biomeOf(state.wave), state.time)
   if (extra.banner) drawBanner(ctx, extra.banner)
   drawEventBanner(ctx, state)
   ctx.restore()
@@ -459,6 +460,42 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number, 
   switch (b.kind) {
     case 'barricade': {
       drawWall(ctx, b, links, time)
+      if (b.targeting === 1) {
+        // Porte : battant en bois arrondi serti de fer, avec poignée
+        const dx = x + 8
+        const dw = TILE - 16
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)'
+        ctx.beginPath()
+        ctx.moveTo(dx - 2, y + TILE - 3)
+        ctx.lineTo(dx - 2, y + 17)
+        ctx.arc(x + TILE / 2, y + 17, dw / 2 + 2, Math.PI, 0)
+        ctx.lineTo(dx + dw + 2, y + TILE - 3)
+        ctx.closePath()
+        ctx.fill()
+        ctx.fillStyle = '#6d4520'
+        ctx.beginPath()
+        ctx.moveTo(dx, y + TILE - 4)
+        ctx.lineTo(dx, y + 17)
+        ctx.arc(x + TILE / 2, y + 17, dw / 2, Math.PI, 0)
+        ctx.lineTo(dx + dw, y + TILE - 4)
+        ctx.closePath()
+        ctx.fill()
+        ctx.strokeStyle = '#2e1c0e'
+        ctx.lineWidth = 1.2
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(x + TILE / 2, y + 7)
+        ctx.lineTo(x + TILE / 2, y + TILE - 4)
+        for (const ry of [18, 29]) {
+          ctx.moveTo(dx, y + ry)
+          ctx.lineTo(dx + dw, y + ry)
+        }
+        ctx.stroke()
+        ctx.fillStyle = '#ffd54a'
+        ctx.beginPath()
+        ctx.arc(x + TILE / 2 + 4, y + 24, 1.8, 0, Math.PI * 2)
+        ctx.fill()
+      }
       break
     }
     case 'turret': {

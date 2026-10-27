@@ -35,7 +35,7 @@ export const GAME = {
   /** Or au début d'une partie. */
   startGold: 120,
   /** Secondes avant la première vague. */
-  firstPrep: 30,
+  firstPrep: 40,
   /** Secondes entre deux vagues. */
   prepTime: 20,
   /** Secondes entre deux constructions quand on maintient la touche. */
@@ -46,7 +46,7 @@ export const GAME = {
    * Réparation : chaque réparation rend `fraction` des PV max du bâtiment (0,5 = 50 %), pour le même prix proportionnel,
    * puis la case est en recharge `cooldown` secondes (on ne peut pas répéter la même case en boucle).
    */
-  repair: { fraction: 0.5, cooldown: 3 }
+  repair: { fraction: 0.5, cooldown: 4 }
 }
 
 // ───────────────────────────────────────────────────────────── 2. JOUEUR
@@ -57,7 +57,7 @@ export const PLAYER_CONFIG = {
   /** px/s */
   speed: 150,
   /** Tirs par seconde. */
-  fireRate: 2.5,
+  fireRate: 2,
   damage: 12,
   /** px */
   range: 250,
@@ -80,10 +80,10 @@ export const WAVES = {
   /** Multiplicateur du nombre de monstres à deux joueurs. */
   twoPlayerMult: 1.6,
   /** Rôdeurs : base + vague × perWave. */
-  grunts: { base: 5, perWave: 2.4 },
+  grunts: { base: 5, perWave: 2.2 },
   /** Autres monstres : apparaissent à partir de `from`, `base` au début puis `perWave` de plus par vague. */
-  runners: { from: 3, base: 1, perWave: 1.7 },
-  splitters: { from: 7, base: 1, perWave: 1.5 },
+  runners: { from: 3, base: 1, perWave: 1.5 },
+  splitters: { from: 7, base: 1, perWave: 1.2 },
   brutes: { from: 11, base: 1, perWave: 0.8 },
   spiders: { from: 13, base: 1, perWave: 0.7 },
   spitters: { from: 9, base: 1, perWave: 0.5 },
@@ -95,7 +95,7 @@ export const WAVES = {
   /** PV des monstres : ×(1 + (vague − première apparition du type) × hpGrowth) : la hausse commence à l'arrivée de chaque monstre (voir FIRST_WAVE dans waves.ts). */
   hpGrowth: 0.2,
   /** Intervalle d'apparition PAR ENTRÉE : max(min, base − vague × perWave) secondes. */
-  spawn: { base: 1.0, perWave: 0.05, min: 0.1 },
+  spawn: { base: 1.5, perWave: 0.05, min: 0.1 },
   /** Nombre d'entrées selon la vague : { jusqu'à la vague (incluse), nombre d'entrées }. Au-delà : `maxGates`. */
   gates: [
     { upToWave: 2, count: 1 },
@@ -120,7 +120,7 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyDef> = {
   brute: { nameKey: 'enemy.brute', hp: 400, speed: 40, radius: 15, damage: 38, interval: 1.3, reward: 36, color: '#ba68c8' },
   splitter: { nameKey: 'enemy.splitter', hp: 240, speed: 46, radius: 14, damage: 25, interval: 1.2, reward: 16, color: '#26c6a2' },
   spider: { nameKey: 'enemy.spider', hp: 210, speed: 72, radius: 15, damage: 14, interval: 0.9, reward: 24, color: '#9c2a4a' },
-  jumper: { nameKey: 'enemy.jumper', hp: 110, speed: 80, radius: 10, damage: 12, interval: 0.8, reward: 16, color: '#f48fb1' },
+  jumper: { nameKey: 'enemy.jumper', hp: 90, speed: 80, radius: 10, damage: 12, interval: 0.8, reward: 16, color: '#f48fb1' },
   spitter: { nameKey: 'enemy.spitter', hp: 140, speed: 52, radius: 12, damage: 6, interval: 1, reward: 22, color: '#b2ff59' },
   rageboss: { nameKey: 'enemy.rageboss', hp: 3600, speed: 40, radius: 21, damage: 140, interval: 1.1, reward: 600, color: '#8e0000' },
   boss: { nameKey: 'enemy.boss', hp: 1300, speed: 32, radius: 18, damage: 90, interval: 1.6, reward: 220, color: '#e53935' }
@@ -140,9 +140,9 @@ export const WALL_TIERS: readonly WallTier[] = [
 
 /** Pieux. dps : dégâts/s aux ennemis dessus · wearPerSec : usure · slow : multiplicateur de vitesse (0,65 = −35 %). */
 export const SPIKE_TIERS: readonly SpikeLevel[] = [
-  { nameKey: 'tier.spikeWood', cost: 45, hp: 220, dps: 30, wearPerSec: 14, slow: 0.75, debris: '#b08a55' },
-  { nameKey: 'tier.spikeStone', cost: 60, hp: 370, dps: 44, wearPerSec: 12, slow: 0.7, unlock: 'spikeStone', debris: '#a9afbd' },
-  { nameKey: 'tier.spikeReinforced', cost: 90, hp: 530, dps: 62, wearPerSec: 9, slow: 0.6, unlock: 'spikeReinforced', debris: '#cfd8dc' }
+  { nameKey: 'tier.spikeWood', cost: 45, hp: 220, dps: 35, wearPerSec: 14, slow: 0.75, debris: '#b08a55' },
+  { nameKey: 'tier.spikeStone', cost: 60, hp: 370, dps: 52, wearPerSec: 12, slow: 0.7, unlock: 'spikeStone', debris: '#a9afbd' },
+  { nameKey: 'tier.spikeReinforced', cost: 90, hp: 530, dps: 76, wearPerSec: 9, slow: 0.6, unlock: 'spikeReinforced', debris: '#cfd8dc' }
 ]
 
 // ───────────────────────────────────────────────────────────── 6. TOURELLES
@@ -173,9 +173,9 @@ export const SPIKE_LIMIT = { base: 3, perRank: 1 }
 
 /** Niveaux 1 à 3. */
 export const TURRET_LEVELS_PLAIN: readonly TurretLevel[] = [
-  { cost: TURRET_COSTS.place, stats: { damage: 13, fireRate: 2.2, range: 200, hp: 180, bulletSpeed: 560 } },
-  { cost: 175, stats: { damage: 19, fireRate: 2.2, range: 200, hp: 250, bulletSpeed: 560 } },
-  { cost: 250, stats: { damage: 26, fireRate: 2.4, range: 210, hp: 350, bulletSpeed: 560 } }
+  { cost: TURRET_COSTS.place, stats: { damage: 15, fireRate: 2.2, range: 200, hp: 180, bulletSpeed: 560 } },
+  { cost: 175, stats: { damage: 24, fireRate: 2.2, range: 200, hp: 250, bulletSpeed: 560 } },
+  { cost: 250, stats: { damage: 38, fireRate: 2.4, range: 210, hp: 350, bulletSpeed: 560 } }
 ]
 
 /** Branches : name / blurb / accent (texte et couleur) + `levels` = niveaux 4 à 10. */
@@ -186,14 +186,14 @@ export const TURRET_BRANCH_CONFIG: Record<1 | 2, TurretBranchDef> = {
     accent: '#4dd0e1',
     levels: [
       // Niveaux 4 à 7 : double canons
-      { cost: 380, stats: { damage: 26, fireRate: 4.8, range: 220, hp: 410, bulletSpeed: 560 } },
-      { cost: 500, stats: { damage: 30, fireRate: 5.4, range: 230, hp: 480, bulletSpeed: 580 } },
-      { cost: 640, stats: { damage: 36, fireRate: 6.0, range: 240, hp: 560, bulletSpeed: 590 } },
-      { cost: 800, stats: { damage: 44, fireRate: 7.0, range: 250, hp: 660, bulletSpeed: 600 } },
+      { cost: 380, stats: { damage: 42, fireRate: 4.8, range: 220, hp: 410, bulletSpeed: 560 } },
+      { cost: 500, stats: { damage: 50, fireRate: 5.4, range: 230, hp: 480, bulletSpeed: 580 } },
+      { cost: 640, stats: { damage: 62, fireRate: 6.0, range: 240, hp: 560, bulletSpeed: 590 } },
+      { cost: 800, stats: { damage: 78, fireRate: 7.0, range: 250, hp: 660, bulletSpeed: 600 } },
       // Niveaux 8 à 10 : Minigun
-      { cost: 1100, stats: { damage: 55, fireRate: 12, range: 255, hp: 780, bulletSpeed: 640 } },
-      { cost: 1600, stats: { damage: 62, fireRate: 14, range: 262, hp: 890, bulletSpeed: 650 } },
-      { cost: 2000, stats: { damage: 75, fireRate: 16, range: 270, hp: 1020, bulletSpeed: 660 } }
+      { cost: 1100, stats: { damage: 85, fireRate: 12, range: 255, hp: 780, bulletSpeed: 640 } },
+      { cost: 1600, stats: { damage: 98, fireRate: 14, range: 262, hp: 890, bulletSpeed: 650 } },
+      { cost: 2000, stats: { damage: 112, fireRate: 16, range: 270, hp: 1020, bulletSpeed: 660 } }
     ]
   },
   2: {
@@ -202,14 +202,14 @@ export const TURRET_BRANCH_CONFIG: Record<1 | 2, TurretBranchDef> = {
     accent: '#ff9800',
     levels: [
       // Niveaux 4 à 7 : canon lourd
-      { cost: 420, stats: { damage: 78, fireRate: 2.4, range: 250, hp: 460, bulletSpeed: 640 } },
-      { cost: 550, stats: { damage: 92, fireRate: 2.4, range: 262, hp: 540, bulletSpeed: 660 } },
-      { cost: 700, stats: { damage: 112, fireRate: 2.5, range: 275, hp: 630, bulletSpeed: 680 } },
-      { cost: 880, stats: { damage: 136, fireRate: 2.6, range: 290, hp: 760, bulletSpeed: 700 } },
+      { cost: 420, stats: { damage: 92, fireRate: 2.4, range: 250, hp: 460, bulletSpeed: 640 } },
+      { cost: 550, stats: { damage: 112, fireRate: 2.4, range: 262, hp: 540, bulletSpeed: 660 } },
+      { cost: 700, stats: { damage: 136, fireRate: 2.5, range: 275, hp: 630, bulletSpeed: 680 } },
+      { cost: 880, stats: { damage: 160, fireRate: 2.6, range: 290, hp: 760, bulletSpeed: 700 } },
       // Niveaux 8 à 10 : Canon explosif (l'obus explose à l'impact et touche tout autour)
-      { cost: 1300, stats: { damage: 175, fireRate: 2.8, range: 295, hp: 880, bulletSpeed: 550, splash: 70 } },
-      { cost: 1900, stats: { damage: 204, fireRate: 2.8, range: 300, hp: 1050, bulletSpeed: 600, splash: 82 } },
-      { cost: 2500, stats: { damage: 247, fireRate: 3.5, range: 310, hp: 1250, bulletSpeed: 650, splash: 95 } }
+      { cost: 1300, stats: { damage: 204, fireRate: 2.8, range: 295, hp: 880, bulletSpeed: 550, splash: 70 } },
+      { cost: 1900, stats: { damage: 247, fireRate: 2.8, range: 300, hp: 1050, bulletSpeed: 600, splash: 82 } },
+      { cost: 2500, stats: { damage: 292, fireRate: 3.5, range: 310, hp: 1250, bulletSpeed: 650, splash: 95 } }
     ]
   }
 }
@@ -247,15 +247,15 @@ export const WEB_CONFIG = {
  */
 export const SPIT_CONFIG = {
   /** Portée de crachat (px). */
-  range: 200,
+  range: 180,
   /** Secondes entre deux crachats. */
-  cooldown: 2.0,
+  cooldown: 2.5,
   /** Préparation avant le tir : le joueur voit la lueur verte et peut réagir. */
   windup: 0.6,
   /** Vol de l'acide (s). */
-  flight: 0.45,
+  flight: 0.5,
   /** Dégâts infligés à la tourelle touchée. */
-  damage: 50
+  damage: 25
 }
 
 /** Sauteur : ignore les bâtiments dans son trajet et bondit par-dessus le premier obstacle solide (pas la forteresse). */
@@ -338,10 +338,10 @@ export const UNLOCK_COST = {
  * Précision : perRank = part d'anticipation par rang (0,2 × 5 rangs = 100 %). Overclocking : voir OVERCLOCK_LEVELS.
  */
 export const PERK_BALANCE = {
-  speed: { costs: [100, 180, 260, 340, 420], perRank: 0.05 },
-  fireRate: { costs: [150, 280, 400, 580, 750], perRank: 0.2 },
+  speed: { costs: [100, 180, 260, 340, 420], perRank: 0.1 },
+  fireRate: { costs: [150, 280, 400, 580, 750], perRank: 0.25 },
   range: { costs: [120, 250, 360, 480, 600], perRank: 0.05 },
-  damage: { costs: [180, 380, 660, 920, 1200], perRank: 0.25 },
+  damage: { costs: [180, 380, 660, 920, 1200], perRank: 0.4 },
   bulletSpeed: { costs: [110, 170, 310, 460, 600], perRank: 0.1 },
   overclock: { costs: [700, 1200, 1600, 2200, 3000], perRank: 0 },
   precision: { costs: [130, 300, 540, 770, 900], perRank: 0.2 },
@@ -364,11 +364,11 @@ export const ABILITY_CONFIG = {
   fireBullets: {
     burnSeconds: 3,
     ranks: [
-      { duration: 10, cooldown: 60, burnDps: 16 },
-      { duration: 11, cooldown: 57, burnDps: 20 },
-      { duration: 12, cooldown: 53, burnDps: 26 },
-      { duration: 13, cooldown: 48, burnDps: 34 },
-      { duration: 15, cooldown: 42, burnDps: 44 }
+      { duration: 10, cooldown: 60, burnDps: 20 },
+      { duration: 11, cooldown: 57, burnDps: 26 },
+      { duration: 12, cooldown: 53, burnDps: 34 },
+      { duration: 13, cooldown: 48, burnDps: 44 },
+      { duration: 15, cooldown: 42, burnDps: 60 }
     ]
   }
 }

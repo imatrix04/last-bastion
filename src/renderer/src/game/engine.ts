@@ -16,11 +16,13 @@ import {
   encodeSnap,
   type Action
 } from './config/netproto'
+import './audio'
 import { abilityHud } from './abilities'
 import { emptyLoadout, scoreRun, type Loadout } from './config/progress'
 import { HostInput, RemoteInput } from './remoteInput'
 import { biomeIndex } from './biomes'
 import { BIOMES } from './config/config'
+import { GFX } from './config/graphics'
 import { createBackground, render } from './render'
 import { createState } from './state'
 import type { ChoiceRequest, GameState, HudState, RunResult } from './types'
@@ -195,7 +197,7 @@ export class Game {
     const rect = this.canvas.getBoundingClientRect()
     const dpr = window.devicePixelRatio || 1
     const wanted = (rect.width * dpr) / WIDTH
-    const scale = Math.min(2, Math.max(1, Math.round(wanted * 4) / 4))
+    const scale = Math.min(GFX.maxScale, Math.max(1, Math.round(wanted * 4) / 4))
     if (scale === this.scale && this.canvas.width === Math.round(WIDTH * scale)) return
     this.scale = scale
     this.canvas.width = Math.round(WIDTH * scale)

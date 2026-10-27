@@ -192,7 +192,7 @@ export class ClientView {
     const b = buildingAt(this.state, col, row)
     if (!b || b.kind !== 'turret') return
     b.recoil = 1
-    if (style === 2) {
+    if (style === 2 || style === 4) {
       const lateral = (x - (col + 0.5) * TILE) * -Math.sin(angle) + (y - (row + 0.5) * TILE) * Math.cos(angle)
       b.side = lateral > 0 ? 1 : -1
     }

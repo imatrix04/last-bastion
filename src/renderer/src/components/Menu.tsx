@@ -253,10 +253,10 @@ export function Menu(): React.JSX.Element {
                 <tr>
                   <td>{t('controls.direct')}</td>
                   <td>
-                    <kbd>1</kbd>–<kbd>3</kbd>
+                    <kbd>{label(CONTROLS[0].slots[0])}</kbd>–<kbd>{label(CONTROLS[0].slots[2])}</kbd>
                   </td>
                   <td>
-                    <kbd>{t('key.pad', { n: 1 })}</kbd>–<kbd>3</kbd>
+                    <kbd>{label(CONTROLS[1].slots[0])}</kbd>–<kbd>{label(CONTROLS[1].slots[2])}</kbd>
                   </td>
                 </tr>
               </tbody>

@@ -240,7 +240,7 @@ export function movePlayer(state: GameState, p: Player, ix: number, iy: number, 
   }
   p.x = clamp(p.x, PLAYER.radius, WIDTH - PLAYER.radius)
   p.y = clamp(p.y, PLAYER.radius, HEIGHT - PLAYER.radius)
-  resolveTiles(state, p, PLAYER.radius)
+  resolveTiles(state, p, PLAYER.radius, true)
 }
 
 /**
@@ -251,7 +251,7 @@ export function acceptRemotePose(state: GameState, p: Player, x: number, y: numb
   const px = clamp(x, PLAYER.radius, WIDTH - PLAYER.radius)
   const py = clamp(y, PLAYER.radius, HEIGHT - PLAYER.radius)
   if (Math.hypot(px - p.x, py - p.y) > 200) return false
-  if (isSolidCell(state, Math.floor(px / TILE), Math.floor(py / TILE))) return false
+  if (isSolidCell(state, Math.floor(px / TILE), Math.floor(py / TILE), true)) return false
   p.x = px
   p.y = py
   // Direction de construction : cardinale, jamais nulle
@@ -270,7 +270,7 @@ function updatePlayers(state: GameState, dt: number, input: InputLike): void {
     const ix = (input.isDown(c.right) ? 1 : 0) - (input.isDown(c.left) ? 1 : 0)
     const iy = (input.isDown(c.down) ? 1 : 0) - (input.isDown(c.up) ? 1 : 0)
     // Joueur distant (côté hôte) : sa position arrive du réseau, on l'empêche seulement de rester dans un mur apparu entre-temps.
-    if (p.remote) resolveTiles(state, p, PLAYER.radius)
+    if (p.remote) resolveTiles(state, p, PLAYER.radius, true)
     else movePlayer(state, p, ix, iy, dt)
 
     // Choix de l'objet à construire
@@ -811,7 +811,7 @@ function updateTurrets(state: GameState, dt: number): void {
       // Le minigun arrose : léger écart aléatoire à chaque balle.
       const angle = minigun ? b.angle + (Math.random() - 0.5) * MINIGUN.spread : b.angle
       fire(state, mx, my, angle, stats.bulletSpeed, stats.damage * eventMods(state).turretDamage, stats.range, minigun ? 3 : form === 'explosive' ? 4 : heavy ? 2 : 1, stats.splash ?? 0)
-      muzzle(state, mx, my, angle, heavy ? 3 : double ? 2 : 1)
+      muzzle(state, mx, my, angle, heavy ? 3 : minigun ? 4 : double ? 2 : 1)
       b.recoil = 1
       if (heavy) state.shake = Math.min(1, state.shake + (form === 'explosive' ? 0.06 : 0.04))
       b.cooldown = 1 / (stats.fireRate * fireRateMult(b))

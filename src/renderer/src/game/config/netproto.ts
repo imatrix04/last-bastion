@@ -1,6 +1,6 @@
 import { BUILD_ORDER, type BuildKind, type EnemyKind } from './constants'
 import type { Branch } from './turrets'
-import { CONTROLS, SKIP_WAVE } from './controls'
+import { CONTROLS, SKIP_WAVE, onBindingsChange } from './controls'
 import { isHexColor, sanitizeName, skinIndex } from './appearance'
 import { KILL_KINDS } from './progress'
 import { EVENT_KINDS } from '../events'
@@ -48,6 +48,10 @@ function codesFor(player: number): Record<Action, string> {
 
 /** CODES[0] : touches du joueur 1 ; CODES[1] : touches du joueur 2. */
 export const CODES: readonly Record<Action, string>[] = [codesFor(0), codesFor(1)]
+// Touches modifiées dans les paramètres : on met à jour les objets en place, ils sont lus partout
+onBindingsChange(() => {
+  for (const p of [0, 1]) Object.assign(CODES[p], codesFor(p))
+})
 
 export function decodeInput(raw: Record<string, unknown>): { d: Action[]; p: Action[] } {
   const pick = (v: unknown): Action[] =>
@@ -165,7 +169,7 @@ function decodeFx(v: unknown): FxEvent[] {
     } else if (e[0] === 'r' && isNum(e[1]) && isNum(e[2]) && typeof e[3] === 'string' && isNum(e[4])) {
       out.push(['r', e[1], e[2], e[3].slice(0, 20), clamp(e[4], 0, 300)])
     } else if (e[0] === 'm' && isNum(e[1]) && isNum(e[2]) && isNum(e[3]) && isNum(e[4])) {
-      out.push(['m', e[1], e[2], e[3], clamp(Math.round(e[4]), 0, 3)])
+      out.push(['m', e[1], e[2], e[3], clamp(Math.round(e[4]), 0, 4)])
     } else if (e[0] === 'w' && isNum(e[1]) && isNum(e[2]) && isNum(e[3]) && isNum(e[4])) {
       out.push(['w', e[1], e[2], e[3], e[4], e[5] === 1 ? 1 : 0])
     } else if (e[0] === 'd' && isNum(e[1]) && isNum(e[2]) && typeof e[3] === 'string' && isNum(e[4])) {

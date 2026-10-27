@@ -1,6 +1,52 @@
 {
   "releases": [
     {
+      "version": "1.5.5",
+      "date": "2026-10-27",
+      "added": [
+        "La forteresse change de style selon la vague : bois (vagues 1 à 10), pierre (11 à 20) puis pierre renforcée (21 et plus). Chaque style a ses propres murs d'enceinte, portes, tours d'angle, cour et socle de cristal : palissade de rondins et torches, muraille crénelée avec herse et braseros, ou acier avec liserés lumineux, veines d'énergie et éclats qui tournent autour du cristal",
+        "Le cristal de la forteresse est maintenant à facettes et flotte légèrement",
+        "Les murs se raccordent entre eux : une ligne de murs forme une vraie palissade ou muraille continue, avec des créneaux et des pointes seulement sur les côtés libres",
+        "Les murs s'abîment à l'écran : ils s'assombrissent et se fissurent à mesure qu'ils perdent des PV, et le métal (bronze, renforcé) rouille",
+        "La forteresse s'abîme aussi : fissures de plus en plus nombreuses, cristal qui vire au rouge en vacillant sous 50 % de vie, fumée qui s'échappe des tours sous 45 %",
+        "Les pieux cassent un par un en s'usant, et tremblent avec une lueur rouge quand un ennemi marche dessus",
+        "La barre de construction du bas se replie et se déplie avec la touche H (ou en cliquant sur son petit bouton). Repliée, elle ne garde qu'une fine languette avec l'objet sélectionné, pour mieux voir les ennemis qui arrivent par le bas. Ton choix est retenu d'une partie à l'autre",
+        "Un mur peut être transformé en porte avec la touche de cible (G / Pavé 0) : les joueurs la traversent, ce qui évite de s'enfermer, mais les monstres doivent la casser comme un mur. La même touche la remet en mur",
+        "Sons de tir des tourelles : un son par tir, donc autant par seconde que la cadence de tir. Un son pour les tourelles de base et à double canon, un autre plus grave pour les canons lourds, et la rafale du minigun, qui tourne en boucle et s'accélère ou ralentit avec sa cadence de tir",
+        "Le jeu se lance maintenant en plein écran (F11 pour en sortir)",
+        "Paramètres : toutes les touches des deux joueurs se changent (clique sur une touche puis appuie sur la nouvelle ; si elle est déjà prise, les deux sont échangées), avec un bouton pour rétablir celles par défaut",
+        "Paramètres : qualité graphique Élevée / Moyenne / Basse pour les PC modestes (résolution, nombre de particules et de taches, poussières flottantes, reflets des murs métalliques et traînées des coureurs), appliquée à la partie suivante"
+      ],
+      "changed": [
+        "Nouveau dessin pour chaque palier de mur : palissade de rondins pointus (bois), blocs de pierre variés avec créneaux et mousse, plaques de bronze rivetées avec patine et reflet qui passe, acier renforcé avec noyau lumineux qui pulse",
+        "Nouveau dessin pour chaque palier de pieux : pieux de bois liés par une corde, éclats de roche sur une dalle, lames d'acier sur une plaque rivetée. Les pointes sont décalées, inégales et penchées",
+        "La teinte rouge uniforme sur la forteresse blessée est remplacée par les nouveaux effets d'usure"
+      ],
+      "fixed": [],
+      "en": {
+        "added": [
+          "The fortress changes style with the wave: wood (waves 1 to 10), stone (11 to 20), then reinforced stone (21 and up). Each style has its own curtain walls, gates, corner towers, courtyard and crystal pedestal: log palisade with torches, crenellated stone wall with portcullis and braziers, or steel with glowing trim, energy veins and shards orbiting the crystal",
+          "The fortress crystal is now faceted and floats slightly",
+          "Walls now connect to each other: a line of walls forms a continuous palisade or rampart, with battlements and points only on the open sides",
+          "Walls show wear on screen: they darken and crack as they lose HP, and metal (bronze, reinforced) rusts",
+          "The fortress also shows wear: more and more cracks, a crystal that turns red and flickers below 50% health, smoke rising from the towers below 45%",
+          "Spikes break one by one as they wear out, and shake with a red glow when an enemy walks over them",
+          "The build bar at the bottom can be collapsed and expanded with the H key (or by clicking its small button). Collapsed, it keeps only a thin strip with the selected item, so you can better see enemies coming from below. Your choice is remembered between games",
+          "A wall can be turned into a door with the target key (G / Numpad 0): players can walk through it so you never lock yourself in, but monsters still have to break it like a wall. The same key turns it back into a wall",
+          "Turret firing sounds: one sound per shot, so as many per second as the fire rate. One sound for basic and double-barrel turrets, and a deeper one for heavy cannons, plus the minigun burst, which loops and speeds up or slows down with its fire rate",
+          "The game now starts in fullscreen (F11 to leave it)",
+          "Settings: every key of both players can be rebound (click a key, then press the new one; if it is already taken, the two are swapped), with a button to restore the defaults",
+          "Settings: Graphics quality High / Medium / Low for low-end PCs (resolution, particle and splatter counts, floating dust, metal wall glints and runner trails), applied to the next game"
+        ],
+        "changed": [
+          "New look for every wall tier: pointed log palisade (wood), varied stone blocks with battlements and moss, riveted bronze plates with patina and a passing glint, reinforced steel with a pulsing glowing core",
+          "New look for every spike tier: wooden stakes tied with rope, rock shards on a slab, steel blades on a riveted plate. Points are offset, uneven and leaning",
+          "The flat red tint on a wounded fortress is replaced by the new wear effects"
+        ],
+        "fixed": []
+      }
+    },
+    {
       "version": "1.5.3",
       "date": "2026-10-19",
       "added": [

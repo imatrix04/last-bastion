@@ -24,7 +24,21 @@ const FIXED: Record<string, string> = {
 }
 
 /** Libellés de repli quand la disposition du clavier n'est pas disponible. */
-const FALLBACK: Record<string, string> = { Comma: ',', Period: '.' }
+const FALLBACK: Record<string, string> = {
+  Comma: ',',
+  Period: '.',
+  ShiftLeft: 'Shift ←',
+  ControlLeft: 'Ctrl ←',
+  ControlRight: 'Ctrl →',
+  AltLeft: 'Alt ←',
+  AltRight: 'Alt →',
+  NumpadAdd: 'Pavé +',
+  NumpadSubtract: 'Pavé −',
+  NumpadMultiply: 'Pavé ×',
+  NumpadDivide: 'Pavé ÷',
+  NumpadDecimal: 'Pavé .',
+  NumpadEnter: 'Pavé ↵'
+}
 
 function labelFor(code: string, map: LayoutMap | null): string {
   if (FIXED[code]) return t(FIXED[code])

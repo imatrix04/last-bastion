@@ -1,4 +1,5 @@
 import { COLS, TILE } from './config/constants'
+import { GFX } from './config/graphics'
 import { buildingAt, isBaseCell } from './grid'
 import type { Building, GameState } from './types'
 
@@ -75,6 +76,7 @@ function drawEdges(ctx: CanvasRenderingContext2D, x: number, y: number, links: n
 
 /** Reflet qui balaie la carte de gauche à droite (métal), décalé d'une rangée à l'autre. */
 function drawGlint(ctx: CanvasRenderingContext2D, x: number, y: number, row: number, time: number, color: string): void {
+  if (!GFX.glints) return
   const sweep = COLS * TILE + 300
   const local = ((time * 90 + row * 70) % sweep) - 150 - x
   if (local < -20 || local > TILE + 20) return

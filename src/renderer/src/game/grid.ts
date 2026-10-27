@@ -13,12 +13,17 @@ export function buildingAt(state: GameState, col: number, row: number): Building
   return inBounds(col, row) ? state.grid[idx(col, row)] : null
 }
 
-/** Case qui bloque le passage : la forteresse ou un bâtiment solide. */
-export function isSolidCell(state: GameState, col: number, row: number): boolean {
+/** Mur transformé en porte (`targeting` = 1) : les joueurs la traversent, pas les monstres. */
+export const isDoor = (b: Building | null): boolean => b !== null && b.kind === 'barricade' && b.targeting === 1
+
+/** Case qui bloque le passage : la forteresse ou un bâtiment solide. `passDoors` : les portes sont franchissables (joueurs). */
+export function isSolidCell(state: GameState, col: number, row: number, passDoors = false): boolean {
   if (!inBounds(col, row)) return false
   if (isBaseCell(col, row)) return true
   const b = state.grid[idx(col, row)]
-  return b !== null && BUILDS[b.kind].solid
+  if (b === null) return false
+  if (passDoors && isDoor(b)) return false
+  return BUILDS[b.kind].solid
 }
 
 /** Distance entre un point et un rectangle (0 si le point est dedans). */
@@ -29,14 +34,14 @@ export function distToRect(px: number, py: number, rx: number, ry: number, rw: n
 }
 
 /** Repousse un cercle hors des cases solides voisines. */
-export function resolveTiles(state: GameState, o: Vec, r: number): void {
+export function resolveTiles(state: GameState, o: Vec, r: number, passDoors = false): void {
   const c0 = Math.floor((o.x - r) / TILE)
   const c1 = Math.floor((o.x + r) / TILE)
   const r0 = Math.floor((o.y - r) / TILE)
   const r1 = Math.floor((o.y + r) / TILE)
   for (let row = r0; row <= r1; row++) {
     for (let col = c0; col <= c1; col++) {
-      if (!isSolidCell(state, col, row)) continue
+      if (!isSolidCell(state, col, row, passDoors)) continue
       const rx = col * TILE
       const ry = row * TILE
       const nx = Math.max(rx, Math.min(o.x, rx + TILE))

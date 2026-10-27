@@ -243,13 +243,20 @@ export function applyTurretBranch(state: GameState, col: number, row: number, br
 export function actToggleTarget(state: GameState, p: Player): boolean {
   const { col, row } = buildTarget(p)
   const b = buildingAt(state, col, row)
-  if (!b || b.kind !== 'turret') {
+  if (!b || (b.kind !== 'turret' && b.kind !== 'barricade')) {
     addText(state, p.x, p.y - 24, floating('float.aimTurret'), '#b0bec5')
     return false
   }
   if (b.owner !== p.id) {
     addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 20, floating('float.owner', b.owner + 1), '#b0bec5')
     return false
+  }
+  if (b.kind === 'barricade') {
+    // Mur <-> porte : seul l'aspect et le passage des joueurs changent, les monstres la traitent toujours comme un mur.
+    b.targeting = b.targeting === 0 ? 1 : 0
+    addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 28, floating(b.targeting === 1 ? 'float.doorOn' : 'float.doorOff'), '#ffcc80')
+    ring(state, (col + 0.5) * TILE, (row + 0.5) * TILE, '#ffcc80', 30)
+    return true
   }
   b.targeting = b.targeting === 0 ? 1 : 0
   addText(state, (col + 0.5) * TILE, (row + 0.5) * TILE - 28, floating(b.targeting === 1 ? 'float.targetFortress' : 'float.targetTurret'), '#80deea')

@@ -1,10 +1,18 @@
-import { SPIT, WEB } from './config/constants'
+import { GFX } from './config/graphics'
+import { COLS, SPIT, TILE, WEB } from './config/constants'
 import type { FxEvent, GameState, Particle, ParticleShape } from './types'
 
-const MAX_PARTICLES = 700
+/**
+ * Sons des tirs. Vides par défaut (script de simulation sous Node) : l'interface les branche au démarrage (voir audio.ts),
+ * pour que le moteur ne dépende pas de l'audio du navigateur.
+ */
+export const sounds: { play: (sound: 'turret' | 'turretHeavy') => void; minigun: (key: number) => void } = {
+  play: () => undefined,
+  minigun: () => undefined
+}
+
 const MAX_TEXTS = 40
 const MAX_RINGS = 40
-const MAX_DECALS = 80
 const MAX_LOGGED = 200
 
 export const SHAPE_SQUARE: ParticleShape = 0
@@ -17,7 +25,7 @@ function log(state: GameState, ev: FxEvent): void {
 }
 
 function spawn(state: GameState, p: Particle): void {
-  if (state.particles.length < MAX_PARTICLES) state.particles.push(p)
+  if (state.particles.length < GFX.particles) state.particles.push(p)
 }
 
 /**
@@ -26,7 +34,7 @@ function spawn(state: GameState, p: Particle): void {
  */
 export function burst(state: GameState, x: number, y: number, color: string, count: number, speed = 120, style: ParticleShape = 0): void {
   log(state, ['b', Math.round(x), Math.round(y), color, count, speed, style])
-  for (let i = 0; i < count && state.particles.length < MAX_PARTICLES; i++) {
+  for (let i = 0; i < count && state.particles.length < GFX.particles; i++) {
     const a = Math.random() * Math.PI * 2
     let s: number
     let life: number
@@ -72,15 +80,19 @@ export function ring(state: GameState, x: number, y: number, color: string, maxR
 /** Tache au sol (sang, gelée...). */
 export function decal(state: GameState, x: number, y: number, color: string, size: number): void {
   log(state, ['d', Math.round(x), Math.round(y), color, Math.round(size)])
-  if (state.decals.length >= MAX_DECALS) state.decals.shift()
+  if (state.decals.length >= GFX.decals) state.decals.shift()
   const life = 7 + Math.random() * 2
   state.decals.push({ x, y, size, life, maxLife: life, color, seed: Math.random() * 1000 })
 }
 
-/** Flash de bouche. `style` : 0 joueur, 1 tourelle, 2 double canon, 3 canon lourd. */
-export function muzzle(state: GameState, x: number, y: number, angle: number, style: number): void {
+/** Flash de bouche. `style` : 0 joueur, 1 tourelle, 2 double canon, 3 canon lourd, 4 minigun (dessiné comme le double canon). */
+export function muzzle(state: GameState, x: number, y: number, angle: number, rawStyle: number): void {
   const a = Math.round(angle * 100) / 100
-  log(state, ['m', Math.round(x), Math.round(y), a, style])
+  log(state, ['m', Math.round(x), Math.round(y), a, rawStyle])
+  if (rawStyle === 1 || rawStyle === 2) sounds.play('turret')
+  else if (rawStyle === 3) sounds.play('turretHeavy')
+  else if (rawStyle === 4) sounds.minigun(Math.floor(y / TILE) * COLS + Math.floor(x / TILE))
+  const style = rawStyle === 4 ? 2 : rawStyle
   const heavy = style === 3
   const color = style === 0 ? '#fff59d' : heavy ? '#ffb74d' : '#80deea'
   const glow = heavy ? 26 : style === 2 ? 17 : 15

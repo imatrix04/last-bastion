@@ -12,6 +12,8 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 540,
     show: false,
+    // Plein écran par défaut (F11 pour en sortir)
+    fullscreen: true,
     autoHideMenuBar: true,
     backgroundColor: '#0b130e',
     title: 'Last Bastion',

@@ -1,8 +1,15 @@
-import { SKIP_WAVE, type InputLike } from './config/controls'
+import { SKIP_WAVE, onBindingsChange, type InputLike } from './config/controls'
 import { ACTIONS, CODES, type Action } from './config/netproto'
 
 /** Les touches du joueur 2 (sauf « lancer la vague », partagée) : elles sont pilotées par le réseau, pas par le clavier de l'hôte. */
-const P2_CODES: ReadonlySet<string> = new Set(ACTIONS.filter((a) => a !== 'skip').map((a) => CODES[1][a]))
+const P2_CODES = new Set<string>()
+const refreshP2 = (): void => {
+  P2_CODES.clear()
+  for (const a of ACTIONS) if (a !== 'skip') P2_CODES.add(CODES[1][a])
+}
+refreshP2()
+// Après la mise à jour de CODES (enregistrée dans netproto, importé avant ce module)
+onBindingsChange(refreshP2)
 
 /**
  * Entrées du joueur distant, présentées à la simulation comme des touches du joueur 2.

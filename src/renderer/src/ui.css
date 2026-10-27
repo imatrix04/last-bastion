@@ -1454,6 +1454,37 @@ table.controls td:first-child {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
+.bind-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17em, 1fr));
+  gap: 0.4em 1.5em;
+  margin: 0.8em 0;
+}
+.bind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+}
+.bind-key {
+  min-width: 7em;
+}
+.bind-key.waiting {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  animation: bind-wait 1s ease-in-out infinite;
+}
+.bind-sub {
+  margin: 1em 0 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+@keyframes bind-wait {
+  50% {
+    opacity: 0.6;
+  }
+}
+
 /* ------------------------------------------------------------------ menu DEV (npm run dev seulement) */
 .devmenu {
   position: absolute;
