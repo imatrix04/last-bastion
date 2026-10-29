@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BARRICADE_TIERS, BUILDS, OVERCLOCK_LEVELS, PLAYER, SPIKE_LEVELS } from '../game/config/constants'
 import { ABILITY_CONFIG, SPIKE_LIMIT, TURRET_LIMIT } from '../game/config/config'
 import { PERKS, UNLOCKS, UNLOCK_BY_ID, perkMult, type PerkDef, type PerkId, type TreeBranch, type UnlockDef, type UnlockId } from '../game/config/progress'
@@ -95,7 +95,117 @@ const BASE_VALUES: Record<Exclude<PerkId, 'overclock' | 'precision' | 'turrets' 
 
 type Sel = { kind: 'unlock'; id: UnlockId } | { kind: 'perk'; id: PerkId }
 
-const missingText = (missing: number): string => (missing > 0 ? t('skills.missing', { n: missing }) : '')
+/** Vrai pendant 0,8 s quand `value` augmente (jamais au premier affichage) : sert à jouer l'animation d'achat. */
+function useBump(value: number): boolean {
+  const prev = useRef(value)
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    if (value <= prev.current) {
+      prev.current = value
+      return
+    }
+    prev.current = value
+    setOn(true)
+    const id = setTimeout(() => setOn(false), 800)
+    return () => clearTimeout(id)
+  }, [value])
+  return on
+}
+
+/** Nombre qui défile vers sa nouvelle valeur ; `dir` vaut 'up' ou 'down' un instant après un gain ou une dépense. */
+function useCountUp(value: number): { text: number; dir: '' | 'up' | 'down' } {
+  const [shown, setShown] = useState(value)
+  const [dir, setDir] = useState<'' | 'up' | 'down'>('')
+  const from = useRef(value)
+  useEffect(() => {
+    const a = from.current
+    if (a === value) return
+    setDir(value > a ? 'up' : 'down')
+    const start = performance.now()
+    let raf = 0
+    const tick = (now: number): void => {
+      const k = Math.min(1, (now - start) / 650)
+      const v = Math.round(a + (value - a) * (1 - Math.pow(1 - k, 3)))
+      setShown(v)
+      from.current = v
+      if (k < 1) raf = requestAnimationFrame(tick)
+      else setDir('')
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value])
+  return { text: shown, dir }
+}
+
+type IconType = (p: { className?: string }) => React.JSX.Element
+
+/**
+ * Bouton d'achat : un liquide doré le remplit de gauche à droite selon les points qu'on a (70 sur 210 = un tiers).
+ * Trop cher : le clic agite le liquide, qui vire au rouge un instant. Le bouton n'est jamais désactivé pour pouvoir réagir au clic.
+ */
+function BuyButton({ cost, points, label, onBuy }: { cost: number; points: number; label: string; onBuy: () => void }): React.JSX.Element {
+  const [denied, setDenied] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const fill = cost > 0 ? Math.min(1, Math.max(0, points / cost)) : 1
+  const affordable = fill >= 1
+  const click = (): void => {
+    if (affordable) return onBuy()
+    setDenied(true)
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setDenied(false), 900)
+  }
+  return (
+    <button
+      className={`buy${affordable ? ' full' : ''}${denied ? ' denied' : ''}${fill === 0 ? ' empty' : ''}`}
+      style={{ '--fill': fill } as React.CSSProperties}
+      aria-disabled={!affordable}
+      onClick={click}
+    >
+      <span className="buy-liquid" aria-hidden="true" />
+      <span className="buy-label">{label}</span>
+    </button>
+  )
+}
+
+/**
+ * En-tête du détail : l'icône flotte doucement et s'incline vers la souris quand elle passe dessus.
+ * Le style est posé directement sur l'élément (pas de rendu React à chaque mouvement).
+ */
+function DetailHead({ icon: Icon, kind, title }: { icon: IconType; kind: string; title: string }): React.JSX.Element {
+  const tilt = useRef<HTMLDivElement>(null)
+  const move = (e: React.MouseEvent): void => {
+    const el = tilt.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const range = 140
+    const mx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / range))
+    const my = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / range))
+    el.style.setProperty('--mx', mx.toFixed(3))
+    el.style.setProperty('--my', my.toFixed(3))
+    el.classList.add('live')
+  }
+  const leave = (): void => {
+    const el = tilt.current
+    if (!el) return
+    el.style.setProperty('--mx', '0')
+    el.style.setProperty('--my', '0')
+    el.classList.remove('live')
+  }
+  return (
+    <header className="d-head" onMouseMove={move} onMouseLeave={leave}>
+      <div className="d-float">
+        <div ref={tilt} className="d-tilt">
+          <Icon className="d-ico" />
+        </div>
+      </div>
+      <div>
+        <p className="d-kind">{kind}</p>
+        <h3>{title}</h3>
+      </div>
+    </header>
+  )
+}
 
 function Tile({ def, selected, onSelect }: { def: UnlockDef; selected: boolean; onSelect: () => void }): React.JSX.Element {
   useT()
@@ -104,8 +214,9 @@ function Tile({ def, selected, onSelect }: { def: UnlockDef; selected: boolean; 
   const blocked = def.requires !== undefined && !progress.unlocked.includes(def.requires)
   const state = owned ? 'owned' : blocked ? 'blocked' : progress.points >= def.cost ? 'ready' : 'poor'
   const Icon = UNLOCK_ICONS[def.id]
+  const bought = useBump(owned ? 1 : 0)
   return (
-    <button className={`node ${state}${selected ? ' sel' : ''}`} onClick={onSelect} aria-pressed={selected}>
+    <button className={`node ${state}${selected ? ' sel' : ''}${bought ? ' bought' : ''}`} onClick={onSelect} aria-pressed={selected}>
       <Icon className="node-ico" />
       <span className="node-name">{t(def.nameKey)}</span>
       <span className="node-cost">{owned ? t('skills.owned') : blocked ? t('skills.blocked') : `${def.cost} ${t('common.pts')}`}</span>
@@ -120,8 +231,9 @@ function PerkTile({ def, index, selected, onSelect }: { def: PerkDef; index: num
   const max = def.costs.length
   const state = rank >= max ? 'owned' : points >= def.costs[rank] ? 'ready' : 'poor'
   const Icon = PERK_ICONS[def.id]
+  const bought = useBump(rank)
   return (
-    <button className={`node perk ${state}${selected ? ' sel' : ''}`} onClick={onSelect} aria-pressed={selected}>
+    <button className={`node perk ${state}${selected ? ' sel' : ''}${bought ? ' bought' : ''}`} onClick={onSelect} aria-pressed={selected}>
       <Icon className="node-ico" />
       <span className="node-name">{t(def.nameKey)}</span>
       <span className="pips" aria-label={t('skills.rankAria', { r: rank, m: max })}>
@@ -139,17 +251,10 @@ function UnlockDetail({ def }: { def: UnlockDef }): React.JSX.Element {
   const buy = useStore((s) => s.buyUnlock)
   const owned = progress.unlocked.includes(def.id)
   const blockedBy = def.requires && !progress.unlocked.includes(def.requires) ? UNLOCK_BY_ID[def.requires] : null
-  const missing = def.cost - progress.points
   const Icon = UNLOCK_ICONS[def.id]
   return (
     <>
-      <header className="d-head">
-        <Icon className="d-ico" />
-        <div>
-          <p className="d-kind">{t(BRANCH_TITLES[def.branch])}</p>
-          <h3>{t(def.nameKey)}</h3>
-        </div>
-      </header>
+      <DetailHead key={def.id} icon={Icon} kind={t(BRANCH_TITLES[def.branch])} title={t(def.nameKey)} />
       <p className="d-text">{t(def.blurbKey)}</p>
       <dl className="d-stats">
         {EFFECTS[def.id]().map(([k, v]) => (
@@ -165,10 +270,7 @@ function UnlockDetail({ def }: { def: UnlockDef }): React.JSX.Element {
         ) : blockedBy ? (
           <p className="d-status lock">{t('skills.requires', { name: t(blockedBy.nameKey) })}</p>
         ) : (
-          <button className={missing > 0 ? '' : 'primary'} disabled={missing > 0} onClick={() => buy(def.id)}>
-            {t('skills.unlockCost', { cost: def.cost })}
-            {missingText(missing)}
-          </button>
+          <BuyButton cost={def.cost} points={progress.points} label={t('skills.unlockCost', { cost: def.cost })} onBuy={() => buy(def.id)} />
         )}
       </div>
     </>
@@ -183,7 +285,6 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
   const max = def.costs.length
   const maxed = rank >= max
   const cost = maxed ? 0 : def.costs[rank]
-  const missing = cost - points
   const Icon = PERK_ICONS[def.id]
   // Valeur affichée au rang r : statistique du joueur, ou multiplicateur de cadence pour l'Overclocking
   let show: (r: number) => string
@@ -216,13 +317,7 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
   const tech = def.group === 'tech' || def.group === 'passive' || def.group === 'ability'
   return (
     <>
-      <header className="d-head">
-        <Icon className="d-ico" />
-        <div>
-          <p className="d-kind">{t('skills.kindRank', { kind: t(`skills.kind.${def.group}`), r: rank, m: max })}</p>
-          <h3>{t(def.nameKey)}</h3>
-        </div>
-      </header>
+      <DetailHead key={def.id} icon={Icon} kind={t('skills.kindRank', { kind: t(`skills.kind.${def.group}`), r: rank, m: max })} title={t(def.nameKey)} />
       <p className="d-text">{t(def.blurbKey, def.blurbParams)}</p>
       <dl className="d-stats">
         <div>
@@ -246,10 +341,7 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
         {maxed ? (
           <p className="d-status ok">{t('skills.maxed')}</p>
         ) : (
-          <button className={missing > 0 ? '' : 'primary'} disabled={missing > 0} onClick={() => buy(def.id)}>
-            {t('skills.buy', { label: tech && rank === 0 ? t('skills.unlock') : t('skills.rank', { n: rank + 1 }), cost })}
-            {missingText(missing)}
-          </button>
+          <BuyButton cost={cost} points={points} label={t('skills.buy', { label: tech && rank === 0 ? t('skills.unlock') : t('skills.rank', { n: rank + 1 }), cost })} onBuy={() => buy(def.id)} />
         )}
       </div>
     </>
@@ -259,8 +351,11 @@ function PerkDetail({ def, index }: { def: PerkDef; index: number }): React.JSX.
 export function SkillTree(): React.JSX.Element {
   useT()
   const points = useStore((s) => s.progress.points)
+  const unlocked = useStore((s) => s.progress.unlocked)
+  const counter = useCountUp(points)
   const close = useStore((s) => s.closeSkills)
   const devAdd = useStore((s) => s.devAddPoints)
+  const devReset = useStore((s) => s.devReset)
   const [sel, setSel] = useState<Sel>({ kind: 'unlock', id: UNLOCKS[0].id })
   const branches: TreeBranch[] = ['barricade', 'spikes', 'turret', 'tech']
 
@@ -271,8 +366,8 @@ export function SkillTree(): React.JSX.Element {
           <IconBack /> {t('common.menu')}
         </button>
         <h2>{t('skills.title')}</h2>
-        <div className="sk-points" aria-label={`${points} ${t('common.points')}`}>
-          <b>{points}</b>
+        <div className={`sk-points ${counter.dir}`} aria-label={`${points} ${t('common.points')}`}>
+          <b>{counter.text}</b>
           <span>{t('common.points')}</span>
         </div>
       </header>
@@ -297,7 +392,10 @@ export function SkillTree(): React.JSX.Element {
                   {tiers.map((tier, i) => {
                     const nodes = defs.filter((u) => u.tier === tier)
                     return (
-                      <div key={tier} className={`sk-tier${nodes.length > 1 ? ' fork' : ''}${i > 0 ? ' linked' : ''}`}>
+                      <div
+                        key={tier}
+                        className={`sk-tier${nodes.length > 1 ? ' fork' : ''}${i > 0 ? ' linked' : ''}${i > 0 && defs.some((u) => u.tier === tiers[i - 1] && unlocked.includes(u.id)) ? ' lit' : ''}`}
+                      >
                         {nodes.map((n) => (
                           <Tile key={n.id} def={n} selected={sel.kind === 'unlock' && sel.id === n.id} onSelect={() => setSel({ kind: 'unlock', id: n.id })} />
                         ))}
@@ -339,9 +437,14 @@ export function SkillTree(): React.JSX.Element {
             <PerkDetail def={PERKS[PERKS.findIndex((p) => p.id === sel.id)]} index={PERKS.findIndex((p) => p.id === sel.id)} />
           )}
           {import.meta.env.DEV && (
-            <button className="link dev" onClick={() => devAdd(500)}>
-              {t('skills.devPoints')}
-            </button>
+            <>
+              <button className="link dev" onClick={() => devAdd(500)}>
+                {t('skills.devPoints')}
+              </button>
+              <button className="link dev" onClick={devReset}>
+                {t('skills.devReset')}
+              </button>
+            </>
           )}
         </aside>
       </div>

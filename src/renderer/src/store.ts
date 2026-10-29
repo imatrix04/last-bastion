@@ -160,6 +160,8 @@ interface Store {
   setLook: (slot: 0 | 1, change: Partial<Look>) => void
   /** Développement uniquement : ajoute des points pour tester. */
   devAddPoints: (n: number) => void
+  /** Développement uniquement : remet à zéro la progression (points, compétences, skins, apparence) et le record de vague. */
+  devReset: () => void
   openChoice: (request: ChoiceRequest) => void
   closeChoice: () => void
   endGame: (result: RunResult) => void
@@ -369,6 +371,13 @@ export const useStore = create<Store>()((set, get) => ({
     const next = { ...get().progress, points: get().progress.points + n }
     saveProgress(next)
     set({ progress: next })
+  },
+
+  devReset: () => {
+    const next = emptyProgress()
+    saveProgress(next)
+    saveBest(0)
+    set({ progress: next, bestWave: 0 })
   },
 
   openChoice: (request) => {

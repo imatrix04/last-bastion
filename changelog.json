@@ -23,15 +23,21 @@
         "Sons de pas : le joueur alterne deux enregistrements au hasard (hauteur variable de ±10 %, rythme adapté à sa vitesse), les créatures ont 4 sons de pas différents (plus graves pour les grosses) et 4 sons de mort au hasard. Tu entends aussi ton coéquipier en ligne",
         "Sons de pose pour les tourelles et les pieux",
         "Les sons dépendent de la distance : plus une source est loin de toi, moins tu l'entends, avec un léger effet gauche/droite. Tous les réglages sont dans config/hearing.ts",
-        "Les monstres font de plus en plus de dégâts au fil des vagues : +10 % par vague à partir de leur première apparition, comme pour leurs PV (crachat acide du Cracheur compris)"
+        "Les monstres font de plus en plus de dégâts au fil des vagues : +10 % par vague à partir de leur première apparition, comme pour leurs PV (crachat acide du Cracheur compris)",
+        "Sons dans les menus : un son au survol et un autre au clic de chaque bouton",
+        "Arbre de compétences plus vivant : les cases apparaissent en cascade, se soulèvent au survol, brillent en doré quand tu peux acheter, éclatent à l'achat, et de l'énergie descend le long des liaisons des compétences acquises. Le compteur de points défile et s'allume en vert à un gain, en rouge à une dépense",
+        "Dans le détail d'une compétence, l'icône flotte et s'incline vers ta souris"
       ],
       "changed": [
         "Nouveau dessin pour chaque palier de mur : palissade de rondins pointus (bois), blocs de pierre variés avec créneaux et mousse, plaques de bronze rivetées avec patine et reflet qui passe, acier renforcé avec noyau lumineux qui pulse",
         "Nouveau dessin pour chaque palier de pieux : pieux de bois liés par une corde, éclats de roche sur une dalle, lames d'acier sur une plaque rivetée. Les pointes sont décalées, inégales et penchées",
         "La teinte rouge uniforme sur la forteresse blessée est remplacée par les nouveaux effets d'usure",
-        "Les petits points de niveau sous les tourelles, murs et pieux sont retirés : le dessin change déjà à chaque niveau"
+        "Les petits points de niveau sous les tourelles, murs et pieux sont retirés : le dessin change déjà à chaque niveau",
+        "Bouton d'achat des compétences : à la place du « il manque … », un liquide le remplit de gauche à droite selon tes points (70 sur 210 = un tiers). Si tu cliques sans en avoir assez, le bouton tremble et le liquide s'agite en virant au rouge"
       ],
-      "fixed": [],
+      "fixed": [
+        "Arbre de compétences : les cases de la colonne Technologie ne se touchent plus, et les traits de liaison des paliers à deux cases sont de nouveau tracés correctement"
+      ],
       "en": {
         "added": [
           "The fortress changes style with the wave: wood (waves 1 to 10), stone (11 to 20), then reinforced stone (21 and up). Each style has its own curtain walls, gates, corner towers, courtyard and crystal pedestal: log palisade with torches, crenellated stone wall with portcullis and braziers, or steel with glowing trim, energy veins and shards orbiting the crystal",
@@ -53,15 +59,21 @@
           "Footstep sounds: the player randomly alternates between two recordings (pitch varies by ±10%, pace follows movement speed), creatures have 4 different footstep sounds (deeper for big ones) and 4 random death sounds. You also hear your teammate online",
           "Placement sounds for turrets and spikes",
           "Sounds now depend on distance: the farther a source is from you, the quieter it is, with a slight left/right effect. All settings are in config/hearing.ts",
-          "Monsters deal more and more damage as waves go by: +10% per wave from their first appearance, like their HP (including the Spitter's acid)"
+          "Monsters deal more and more damage as waves go by: +10% per wave from their first appearance, like their HP (including the Spitter's acid)",
+          "Menu sounds: a sound on hover and another on click for every button",
+          "A livelier skill tree: tiles appear in a cascade, lift on hover, glow gold when you can buy, burst when bought, and energy flows down the links of acquired skills. The points counter counts up or down and lights up green on a gain, red on a spend",
+          "In a skill's details, the icon floats and tilts toward your mouse"
         ],
         "changed": [
           "New look for every wall tier: pointed log palisade (wood), varied stone blocks with battlements and moss, riveted bronze plates with patina and a passing glint, reinforced steel with a pulsing glowing core",
           "New look for every spike tier: wooden stakes tied with rope, rock shards on a slab, steel blades on a riveted plate. Points are offset, uneven and leaning",
           "The flat red tint on a wounded fortress is replaced by the new wear effects",
-          "The small level dots under turrets, walls and spikes are removed: the look already changes at every level"
+          "The small level dots under turrets, walls and spikes are removed: the look already changes at every level",
+          "Skill buy button: instead of \"… short\", a liquid fills it from left to right according to your points (70 out of 210 = a third). If you click without enough, the button shakes and the liquid sloshes while turning red"
         ],
-        "fixed": []
+        "fixed": [
+          "Skill tree: the Technology column's tiles no longer touch, and the links between two-tile tiers are drawn correctly again"
+        ]
       }
     },
     {
