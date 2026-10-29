@@ -14,13 +14,18 @@
         "Un mur peut être transformé en porte avec la touche de cible (G / Pavé 0) : les joueurs la traversent, ce qui évite de s'enfermer, mais les monstres doivent la casser comme un mur. La même touche la remet en mur",
         "Sons de tir des tourelles : un son par tir, donc autant par seconde que la cadence de tir. Un son pour les tourelles de base et à double canon, un autre plus grave pour les canons lourds, et la rafale du minigun, qui tourne en boucle et s'accélère ou ralentit avec sa cadence de tir",
         "Le jeu se lance maintenant en plein écran (F11 pour en sortir)",
+        "Les obus du canon explosif font un bruit d'explosion à l'impact, et il tire un peu plus fort que le canon lourd",
+        "Son de tir pour les joueurs : un coup par tir, qui s'accélère légèrement et coupe le précédent quand la cadence de tir est plus rapide que le son",
+        "Paramètres : curseur de volume général du son, avec un bouton pour le couper",
+        "Son de construction quand on pose un mur, son d'amélioration et son de réparation pour les tourelles, murs et pieux",
         "Paramètres : toutes les touches des deux joueurs se changent (clique sur une touche puis appuie sur la nouvelle ; si elle est déjà prise, les deux sont échangées), avec un bouton pour rétablir celles par défaut",
         "Paramètres : qualité graphique Élevée / Moyenne / Basse pour les PC modestes (résolution, nombre de particules et de taches, poussières flottantes, reflets des murs métalliques et traînées des coureurs), appliquée à la partie suivante"
       ],
       "changed": [
         "Nouveau dessin pour chaque palier de mur : palissade de rondins pointus (bois), blocs de pierre variés avec créneaux et mousse, plaques de bronze rivetées avec patine et reflet qui passe, acier renforcé avec noyau lumineux qui pulse",
         "Nouveau dessin pour chaque palier de pieux : pieux de bois liés par une corde, éclats de roche sur une dalle, lames d'acier sur une plaque rivetée. Les pointes sont décalées, inégales et penchées",
-        "La teinte rouge uniforme sur la forteresse blessée est remplacée par les nouveaux effets d'usure"
+        "La teinte rouge uniforme sur la forteresse blessée est remplacée par les nouveaux effets d'usure",
+        "Les petits points de niveau sous les tourelles, murs et pieux sont retirés : le dessin change déjà à chaque niveau"
       ],
       "fixed": [],
       "en": {
@@ -35,13 +40,18 @@
           "A wall can be turned into a door with the target key (G / Numpad 0): players can walk through it so you never lock yourself in, but monsters still have to break it like a wall. The same key turns it back into a wall",
           "Turret firing sounds: one sound per shot, so as many per second as the fire rate. One sound for basic and double-barrel turrets, and a deeper one for heavy cannons, plus the minigun burst, which loops and speeds up or slows down with its fire rate",
           "The game now starts in fullscreen (F11 to leave it)",
+          "Explosive cannon shells make an explosion sound on impact, and it fires a bit louder than the heavy cannon",
+          "Player firing sound: one hit per shot, slightly sped up and cutting the previous one off when the fire rate is faster than the sound",
+          "Settings: master sound volume slider, with a button to mute",
+          "Building sound when a wall is placed, an upgrade sound and a repair sound for turrets, walls and spikes",
           "Settings: every key of both players can be rebound (click a key, then press the new one; if it is already taken, the two are swapped), with a button to restore the defaults",
           "Settings: Graphics quality High / Medium / Low for low-end PCs (resolution, particle and splatter counts, floating dust, metal wall glints and runner trails), applied to the next game"
         ],
         "changed": [
           "New look for every wall tier: pointed log palisade (wood), varied stone blocks with battlements and moss, riveted bronze plates with patina and a passing glint, reinforced steel with a pulsing glowing core",
           "New look for every spike tier: wooden stakes tied with rope, rock shards on a slab, steel blades on a riveted plate. Points are offset, uneven and leaning",
-          "The flat red tint on a wounded fortress is replaced by the new wear effects"
+          "The flat red tint on a wounded fortress is replaced by the new wear effects",
+          "The small level dots under turrets, walls and spikes are removed: the look already changes at every level"
         ],
         "fixed": []
       }

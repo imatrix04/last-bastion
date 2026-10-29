@@ -3,11 +3,11 @@ import { BASE, BULLET_STYLES, ENEMIES, HEIGHT, OVERCLOCK_LEVELS, TILE, WIDTH } f
 import { abilityHud } from './abilities'
 import { CONTROLS, type InputLike } from './config/controls'
 import { skinAt } from './config/appearance'
-import { addText, burst, decal, muzzle, ring, updateFx, webShot } from './fx'
+import { addText, burst, decal, heavyImpact, muzzle, repaired, upgraded, wallBuilt, turretBuilt, spikesBuilt, ring, sounds, updateFx, webShot } from './fx'
 import { buildingAt, idx, inBounds } from './grid'
 import { INTERP_DELAY, buildKindAt, enemyKindAt, type Snap } from './config/netproto'
 import { KILL_KINDS } from './config/progress'
-import { maxLevelOf, maxHpOf, nextUpgrade, turretStats } from './stats'
+import { maxLevelOf, maxHpOf, nextUpgrade, playerStats, turretStats } from './stats'
 import { TURRET_PLAIN_MAX, type Branch } from './config/turrets'
 import type { Bullet, ChoiceRequest, Enemy, GameState, HudState } from './types'
 import { EVENT_KINDS, advanceEvent } from './events'
@@ -176,6 +176,14 @@ export class ClientView {
           break
         case 'w':
           webShot(st, ev[1], ev[2], ev[3], ev[4], -1, -1, ev[5] === 1)
+          break
+        case 's':
+          if (ev[1] === 1) heavyImpact(st, ev[2], ev[3])
+          else if (ev[1] === 2) wallBuilt(st, ev[2], ev[3])
+          else if (ev[1] === 3) upgraded(st, ev[2], ev[3])
+          else if (ev[1] === 4) repaired(st, ev[2], ev[3])
+          else if (ev[1] === 5) turretBuilt(st, ev[2], ev[3])
+          else if (ev[1] === 6) spikesBuilt(st, ev[2], ev[3])
           break
         case 'm':
           muzzle(st, ev[1], ev[2], ev[3], ev[4])
@@ -355,8 +363,13 @@ export class ClientView {
     const pa = a.snap.players[1 - LOCAL_ID]
     const pb = b.snap.players[1 - LOCAL_ID]
     if (pa) {
+      const ox = partner.x
+      const oy = partner.y
       partner.x = pb ? lerp(pa[0], pb[0], alpha) : pa[0]
       partner.y = pb ? lerp(pa[1], pb[1], alpha) : pa[1]
+      // Pas du partenaire, déduits de son déplacement (ignorés si la position saute, ex. à la réapparition)
+      const moved = Math.hypot(partner.x - ox, partner.y - oy)
+      if (moved < 60) sounds.step(partner.id, moved, playerStats(partner.perks).speed, partner.x, partner.y)
       partner.aim = pa[2]
       partner.dirX = pa[4]
       partner.dirY = pa[5]

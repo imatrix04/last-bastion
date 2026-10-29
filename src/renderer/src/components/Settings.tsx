@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LANGS, setLang, useLang, useT } from '../i18n'
 import { BIND_ACTIONS, allBindIds, bindingOwner, getBinding, resetBindings, setBinding, type BindAction, type BindId } from '../game/config/controls'
+import { getVolume, setVolume } from '../game/audio'
 import { QUALITIES, getQuality, setQuality, type Quality } from '../game/config/graphics'
 import { useKeyLabels } from '../useKeyLabels'
 import { useStore } from '../store'
@@ -13,6 +14,9 @@ export function Settings(): React.JSX.Element {
   const close = useStore((s) => s.closeSettings)
   const label = useKeyLabels()
   const [quality, setQualityState] = useState<Quality>(getQuality())
+  const [volume, setVolumeState] = useState(getVolume())
+  /** Volume avant la coupure du son (pour le rétablir). */
+  const [beforeMute, setBeforeMute] = useState(0.8)
   const [player, setPlayer] = useState<0 | 1>(0)
   /** Action en attente d'une touche. */
   const [capturing, setCapturing] = useState<BindId | null>(null)
@@ -97,6 +101,39 @@ export function Settings(): React.JSX.Element {
             ))}
           </div>
           <p className="hint">{t('settings.languageHint')}</p>
+        </section>
+
+        <section className="ar-section">
+          <h3 className="sk-label">{t('settings.sound')}</h3>
+          <div className="volume-row">
+            <button
+              className="bind-key"
+              aria-pressed={volume === 0}
+              onClick={() => {
+                const next = volume === 0 ? beforeMute : 0
+                if (volume > 0) setBeforeMute(volume)
+                setVolume(next)
+                setVolumeState(next)
+              }}
+            >
+              {volume === 0 ? t('settings.soundOff') : t('settings.soundOn')}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(volume * 100)}
+              aria-label={t('settings.sound')}
+              onChange={(e) => {
+                const v = Number(e.target.value) / 100
+                setVolume(v)
+                setVolumeState(v)
+              }}
+            />
+            <span className="volume-value">{Math.round(volume * 100)} %</span>
+          </div>
+          <p className="hint">{t('settings.soundHint')}</p>
         </section>
 
         <section className="ar-section">

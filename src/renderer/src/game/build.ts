@@ -8,7 +8,7 @@ import {
 } from './config/constants'
 import { GAME } from './config/config'
 import { floating } from '../i18n'
-import { addText, burst, ring, smoke, sparks } from './fx'
+import { addText, burst, ring, smoke, sparks, repaired, upgraded, wallBuilt, turretBuilt, spikesBuilt } from './fx'
 import { buildingAt, distToRect, idx, isBaseCell } from './grid'
 import { PERK_INDEX, spikeCap, turretCap } from './config/progress'
 import { branchUnlocked, investedCost, levelSpec, maxHpOf, nextUpgrade } from './stats'
@@ -117,6 +117,7 @@ export function upgradeBuilding(state: GameState, b: Building, branch: Branch = 
 function upgradeFx(state: GameState, b: Building): void {
   const cx = (b.col + 0.5) * TILE
   const cy = (b.row + 0.5) * TILE
+  upgraded(state, cx, cy)
   ring(state, cx, cy, '#ffd54a', 44)
   sparks(state, cx, cy, '#ffe082', 14, 190)
   smoke(state, cx, cy + 6, '#d7ccc8', 3, 45)
@@ -135,6 +136,9 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
       p.gold -= BUILDS[kind].cost
       const b = placeBuilding(state, kind, col, row, p.perks[PERK_INDEX.overclock] ?? 0, p.id)
       b.pop = 0.7
+      if (kind === 'barricade') wallBuilt(state, cx, cy)
+      else if (kind === 'turret') turretBuilt(state, cx, cy)
+      else spikesBuilt(state, cx, cy)
       burst(state, cx, cy, '#d7ccc8', 6, 70)
       smoke(state, cx, cy + 8, '#a1887f', 3, 40)
       return true
@@ -157,6 +161,7 @@ export function actPlace(state: GameState, p: Player, press: boolean): boolean {
       p.gold -= cost
       b.hp += amount
       b.repairCd = GAME.repair.cooldown
+      repaired(state, cx, cy)
       addText(state, cx, cy - 20, `+${Math.round((amount / b.maxHp) * 100)} % PV`, '#90caf9')
       sparks(state, cx, cy, '#80d8ff', 4, 90)
       burst(state, cx, cy, '#80d8ff', 2, 40, 3)

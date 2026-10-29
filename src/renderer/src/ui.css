@@ -1454,6 +1454,20 @@ table.controls td:first-child {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  max-width: 28em;
+}
+.volume-row input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.volume-value {
+  min-width: 3.5em;
+  text-align: right;
+}
 .bind-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(17em, 1fr));

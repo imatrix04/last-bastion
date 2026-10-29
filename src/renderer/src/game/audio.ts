@@ -1,23 +1,83 @@
 import { sounds } from './fx'
+import { HEARING } from './config/hearing'
+import { COLS, TILE } from './config/constants'
 import turretShot from '../assets/audio/tourelle/tourelle-shoot.wav?url'
 import turretMinigunShot from '../assets/audio/tourelle/tourelle-minigun-shoot.wav?url'
 import turretHeavyShot from '../assets/audio/tourelle/tourelle-heavy-shoot.wav?url'
+import playerShotUrl from '../assets/audio/player/Player-shoot.wav?url'
+import upgradeUrl from '../assets/audio/general/Upgrade-game.wav?url'
+import repairUrl from '../assets/audio/general/repair-sound.wav?url'
+import wallBuilt from '../assets/audio/wall/Wall-create.wav?url'
+import turretBuiltUrl from '../assets/audio/tourelle/Turret-create.wav?url'
+import spikesBuiltUrl from '../assets/audio/pieux/Pieux-create.wav?url'
+import footstepUrl from '../assets/audio/player/Footstep.wav?url'
+import heavyExplosion from '../assets/audio/tourelle/tourelle-heavy-explosion.wav?url'
 
 /** Nombre maximal de sons de tir joués en même temps : au-delà, les tirs en trop restent muets. */
 const MAX_VOICES = 14
 
-export type Sound = 'turret' | 'turretHeavy' | 'turretMinigun'
+export type Sound = 'repair' | 'upgrade' | 'wallBuilt' | 'player' | 'turret' | 'turretHeavy' | 'turretExplosive' | 'heavyImpact' | 'turretMinigun' | 'turretBuilt' | 'spikesBuilt' | 'footstep'
 
 const SOUNDS: Record<Sound, { url: string; volume: number }> = {
+  repair: { url: repairUrl, volume: 0.5 },
+  upgrade: { url: upgradeUrl, volume: 0.5 },
+  wallBuilt: { url: wallBuilt, volume: 0.5 },
+  player: { url: playerShotUrl, volume: 0.35 },
   turret: { url: turretShot, volume: 0.25 },
   turretHeavy: { url: turretHeavyShot, volume: 0.5 },
-  turretMinigun: { url: turretMinigunShot, volume: 0.5 }
+  // Canon explosif : même son que le canon lourd, un peu plus fort
+  turretExplosive: { url: turretHeavyShot, volume: 0.7 },
+  heavyImpact: { url: heavyExplosion, volume: 0.5 },
+  turretMinigun: { url: turretMinigunShot, volume: 0.5 },
+  turretBuilt: { url: turretBuiltUrl, volume: 0.5 },
+  spikesBuilt: { url: spikesBuiltUrl, volume: 0.5 },
+  footstep: { url: footstepUrl, volume: 0.3 }
 }
 
 let ctx: AudioContext | null = null
-const buffers: Partial<Record<Sound, AudioBuffer>> = {}
-const loading = new Set<Sound>()
+/** Sons décodés, par fichier (deux sons peuvent partager le même). */
+const buffers = new Map<string, AudioBuffer>()
+const loading = new Set<string>()
 let voices = 0
+
+// ------------------------------------------------------------ volume général
+
+const VOLUME_KEY = 'last-bastion:volume'
+
+function loadVolume(): number {
+  try {
+    const v = Number(localStorage.getItem(VOLUME_KEY) ?? '1')
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1
+  } catch {
+    return 1
+  }
+}
+
+let volume = loadVolume()
+let master: GainNode | null = null
+
+/** Sortie commune de tous les sons : c'est elle qui porte le volume général. */
+function output(c: AudioContext): GainNode {
+  if (!master) {
+    master = c.createGain()
+    master.gain.value = volume
+    master.connect(c.destination)
+  }
+  return master
+}
+
+/** Volume général du jeu, de 0 (muet) à 1. */
+export const getVolume = (): number => volume
+
+export function setVolume(v: number): void {
+  volume = Math.min(1, Math.max(0, v))
+  if (master) master.gain.value = volume
+  try {
+    localStorage.setItem(VOLUME_KEY, String(volume))
+  } catch {
+    /* ignore */
+  }
+}
 
 function context(): AudioContext | null {
   if (ctx) return ctx
@@ -30,28 +90,94 @@ function context(): AudioContext | null {
   return ctx
 }
 
-function load(c: AudioContext, sound: Sound): void {
-  if (loading.has(sound)) return
-  loading.add(sound)
-  fetch(SOUNDS[sound].url)
-    .then((r) => r.arrayBuffer())
-    .then((data) => c.decodeAudioData(data))
-    .then((b) => {
-      buffers[sound] = b
-    })
-    .catch(() => {
-      loading.delete(sound)
-    })
+/** Charge tous les sons d'un coup : le premier tir de chaque type n'est plus muet. */
+function load(c: AudioContext): void {
+  for (const { url } of Object.values(SOUNDS)) {
+    if (loading.has(url)) continue
+    loading.add(url)
+    fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((data) => c.decodeAudioData(data))
+      .then((b) => {
+        buffers.set(url, b)
+      })
+      .catch(() => {
+        loading.delete(url)
+      })
+  }
 }
 
 /** Joue un son. Le premier appel de chaque son ne fait que le charger (il reste muet). */
-export function play(sound: Sound): void {
+// ------------------------------------------------------------ distance et panoramique
+
+/** Positions des joueurs de cette machine (le son est entendu depuis la plus proche de la source). */
+const listeners = new Map<number, { x: number; y: number }>()
+
+function listen(id: number, x: number, y: number): void {
+  const l = listeners.get(id)
+  if (l) {
+    l.x = x
+    l.y = y
+  } else listeners.set(id, { x, y })
+}
+
+/** Réglage de mixage de chaque son (voir HEARING.mix). */
+const MIX: Record<Sound, number> = {
+  repair: HEARING.mix.repair,
+  upgrade: HEARING.mix.upgrade,
+  wallBuilt: HEARING.mix.build,
+  turretBuilt: HEARING.mix.build,
+  spikesBuilt: HEARING.mix.build,
+  player: HEARING.mix.player,
+  turret: HEARING.mix.turret,
+  turretHeavy: HEARING.mix.turretHeavy,
+  turretExplosive: HEARING.mix.turretHeavy,
+  heavyImpact: HEARING.mix.heavyImpact,
+  turretMinigun: HEARING.mix.turretMinigun,
+  footstep: HEARING.mix.footstep
+}
+
+/** Volume (0 à 1) et panoramique (-1 à 1) d'un son émis en (x, y), selon le joueur le plus proche. */
+function spatial(x: number, y: number): { gain: number; pan: number } {
+  let best: { x: number; y: number } | null = null
+  let dist = Infinity
+  for (const l of listeners.values()) {
+    const d = Math.hypot(l.x - x, l.y - y)
+    if (d < dist) {
+      dist = d
+      best = l
+    }
+  }
+  if (!best) return { gain: 1, pan: 0 }
+  const t = Math.min(1, Math.max(0, (dist - HEARING.near) / (HEARING.far - HEARING.near)))
+  const gain = HEARING.floor + (1 - HEARING.floor) * Math.pow(1 - t, HEARING.curve)
+  const pan = Math.min(1, Math.max(-1, (x - best.x) / HEARING.panRange)) * HEARING.pan
+  return { gain, pan }
+}
+
+/** Branche une source sur la sortie, avec son volume de base `volume` modulé par la distance. Renvoie le gain, ou null si inaudible. */
+function route(c: AudioContext, src: AudioBufferSourceNode, volume: number, x: number, y: number): GainNode | null {
+  const s = spatial(x, y)
+  if (s.gain < 0.01) return null
+  const gain = c.createGain()
+  gain.gain.value = volume * s.gain
+  if (HEARING.pan > 0 && typeof c.createStereoPanner === 'function') {
+    const p = c.createStereoPanner()
+    p.pan.value = s.pan
+    src.connect(gain).connect(p).connect(output(c))
+  } else {
+    src.connect(gain).connect(output(c))
+  }
+  return gain
+}
+
+export function play(sound: Sound, x?: number, y?: number): void {
   const c = context()
   if (!c) return
   if (c.state === 'suspended') void c.resume().catch(() => undefined)
-  const buffer = buffers[sound]
+  const buffer = buffers.get(SOUNDS[sound].url)
   if (!buffer) {
-    load(c, sound)
+    load(c)
     return
   }
   if (voices >= MAX_VOICES) return
@@ -59,14 +185,116 @@ export function play(sound: Sound): void {
   src.buffer = buffer
   // Légère variation de hauteur pour que les rafales ne sonnent pas « mécaniques »
   src.playbackRate.value = 0.95 + Math.random() * 0.1
-  const gain = c.createGain()
-  gain.gain.value = SOUNDS[sound].volume
-  src.connect(gain).connect(c.destination)
+  if (!route(c, src, SOUNDS[sound].volume * MIX[sound], x ?? 0, y ?? 0)) return
   voices++
   src.onended = () => {
     voices--
   }
   src.start()
+}
+
+// ------------------------------------------------------------ pas du joueur
+
+/** Distance parcourue (px) entre deux pas : plus le joueur est rapide, plus les pas sont rapprochés. */
+const STRIDE = 38
+/** Vitesse de référence (px/s) à laquelle le pas est joué à hauteur normale. */
+const STEP_REF_SPEED = 150
+const stride = new Map<number, number>()
+
+/**
+ * Le joueur `id` vient de parcourir `dist` px à la vitesse `speed`. Le son ne contient qu'un pas : on en joue un
+ * à chaque foulée, avec ±10 % de hauteur et une vitesse de lecture qui suit la vitesse de déplacement.
+ */
+export function footstep(id: number, dist: number, speed: number, x: number, y: number): void {
+  if (dist <= 0) return
+  const acc = (stride.get(id) ?? STRIDE * 0.5) + dist
+  if (acc < STRIDE) {
+    stride.set(id, acc)
+    return
+  }
+  stride.set(id, acc - STRIDE)
+  const c = context()
+  if (!c) return
+  if (c.state === 'suspended') void c.resume().catch(() => undefined)
+  const buffer = buffers.get(SOUNDS.footstep.url)
+  if (!buffer) {
+    load(c)
+    return
+  }
+  if (voices >= MAX_VOICES) return
+  const src = c.createBufferSource()
+  src.buffer = buffer
+  const pace = Math.min(1.25, Math.max(0.8, speed / STEP_REF_SPEED))
+  src.playbackRate.value = pace * (0.9 + Math.random() * 0.2)
+  if (!route(c, src, SOUNDS.footstep.volume * MIX.footstep, x, y)) return
+  voices++
+  src.onended = () => {
+    voices--
+  }
+  src.start()
+}
+
+// ------------------------------------------------------------ tir du joueur
+
+/** Durée de l'enregistrement du tir du joueur (s) : il ne contient qu'un seul coup. */
+const PLAYER_SHOT_SECONDS = 0.6
+
+interface PlayerVoice {
+  /** Dernière position du tir (px), instant du dernier tir (s) et son écart avec le précédent (0 = inconnu). */
+  x: number
+  y: number
+  last: number
+  interval: number
+  gain: GainNode | null
+  src: AudioBufferSourceNode | null
+}
+
+/** Un suivi par joueur (deux au maximum) : le tir est attribué à celui dont la dernière position est la plus proche. */
+const shooters: PlayerVoice[] = []
+
+/**
+ * Le joueur vient de tirer en (x, y). Le son ne contient qu'un coup : si le joueur tire plus vite qu'il ne dure,
+ * le coup précédent est coupé en fondu et le nouveau est un peu accéléré, pour que la cadence reste audible
+ * sans que les queues de son s'empilent.
+ */
+export function playerShot(x: number, y: number): void {
+  const c = context()
+  if (!c) return
+  if (c.state === 'suspended') void c.resume().catch(() => undefined)
+  const buffer = buffers.get(SOUNDS.player.url)
+  if (!buffer) {
+    load(c)
+    return
+  }
+  const now = c.currentTime
+  let v = shooters.length < 2 ? undefined : shooters.reduce((a, b) => (Math.hypot(a.x - x, a.y - y) <= Math.hypot(b.x - x, b.y - y) ? a : b))
+  if (!v) {
+    v = { x, y, last: 0, interval: 0, gain: null, src: null }
+    shooters.push(v)
+  }
+  const gap = v.last > 0 ? now - v.last : 0
+  if (gap > 0.01 && gap < 2) v.interval = v.interval === 0 ? gap : v.interval * 0.5 + gap * 0.5
+  else if (gap >= 2) v.interval = 0
+  v.x = x
+  v.y = y
+  v.last = now
+
+  // Coup précédent encore audible : fondu rapide
+  if (v.gain && v.src) {
+    v.gain.gain.cancelScheduledValues(now)
+    v.gain.gain.setValueAtTime(v.gain.gain.value, now)
+    v.gain.gain.linearRampToValueAtTime(0, now + 0.04)
+    v.src.stop(now + 0.05)
+  }
+  const src = c.createBufferSource()
+  src.buffer = buffer
+  const speed = v.interval > 0 ? Math.min(1.3, Math.max(1, PLAYER_SHOT_SECONDS / v.interval)) : 1
+  src.playbackRate.value = speed * (0.95 + Math.random() * 0.1)
+  const gain = route(c, src, SOUNDS.player.volume * MIX.player, x, y)
+  if (!gain) return
+  src.start()
+  v.src = src
+  v.gain = gain
 }
 
 // ------------------------------------------------------------ minigun : rafale en boucle
@@ -107,21 +335,22 @@ export function minigunShot(key: number): void {
   const c = context()
   if (!c) return
   if (c.state === 'suspended') void c.resume().catch(() => undefined)
-  const buffer = buffers.turretMinigun
+  const buffer = buffers.get(SOUNDS.turretMinigun.url)
   if (!buffer) {
-    load(c, 'turretMinigun')
+    load(c)
     return
   }
   const now = c.currentTime
+  const x = ((key % COLS) + 0.5) * TILE
+  const y = (Math.floor(key / COLS) + 0.5) * TILE
   let l = loops.get(key)
   if (!l) {
     if (loops.size >= MAX_MINIGUN_LOOPS) return
     const src = c.createBufferSource()
     src.buffer = buffer
     src.loop = true
-    const gain = c.createGain()
-    gain.gain.value = SOUNDS.turretMinigun.volume
-    src.connect(gain).connect(c.destination)
+    const gain = route(c, src, SOUNDS.turretMinigun.volume * MIX.turretMinigun, x, y)
+    if (!gain) return
     src.start()
     l = { src, gain, last: now, interval: 0, stop: setTimeout(() => endLoop(key), 250) }
     loops.set(key, l)
@@ -138,3 +367,6 @@ export function minigunShot(key: number): void {
 // Branche les sons sur les effets du moteur
 sounds.play = play
 sounds.minigun = minigunShot
+sounds.player = playerShot
+sounds.step = footstep
+sounds.listen = listen

@@ -23,7 +23,7 @@ import { activateAbility, activeBurn, tickAbilities } from './abilities'
 import { ABILITY_CONFIG, EXPLOSION, MINIGUN, PLAYER_AIM, WAVES } from './config/config'
 import { CONTROLS, DEV_ENABLED, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './config/controls'
 import { floating } from '../i18n'
-import { addText, burst, decal, muzzle, ring, smoke, sparks, updateFx, webShot } from './fx'
+import { addText, burst, decal, heavyImpact, muzzle, ring, smoke, sounds, sparks, updateFx, webShot } from './fx'
 import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
 import { advanceEvent, eventMods, playerSight, rollEvent, turretSees } from './events'
 import { computeFlow, nextCell, nextCellAir } from './pathing'
@@ -221,6 +221,8 @@ function hitBase(state: GameState, amount: number, from: Enemy): void {
  * Partagé avec la prédiction du joueur distant (clientView.ts) : même code des deux côtés.
  */
 export function movePlayer(state: GameState, p: Player, ix: number, iy: number, dt: number): void {
+  const ox = p.x
+  const oy = p.y
   if (ix !== 0 || iy !== 0) {
     const len = Math.hypot(ix, iy)
     const speed = playerStats(p.perks).speed
@@ -241,6 +243,8 @@ export function movePlayer(state: GameState, p: Player, ix: number, iy: number, 
   p.x = clamp(p.x, PLAYER.radius, WIDTH - PLAYER.radius)
   p.y = clamp(p.y, PLAYER.radius, HEIGHT - PLAYER.radius)
   resolveTiles(state, p, PLAYER.radius, true)
+  sounds.listen(p.id, p.x, p.y)
+  sounds.step(p.id, Math.hypot(p.x - ox, p.y - oy), playerStats(p.perks).speed, p.x, p.y)
 }
 
 /**
@@ -252,6 +256,7 @@ export function acceptRemotePose(state: GameState, p: Player, x: number, y: numb
   const py = clamp(y, PLAYER.radius, HEIGHT - PLAYER.radius)
   if (Math.hypot(px - p.x, py - p.y) > 200) return false
   if (isSolidCell(state, Math.floor(px / TILE), Math.floor(py / TILE), true)) return false
+  sounds.step(p.id, Math.hypot(px - p.x, py - p.y), playerStats(p.perks).speed, px, py)
   p.x = px
   p.y = py
   // Direction de construction : cardinale, jamais nulle
@@ -811,7 +816,7 @@ function updateTurrets(state: GameState, dt: number): void {
       // Le minigun arrose : léger écart aléatoire à chaque balle.
       const angle = minigun ? b.angle + (Math.random() - 0.5) * MINIGUN.spread : b.angle
       fire(state, mx, my, angle, stats.bulletSpeed, stats.damage * eventMods(state).turretDamage, stats.range, minigun ? 3 : form === 'explosive' ? 4 : heavy ? 2 : 1, stats.splash ?? 0)
-      muzzle(state, mx, my, angle, heavy ? 3 : minigun ? 4 : double ? 2 : 1)
+      muzzle(state, mx, my, angle, form === 'explosive' ? 5 : heavy ? 3 : minigun ? 4 : double ? 2 : 1)
       b.recoil = 1
       if (heavy) state.shake = Math.min(1, state.shake + (form === 'explosive' ? 0.06 : 0.04))
       b.cooldown = 1 / (stats.fireRate * fireRateMult(b))
@@ -841,6 +846,7 @@ function explode(state: GameState, x: number, y: number, radius: number, damage:
     if (d > radius) continue
     damageEnemy(e, damage * (1 - (1 - EXPLOSION.edgeDamage) * (d / radius)))
   }
+  heavyImpact(state, x, y)
   ring(state, x, y, color, radius)
   burst(state, x, y, color, 10, 170)
   burst(state, x, y, '#fff3e0', 2, 0, 3)

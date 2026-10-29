@@ -202,6 +202,8 @@ export type FxEvent =
   | ['m', number, number, number, number]
   | ['d', number, number, string, number]
   | ['w', number, number, number, number, number]
+  /** Son : 1 impact d'un canon explosif · 2 pose d'un mur · 3 amélioration · 4 réparation · 5 pose d'une tourelle · 6 pose de pieux ; suivi de la position (x, y) du son. */
+  | ['s', number, number, number]
 
 /** Un joueur veut améliorer une tourelle de niveau 2 : l'interface lui propose le choix de branche. */
 export interface ChoiceRequest {

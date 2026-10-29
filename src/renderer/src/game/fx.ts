@@ -6,9 +6,12 @@ import type { FxEvent, GameState, Particle, ParticleShape } from './types'
  * Sons des tirs. Vides par défaut (script de simulation sous Node) : l'interface les branche au démarrage (voir audio.ts),
  * pour que le moteur ne dépende pas de l'audio du navigateur.
  */
-export const sounds: { play: (sound: 'turret' | 'turretHeavy') => void; minigun: (key: number) => void } = {
+export const sounds: { play: (sound: 'turret' | 'turretHeavy' | 'turretExplosive' | 'heavyImpact' | 'wallBuilt' | 'turretBuilt' | 'spikesBuilt' | 'upgrade' | 'repair', x: number, y: number) => void; minigun: (key: number) => void; player: (x: number, y: number) => void; step: (id: number, dist: number, speed: number, x: number, y: number) => void; listen: (id: number, x: number, y: number) => void } = {
   play: () => undefined,
-  minigun: () => undefined
+  minigun: () => undefined,
+  player: () => undefined,
+  step: () => undefined,
+  listen: () => undefined
 }
 
 const MAX_TEXTS = 40
@@ -85,14 +88,53 @@ export function decal(state: GameState, x: number, y: number, color: string, siz
   state.decals.push({ x, y, size, life, maxLife: life, color, seed: Math.random() * 1000 })
 }
 
-/** Flash de bouche. `style` : 0 joueur, 1 tourelle, 2 double canon, 3 canon lourd, 4 minigun (dessiné comme le double canon). */
+/** Impact d'un obus de canon lourd ou explosif : son d'explosion (rejoué chez l'invité). */
+export function heavyImpact(state: GameState, x: number, y: number): void {
+  log(state, ['s', 1, Math.round(x), Math.round(y)])
+  sounds.play('heavyImpact', x, y)
+}
+
+/** Un mur vient d'être posé : son de construction (rejoué chez l'invité). */
+export function wallBuilt(state: GameState, x: number, y: number): void {
+  log(state, ['s', 2, Math.round(x), Math.round(y)])
+  sounds.play('wallBuilt', x, y)
+}
+
+/** Une tourelle vient d'être posée : son de construction (rejoué chez l'invité). */
+export function turretBuilt(state: GameState, x: number, y: number): void {
+  log(state, ['s', 5, Math.round(x), Math.round(y)])
+  sounds.play('turretBuilt', x, y)
+}
+
+/** Des pieux viennent d'être posés : son de construction (rejoué chez l'invité). */
+export function spikesBuilt(state: GameState, x: number, y: number): void {
+  log(state, ['s', 6, Math.round(x), Math.round(y)])
+  sounds.play('spikesBuilt', x, y)
+}
+
+/** Un bâtiment vient d'être amélioré : son d'amélioration (rejoué chez l'invité). */
+export function upgraded(state: GameState, x: number, y: number): void {
+  log(state, ['s', 3, Math.round(x), Math.round(y)])
+  sounds.play('upgrade', x, y)
+}
+
+/** Un bâtiment vient d'être réparé : son de réparation (rejoué chez l'invité). */
+export function repaired(state: GameState, x: number, y: number): void {
+  log(state, ['s', 4, Math.round(x), Math.round(y)])
+  sounds.play('repair', x, y)
+}
+
+/** Flash de bouche. `style` : 0 joueur, 1 tourelle, 2 double canon, 3 canon lourd, 4 minigun, 5 canon explosif. */
 export function muzzle(state: GameState, x: number, y: number, angle: number, rawStyle: number): void {
   const a = Math.round(angle * 100) / 100
   log(state, ['m', Math.round(x), Math.round(y), a, rawStyle])
-  if (rawStyle === 1 || rawStyle === 2) sounds.play('turret')
-  else if (rawStyle === 3) sounds.play('turretHeavy')
+  if (rawStyle === 0) sounds.player(x, y)
+  else if (rawStyle === 1 || rawStyle === 2) sounds.play('turret', x, y)
+  else if (rawStyle === 3) sounds.play('turretHeavy', x, y)
+  else if (rawStyle === 5) sounds.play('turretExplosive', x, y)
   else if (rawStyle === 4) sounds.minigun(Math.floor(y / TILE) * COLS + Math.floor(x / TILE))
-  const style = rawStyle === 4 ? 2 : rawStyle
+  // 4 : minigun (dessiné comme le double canon) · 5 : canon explosif (dessiné comme le canon lourd)
+  const style = rawStyle === 4 ? 2 : rawStyle === 5 ? 3 : rawStyle
   const heavy = style === 3
   const color = style === 0 ? '#fff59d' : heavy ? '#ffb74d' : '#80deea'
   const glow = heavy ? 26 : style === 2 ? 17 : 15

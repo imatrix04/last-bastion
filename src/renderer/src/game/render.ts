@@ -9,7 +9,7 @@ import { EVENTS } from './config/config'
 import { enemyHidden, lightSources } from './events'
 import { buildingAt, idx } from './grid'
 import { drawBar, drawEnemy, drawEnemyTrail, drawGlow, drawTurret } from './sprites'
-import { levelName, maxLevelOf, nextUpgrade } from './stats'
+import { levelName, nextUpgrade } from './stats'
 import { TURRET_PLAIN } from './config/turrets'
 import type { Building, GameState } from './types'
 import { drawFortress } from './fortress'
@@ -509,20 +509,6 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: Building, time: number, 
   }
   if (popped) ctx.restore()
 
-  // Pastilles de niveau (le pas se resserre pour que 7 niveaux tiennent dans la case)
-  if (b.level >= 2) {
-    const step = Math.min(6, 30 / b.level)
-    const max = maxLevelOf(b.kind)
-    for (let i = 0; i < b.level; i++) {
-      ctx.fillStyle = b.level >= max ? '#ffffff' : '#ffd54a'
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'
-      ctx.lineWidth = 1.2
-      ctx.beginPath()
-      ctx.arc(x + 6 + i * step, y + TILE - 5, 2.2, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.stroke()
-    }
-  }
   // Mode de ciblage « proche de la forteresse » : petit losange orange en haut à droite de la tourelle
   if (b.kind === 'turret' && b.targeting === 1) {
     ctx.fillStyle = '#ff9800'
