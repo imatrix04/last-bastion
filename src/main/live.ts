@@ -1,24 +1,60 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
-import type { TikTokLiveConnection } from 'tiktok-live-connector'
+import WebSocket from 'ws'
 import type { LiveConnectResult, LiveEvent, LiveUser } from '../shared/live'
 
 // Mode live TikTok : réservé au développement (`npm run dev`), pour streamer le jeu.
-// La lib est une devDependency : absente du jeu installé, où ces handlers ne sont de toute façon jamais enregistrés.
+// Les événements viennent de TikFinity (https://tikfinity.zerody.one), qui doit tourner et être connecté
+// au live : il expose tout en WebSocket local, sans clé ni serveur de signature.
 
-let connection: TikTokLiveConnection | null = null
+const TIKFINITY_URL = 'ws://localhost:21213/'
 
-const userOf = (u?: { displayId?: string; nickname?: string } | null): LiveUser => ({
-  id: u?.displayId || '?',
-  name: u?.nickname || u?.displayId || '?'
-})
+let socket: WebSocket | null = null
 
-async function disconnect(): Promise<void> {
-  const c = connection
-  connection = null
-  if (!c) return
-  c.removeAllListeners()
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Payload TikFinity = celui de TikTok-Live-Connector : à plat (uniqueId, nickname) ou imbriqué (user.uniqueId).
+const userOf = (d: any): LiveUser => {
+  const u = d?.user ?? d
+  const id = u?.uniqueId || u?.displayId || '?'
+  return { id, name: u?.nickname || id }
+}
+
+function normalize(event: string, d: any): LiveEvent | null {
+  switch (event) {
+    case 'gift':
+      // Les cadeaux « série » (roses…) arrivent à chaque palier : on ne compte que le total final.
+      if ((d.giftType ?? d.gift?.type) === 1 && !d.repeatEnd) return null
+      return {
+        type: 'gift',
+        user: userOf(d),
+        giftId: Number(d.giftId),
+        name: d.giftName || d.gift?.name || `#${d.giftId}`,
+        diamonds: d.diamondCount ?? d.gift?.diamondCount ?? 0,
+        count: d.repeatCount || 1
+      }
+    case 'like':
+      return { type: 'like', user: userOf(d), count: d.likeCount ?? d.count ?? 1, total: Number(d.totalLikeCount ?? d.total ?? 0) }
+    case 'chat':
+      return { type: 'chat', user: userOf(d), comment: d.comment ?? d.content ?? '' }
+    case 'follow':
+      return { type: 'follow', user: userOf(d) }
+    case 'share':
+      return { type: 'share', user: userOf(d) }
+    case 'member':
+      return { type: 'join', user: userOf(d) }
+    default:
+      return null
+  }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+function disconnect(): void {
+  const s = socket
+  socket = null
+  if (!s) return
+  s.removeAllListeners()
+  s.on('error', () => {})
   try {
-    c.disconnect()
+    s.close()
   } catch {
     /* déjà fermée */
   }
@@ -33,44 +69,44 @@ export function registerLiveHandlers(getWindow: () => BrowserWindow | null): voi
     if (win && !win.isDestroyed()) win.webContents.send('live:event', event)
   }
 
-  ipcMain.handle('live:connect', async (_e, username: string): Promise<LiveConnectResult> => {
-    await disconnect()
-    const name = String(username).trim().replace(/^@/, '')
-    if (!name) return { ok: false, error: 'Pseudo TikTok manquant' }
-    emit({ type: 'status', status: 'connecting', detail: name })
-    try {
-      const { TikTokLiveConnection, WebcastEvent, ControlEvent } = await import('tiktok-live-connector')
-      const c = new TikTokLiveConnection(name, {
-        enableExtendedGiftInfo: true,
-        // Le serveur de signature (Euler Stream) peut exiger une clé : EULER_API_KEY=... npm run dev
-        signApiKey: process.env['EULER_API_KEY'] || undefined
-      })
-      connection = c
+  // Le pseudo n'est plus utilisé : TikFinity est déjà connecté au bon compte.
+  ipcMain.handle('live:connect', (): Promise<LiveConnectResult> => {
+    disconnect()
+    emit({ type: 'status', status: 'connecting', detail: 'TikFinity' })
+    return new Promise((resolve) => {
+      const s = new WebSocket(TIKFINITY_URL)
+      socket = s
+      let opened = false
 
-      c.on(WebcastEvent.GIFT, (d) => {
-        // Les cadeaux « série » (roses…) arrivent à chaque palier : on ne compte que le total final.
-        if (d.gift?.type === 1 && !d.repeatEnd) return
-        emit({ type: 'gift', user: userOf(d.user), giftId: Number(d.giftId), name: d.gift?.name || `#${d.giftId}`, diamonds: d.gift?.diamondCount ?? 0, count: d.repeatCount || 1 })
+      s.on('open', () => {
+        opened = true
+        emit({ type: 'status', status: 'connected', detail: 'TikFinity' })
+        resolve({ ok: true })
       })
-      c.on(WebcastEvent.LIKE, (d) => emit({ type: 'like', user: userOf(d.user), count: d.count, total: Number(d.total) }))
-      c.on(WebcastEvent.CHAT, (d) => emit({ type: 'chat', user: userOf(d.user), comment: d.content }))
-      c.on(WebcastEvent.FOLLOW, (d) => emit({ type: 'follow', user: userOf(d.user) }))
-      c.on(WebcastEvent.SHARE, (d) => emit({ type: 'share', user: userOf(d.user) }))
-      c.on(WebcastEvent.MEMBER, (d) => emit({ type: 'join', user: userOf(d.user) }))
-      c.on(ControlEvent.DISCONNECTED, () => emit({ type: 'status', status: 'disconnected' }))
-      c.on(ControlEvent.ERROR, (err) => console.error('[live] erreur', err))
-
-      const state = await c.connect()
-      emit({ type: 'status', status: 'connected', detail: state.roomId })
-      return { ok: true }
-    } catch (err) {
-      await disconnect()
-      const error = err instanceof Error ? err.message : String(err)
-      emit({ type: 'status', status: 'disconnected', detail: error })
-      return { ok: false, error }
-    }
+      s.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(raw.toString())
+          const ev = normalize(String(msg.event), msg.data ?? {})
+          if (ev) emit(ev)
+        } catch (err) {
+          console.error('[live] message illisible', err)
+        }
+      })
+      s.on('error', (err) => {
+        if (socket !== s) return
+        const error = opened ? err.message : 'TikFinity injoignable (ws://localhost:21213) : lance TikFinity et connecte-le au live'
+        disconnect()
+        emit({ type: 'status', status: 'disconnected', detail: error })
+        if (!opened) resolve({ ok: false, error })
+      })
+      s.on('close', () => {
+        if (socket !== s) return
+        socket = null
+        emit({ type: 'status', status: 'disconnected' })
+      })
+    })
   })
 
   ipcMain.handle('live:disconnect', () => disconnect())
-  app.on('before-quit', () => void disconnect())
+  app.on('before-quit', disconnect)
 }

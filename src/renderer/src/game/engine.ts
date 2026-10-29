@@ -1,6 +1,7 @@
 import { session, type SessionEvent } from '../net'
 import { applyTurretBranch } from './build'
-import { BASE, HEIGHT, STEP, WIDTH } from './config/constants'
+import { BASE, HEIGHT, STEP, WIDTH, type EnemyKind } from './config/constants'
+import { spawnEnemy } from './waves'
 import type { Branch } from './config/turrets'
 import { ClientView } from './clientView'
 import { Input } from './input'
@@ -46,6 +47,8 @@ export type GameMode = 'local' | 'host' | 'client'
 /** Boucle de jeu : pas fixe de 1/60 s pour la simulation, rendu à chaque image. */
 /** Durée de l'annonce d'un nouveau biome (s). */
 const BANNER_SECONDS = 5
+/** Mode live : nombre maximal d'ennemis à l'écran, pour que les likes ne fassent pas ramer le jeu. */
+const LIVE_ENEMY_CAP = 80
 
 export class Game {
   private state: GameState
@@ -190,6 +193,13 @@ export class Game {
     if (action === 'jump') devSetWave(this.state, wave)
     else if (action === 'launch') devLaunchWave(this.state)
     else devClearWave(this.state)
+  }
+
+  /** Mode live : fait apparaître un petit monstre aux entrées, avec le pseudo de son « parrain » (affiché au-dessus tant qu'il vit) (hôte / local seulement, avec un plafond d'ennemis à l'écran). */
+  spawnLive(kind: EnemyKind, name: string): void {
+    if (this.mode === 'client' || this.ended || this.paused || this.state.enemies.length >= LIVE_ENEMY_CAP) return
+    spawnEnemy(this.state, kind)
+    this.state.enemies[this.state.enemies.length - 1].label = name
   }
 
   /** Résolution interne adaptée à la taille réelle affichée (écrans HiDPI, plein écran). */

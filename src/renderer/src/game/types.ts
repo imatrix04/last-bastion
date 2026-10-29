@@ -42,6 +42,8 @@ export interface Player {
 export interface Enemy {
   id: number
   kind: EnemyKind
+  /** Mode live : pseudo du spectateur qui l'a fait apparaître, affiché au-dessus tant qu'il est en vie. */
+  label?: string
   x: number
   y: number
   radius: number

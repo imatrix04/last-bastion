@@ -286,6 +286,7 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, bg: Canv
   drawGhosts(ctx, state)
   if (GFX.trails) for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemyTrail(ctx, e)
   for (const e of state.enemies) if (!enemyHidden(state, e)) drawEnemy(ctx, e, state.time)
+  drawEnemyLabels(ctx, state)
   for (const p of state.players) drawPlayer(ctx, p, state.time)
   drawGhostLabels(ctx, state)
   drawBullets(ctx, state)
@@ -569,6 +570,21 @@ function drawGhosts(ctx: CanvasRenderingContext2D, state: GameState): void {
 }
 
 /** Étiquette du bâtiment visé (nom, amélioration possible), dessinée par-dessus les joueurs. */
+/** Mode live : le pseudo du spectateur reste au-dessus de « son » monstre. */
+function drawEnemyLabels(ctx: CanvasRenderingContext2D, state: GameState): void {
+  ctx.font = `bold 12px ${FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.lineWidth = 3
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)'
+  ctx.fillStyle = '#ff80ab'
+  for (const e of state.enemies) {
+    if (!e.label || enemyHidden(state, e)) continue
+    ctx.strokeText(e.label, e.x, e.y - e.radius - 14)
+    ctx.fillText(e.label, e.x, e.y - e.radius - 14)
+  }
+}
+
 function drawGhostLabels(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.font = `bold 12px ${FONT}`
   ctx.textAlign = 'center'
