@@ -3,7 +3,7 @@ import { BASE, BULLET_STYLES, ENEMIES, HEIGHT, OVERCLOCK_LEVELS, TILE, WIDTH } f
 import { abilityHud } from './abilities'
 import { CONTROLS, type InputLike } from './config/controls'
 import { skinAt } from './config/appearance'
-import { addText, burst, decal, heavyImpact, muzzle, repaired, upgraded, wallBuilt, turretBuilt, spikesBuilt, ring, sounds, updateFx, webShot } from './fx'
+import { addText, burst, decal, heavyImpact, muzzle, repaired, upgraded, wallBuilt, turretBuilt, spikesBuilt, creatureDied, ring, sounds, updateFx, webShot } from './fx'
 import { buildingAt, idx, inBounds } from './grid'
 import { INTERP_DELAY, buildKindAt, enemyKindAt, type Snap } from './config/netproto'
 import { KILL_KINDS } from './config/progress'
@@ -184,6 +184,7 @@ export class ClientView {
           else if (ev[1] === 4) repaired(st, ev[2], ev[3])
           else if (ev[1] === 5) turretBuilt(st, ev[2], ev[3])
           else if (ev[1] === 6) spikesBuilt(st, ev[2], ev[3])
+          else if (ev[1] === 7) creatureDied(st, ev[2], ev[3])
           break
         case 'm':
           muzzle(st, ev[1], ev[2], ev[3], ev[4])
@@ -321,6 +322,7 @@ export class ClientView {
           ly: y,
           checkT: 0,
           stuck: false,
+          step: 0,
           vx: 0,
           vy: 0,
           burnT: 0,
@@ -342,6 +344,7 @@ export class ClientView {
       }
       e.x = x
       e.y = y
+      if (e.jump <= 0 && Math.hypot(dx, dy) < 40) sounds.creature(e, Math.hypot(dx, dy))
       e.age += dt
       e.hp = ra[4]
       e.maxHp = ra[5]

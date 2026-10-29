@@ -68,6 +68,8 @@ export interface Enemy {
   ly: number
   checkT: number
   stuck: boolean
+  /** Distance parcourue depuis le dernier bruit de pas (px). */
+  step: number
   /** Vitesse du dernier déplacement (px/s) : sert au joueur à anticiper son tir. */
   vx: number
   vy: number
@@ -177,6 +179,8 @@ export interface Web {
   row: number
   /** Crachat acide du Cracheur (dégâts à la tourelle) au lieu d'une toile. */
   acid: boolean
+  /** Dégâts du crachat acide à la tourelle touchée. */
+  damage: number
 }
 
 export interface FloatText {
@@ -202,7 +206,7 @@ export type FxEvent =
   | ['m', number, number, number, number]
   | ['d', number, number, string, number]
   | ['w', number, number, number, number, number]
-  /** Son : 1 impact d'un canon explosif · 2 pose d'un mur · 3 amélioration · 4 réparation · 5 pose d'une tourelle · 6 pose de pieux ; suivi de la position (x, y) du son. */
+  /** Son : 1 impact d'un canon explosif · 2 pose d'un mur · 3 amélioration · 4 réparation · 5 pose d'une tourelle · 6 pose de pieux · 7 mort d'une créature ; suivi de la position (x, y) du son. */
   | ['s', number, number, number]
 
 /** Un joueur veut améliorer une tourelle de niveau 2 : l'interface lui propose le choix de branche. */

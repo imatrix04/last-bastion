@@ -19,7 +19,11 @@
         "Paramètres : curseur de volume général du son, avec un bouton pour le couper",
         "Son de construction quand on pose un mur, son d'amélioration et son de réparation pour les tourelles, murs et pieux",
         "Paramètres : toutes les touches des deux joueurs se changent (clique sur une touche puis appuie sur la nouvelle ; si elle est déjà prise, les deux sont échangées), avec un bouton pour rétablir celles par défaut",
-        "Paramètres : qualité graphique Élevée / Moyenne / Basse pour les PC modestes (résolution, nombre de particules et de taches, poussières flottantes, reflets des murs métalliques et traînées des coureurs), appliquée à la partie suivante"
+        "Paramètres : qualité graphique Élevée / Moyenne / Basse pour les PC modestes (résolution, nombre de particules et de taches, poussières flottantes, reflets des murs métalliques et traînées des coureurs), appliquée à la partie suivante",
+        "Sons de pas : le joueur alterne deux enregistrements au hasard (hauteur variable de ±10 %, rythme adapté à sa vitesse), les créatures ont 4 sons de pas différents (plus graves pour les grosses) et 4 sons de mort au hasard. Tu entends aussi ton coéquipier en ligne",
+        "Sons de pose pour les tourelles et les pieux",
+        "Les sons dépendent de la distance : plus une source est loin de toi, moins tu l'entends, avec un léger effet gauche/droite. Tous les réglages sont dans config/hearing.ts",
+        "Les monstres font de plus en plus de dégâts au fil des vagues : +10 % par vague à partir de leur première apparition, comme pour leurs PV (crachat acide du Cracheur compris)"
       ],
       "changed": [
         "Nouveau dessin pour chaque palier de mur : palissade de rondins pointus (bois), blocs de pierre variés avec créneaux et mousse, plaques de bronze rivetées avec patine et reflet qui passe, acier renforcé avec noyau lumineux qui pulse",
@@ -45,7 +49,11 @@
           "Settings: master sound volume slider, with a button to mute",
           "Building sound when a wall is placed, an upgrade sound and a repair sound for turrets, walls and spikes",
           "Settings: every key of both players can be rebound (click a key, then press the new one; if it is already taken, the two are swapped), with a button to restore the defaults",
-          "Settings: Graphics quality High / Medium / Low for low-end PCs (resolution, particle and splatter counts, floating dust, metal wall glints and runner trails), applied to the next game"
+          "Settings: Graphics quality High / Medium / Low for low-end PCs (resolution, particle and splatter counts, floating dust, metal wall glints and runner trails), applied to the next game",
+          "Footstep sounds: the player randomly alternates between two recordings (pitch varies by ±10%, pace follows movement speed), creatures have 4 different footstep sounds (deeper for big ones) and 4 random death sounds. You also hear your teammate online",
+          "Placement sounds for turrets and spikes",
+          "Sounds now depend on distance: the farther a source is from you, the quieter it is, with a slight left/right effect. All settings are in config/hearing.ts",
+          "Monsters deal more and more damage as waves go by: +10% per wave from their first appearance, like their HP (including the Spitter's acid)"
         ],
         "changed": [
           "New look for every wall tier: pointed log palisade (wood), varied stone blocks with battlements and moss, riveted bronze plates with patina and a passing glint, reinforced steel with a pulsing glowing core",

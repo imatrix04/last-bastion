@@ -94,6 +94,8 @@ export const WAVES = {
   rageBoss: { every: 10 },
   /** PV des monstres : ×(1 + (vague − première apparition du type) × hpGrowth) : la hausse commence à l'arrivée de chaque monstre (voir FIRST_WAVE dans waves.ts). */
   hpGrowth: 0.2,
+  /** Dégâts des monstres : ×(1 + (vague − première apparition du type) × dmgGrowth), comme les PV. */
+  dmgGrowth: 0.1,
   /** Intervalle d'apparition PAR ENTRÉE : max(min, base − vague × perWave) secondes. */
   spawn: { base: 1.5, perWave: 0.05, min: 0.1 },
   /** Nombre d'entrées selon la vague : { jusqu'à la vague (incluse), nombre d'entrées }. Au-delà : `maxGates`. */
@@ -102,7 +104,7 @@ export const WAVES = {
     { upToWave: 5, count: 2 },
     { upToWave: 8, count: 3 },
     { upToWave: 12, count: 4 },
-    { upToWave: 15, count: 6 }
+    { upToWave: 17, count: 6 }
   ],
   maxGates: 8,
   /** Fin de vague : or = goldBase + vague × goldPerWave ; la forteresse récupère `baseHeal` de ses PV max. */

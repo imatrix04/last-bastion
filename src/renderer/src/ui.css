@@ -1463,6 +1463,11 @@ table.controls td:first-child {
 .volume-row input[type='range'] {
   flex: 1;
   accent-color: var(--accent);
+  /* Annule le style des champs de texte (input) : sa marge intérieure raccourcit la course du curseur */
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: 0;
 }
 .volume-value {
   min-width: 3.5em;

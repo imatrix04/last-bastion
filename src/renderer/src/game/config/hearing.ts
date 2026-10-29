@@ -18,6 +18,9 @@ export const HEARING = {
   /** Multiplicateurs par type de son (1 = inchangé) pour équilibrer ce qui est trop ou pas assez fort. */
   mix: {
     footstep: 1,
+    menu: 1,
+    creatureStep: 1,
+    creatureDie: 1,
     player: 1,
     turret: 1,
     turretMinigun: 1,

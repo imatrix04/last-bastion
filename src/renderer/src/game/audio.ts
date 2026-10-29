@@ -11,27 +11,49 @@ import wallBuilt from '../assets/audio/wall/Wall-create.wav?url'
 import turretBuiltUrl from '../assets/audio/tourelle/Turret-create.wav?url'
 import spikesBuiltUrl from '../assets/audio/pieux/Pieux-create.wav?url'
 import footstepUrl from '../assets/audio/player/Footstep.wav?url'
+import footstep2Url from '../assets/audio/player/Footstep-2.wav?url'
+import creatureStep1Url from '../assets/audio/creature/footstep/creature-footstep.wav?url'
+import creatureStep2Url from '../assets/audio/creature/footstep/creature-footstep-2.wav?url'
+import creatureStep3Url from '../assets/audio/creature/footstep/creature-footstep-3.wav?url'
+import creatureStep4Url from '../assets/audio/creature/footstep/creature-footstep-4.wav?url'
+import creatureDie1Url from '../assets/audio/creature/died/Small_creature_burst.wav?url'
+import creatureDie2Url from '../assets/audio/creature/died/Small_creature_burst_2.wav?url'
+import creatureDie3Url from '../assets/audio/creature/died/Small_creature_burst_3.wav?url'
+import creatureDie4Url from '../assets/audio/creature/died/Small_creature_burst_4.wav?url'
+import menuHoverUrl from '../assets/audio/menu/Button_sound_menu.wav?url'
+import menuClickUrl from '../assets/audio/menu/Button_sound_click.wav?url'
 import heavyExplosion from '../assets/audio/tourelle/tourelle-heavy-explosion.wav?url'
 
 /** Nombre maximal de sons de tir joués en même temps : au-delà, les tirs en trop restent muets. */
 const MAX_VOICES = 14
 
-export type Sound = 'repair' | 'upgrade' | 'wallBuilt' | 'player' | 'turret' | 'turretHeavy' | 'turretExplosive' | 'heavyImpact' | 'turretMinigun' | 'turretBuilt' | 'spikesBuilt' | 'footstep'
+export type Sound = 'repair' | 'upgrade' | 'wallBuilt' | 'player' | 'turret' | 'turretHeavy' | 'turretExplosive' | 'heavyImpact' | 'turretMinigun' | 'turretBuilt' | 'spikesBuilt' | 'footstep' | 'menuHover' | 'menuClick' | 'footstep2' | 'creatureStep1' | 'creatureStep2' | 'creatureStep3' | 'creatureStep4' | 'creatureDie1' | 'creatureDie2' | 'creatureDie3' | 'creatureDie4'
 
 const SOUNDS: Record<Sound, { url: string; volume: number }> = {
-  repair: { url: repairUrl, volume: 0.5 },
-  upgrade: { url: upgradeUrl, volume: 0.5 },
-  wallBuilt: { url: wallBuilt, volume: 0.5 },
-  player: { url: playerShotUrl, volume: 0.35 },
-  turret: { url: turretShot, volume: 0.25 },
+  repair: { url: repairUrl, volume: 0.6 },
+  upgrade: { url: upgradeUrl, volume: 0.6 },
+  wallBuilt: { url: wallBuilt, volume: 0.6 },
+  player: { url: playerShotUrl, volume: 0.25 },
+  turret: { url: turretShot, volume: 0.2 },
   turretHeavy: { url: turretHeavyShot, volume: 0.5 },
   // Canon explosif : même son que le canon lourd, un peu plus fort
   turretExplosive: { url: turretHeavyShot, volume: 0.7 },
   heavyImpact: { url: heavyExplosion, volume: 0.5 },
   turretMinigun: { url: turretMinigunShot, volume: 0.5 },
-  turretBuilt: { url: turretBuiltUrl, volume: 0.5 },
-  spikesBuilt: { url: spikesBuiltUrl, volume: 0.5 },
-  footstep: { url: footstepUrl, volume: 0.3 }
+  turretBuilt: { url: turretBuiltUrl, volume: 0.6 },
+  spikesBuilt: { url: spikesBuiltUrl, volume: 0.6 },
+  footstep: { url: footstepUrl, volume: 0.3 },
+  footstep2: { url: footstep2Url, volume: 0.3 },
+  menuHover: { url: menuHoverUrl, volume: 0.4 },
+  menuClick: { url: menuClickUrl, volume: 0.5 },
+  creatureStep1: { url: creatureStep1Url, volume: 0.25 },
+  creatureStep2: { url: creatureStep2Url, volume: 0.25 },
+  creatureStep3: { url: creatureStep3Url, volume: 0.25 },
+  creatureStep4: { url: creatureStep4Url, volume: 0.25 },
+  creatureDie1: { url: creatureDie1Url, volume: 0.4 },
+  creatureDie2: { url: creatureDie2Url, volume: 0.4 },
+  creatureDie3: { url: creatureDie3Url, volume: 0.4 },
+  creatureDie4: { url: creatureDie4Url, volume: 0.4 }
 }
 
 let ctx: AudioContext | null = null
@@ -134,11 +156,24 @@ const MIX: Record<Sound, number> = {
   turretExplosive: HEARING.mix.turretHeavy,
   heavyImpact: HEARING.mix.heavyImpact,
   turretMinigun: HEARING.mix.turretMinigun,
-  footstep: HEARING.mix.footstep
+  footstep: HEARING.mix.footstep,
+  footstep2: HEARING.mix.footstep,
+  menuHover: HEARING.mix.menu,
+  menuClick: HEARING.mix.menu,
+  creatureStep1: HEARING.mix.creatureStep,
+  creatureStep2: HEARING.mix.creatureStep,
+  creatureStep3: HEARING.mix.creatureStep,
+  creatureStep4: HEARING.mix.creatureStep,
+  creatureDie1: HEARING.mix.creatureDie,
+  creatureDie2: HEARING.mix.creatureDie,
+  creatureDie3: HEARING.mix.creatureDie,
+  creatureDie4: HEARING.mix.creatureDie
 }
 
 /** Volume (0 à 1) et panoramique (-1 à 1) d'un son émis en (x, y), selon le joueur le plus proche. */
-function spatial(x: number, y: number): { gain: number; pan: number } {
+function spatial(x?: number, y?: number): { gain: number; pan: number } {
+  // Sans position (sons de menu) : même volume partout
+  if (x === undefined || y === undefined) return { gain: 1, pan: 0 }
   let best: { x: number; y: number } | null = null
   let dist = Infinity
   for (const l of listeners.values()) {
@@ -156,7 +191,7 @@ function spatial(x: number, y: number): { gain: number; pan: number } {
 }
 
 /** Branche une source sur la sortie, avec son volume de base `volume` modulé par la distance. Renvoie le gain, ou null si inaudible. */
-function route(c: AudioContext, src: AudioBufferSourceNode, volume: number, x: number, y: number): GainNode | null {
+function route(c: AudioContext, src: AudioBufferSourceNode, volume: number, x?: number, y?: number): GainNode | null {
   const s = spatial(x, y)
   if (s.gain < 0.01) return null
   const gain = c.createGain()
@@ -185,7 +220,7 @@ export function play(sound: Sound, x?: number, y?: number): void {
   src.buffer = buffer
   // Légère variation de hauteur pour que les rafales ne sonnent pas « mécaniques »
   src.playbackRate.value = 0.95 + Math.random() * 0.1
-  if (!route(c, src, SOUNDS[sound].volume * MIX[sound], x ?? 0, y ?? 0)) return
+  if (!route(c, src, SOUNDS[sound].volume * MIX[sound], x, y)) return
   voices++
   src.onended = () => {
     voices--
@@ -196,27 +231,31 @@ export function play(sound: Sound, x?: number, y?: number): void {
 // ------------------------------------------------------------ pas du joueur
 
 /** Distance parcourue (px) entre deux pas : plus le joueur est rapide, plus les pas sont rapprochés. */
-const STRIDE = 38
+const STRIDE = 60
 /** Vitesse de référence (px/s) à laquelle le pas est joué à hauteur normale. */
 const STEP_REF_SPEED = 150
 const stride = new Map<number, number>()
 
-/**
- * Le joueur `id` vient de parcourir `dist` px à la vitesse `speed`. Le son ne contient qu'un pas : on en joue un
- * à chaque foulée, avec ±10 % de hauteur et une vitesse de lecture qui suit la vitesse de déplacement.
- */
-export function footstep(id: number, dist: number, speed: number, x: number, y: number): void {
-  if (dist <= 0) return
-  const acc = (stride.get(id) ?? STRIDE * 0.5) + dist
-  if (acc < STRIDE) {
-    stride.set(id, acc)
-    return
-  }
-  stride.set(id, acc - STRIDE)
+const PLAYER_STEPS: readonly Sound[] = ['footstep', 'footstep2']
+const CREATURE_STEPS: readonly Sound[] = ['creatureStep1', 'creatureStep2', 'creatureStep3', 'creatureStep4']
+const CREATURE_DEATHS: readonly Sound[] = ['creatureDie1', 'creatureDie2', 'creatureDie3', 'creatureDie4']
+const lastVariant = new Map<readonly Sound[], Sound>()
+
+/** Variante au hasard parmi `family`, jamais deux fois la même d'affilée. */
+function variant(family: readonly Sound[]): Sound {
+  const last = lastVariant.get(family)
+  let s = family[Math.floor(Math.random() * family.length)]
+  if (s === last) s = family[(family.indexOf(s) + 1 + Math.floor(Math.random() * (family.length - 1))) % family.length]
+  lastVariant.set(family, s)
+  return s
+}
+
+/** Joue une fois un son déjà chargé (le premier appel ne fait que le charger), à la vitesse `rate`. */
+function oneShot(sound: Sound, x: number, y: number, rate: number): void {
   const c = context()
   if (!c) return
   if (c.state === 'suspended') void c.resume().catch(() => undefined)
-  const buffer = buffers.get(SOUNDS.footstep.url)
+  const buffer = buffers.get(SOUNDS[sound].url)
   if (!buffer) {
     load(c)
     return
@@ -224,14 +263,53 @@ export function footstep(id: number, dist: number, speed: number, x: number, y: 
   if (voices >= MAX_VOICES) return
   const src = c.createBufferSource()
   src.buffer = buffer
-  const pace = Math.min(1.25, Math.max(0.8, speed / STEP_REF_SPEED))
-  src.playbackRate.value = pace * (0.9 + Math.random() * 0.2)
-  if (!route(c, src, SOUNDS.footstep.volume * MIX.footstep, x, y)) return
+  src.playbackRate.value = rate
+  if (!route(c, src, SOUNDS[sound].volume * MIX[sound], x, y)) return
   voices++
   src.onended = () => {
     voices--
   }
   src.start()
+}
+
+/** Accumule `dist` dans `acc` ; renvoie le nouveau cumul et si une foulée de `len` px vient d'être franchie. */
+function advance(acc: number, dist: number, len: number): { acc: number; step: boolean } {
+  acc += dist
+  return acc < len ? { acc, step: false } : { acc: acc - len, step: true }
+}
+
+/**
+ * Le joueur `id` vient de parcourir `dist` px à la vitesse `speed`. Le son ne contient qu'un pas : on en joue un
+ * à chaque foulée (deux enregistrements en alternance aléatoire), avec ±10 % de hauteur et une vitesse de lecture
+ * qui suit la vitesse de déplacement.
+ */
+export function footstep(id: number, dist: number, speed: number, x: number, y: number): void {
+  if (dist <= 0) return
+  const r = advance(stride.get(id) ?? STRIDE * 0.5, dist, STRIDE)
+  stride.set(id, r.acc)
+  if (!r.step) return
+  const pace = Math.min(1.25, Math.max(0.8, speed / STEP_REF_SPEED))
+  oneShot(variant(PLAYER_STEPS), x, y, pace * (0.9 + Math.random() * 0.2))
+}
+
+// ------------------------------------------------------------ créatures
+
+/**
+ * Une créature vient de se déplacer de `dist` px. Sa foulée est proportionnelle à sa taille ; les grosses créatures
+ * ont des pas plus graves. `e.step` garde le cumul de distance de chaque créature.
+ */
+export function creatureStep(e: { x: number; y: number; radius: number; step: number }, dist: number): void {
+  if (dist <= 0) return
+  const r = advance(e.step, dist, 22 + e.radius * 3)
+  e.step = r.acc
+  if (!r.step) return
+  const size = Math.min(1.3, Math.max(0.6, Math.pow(11 / e.radius, 0.4)))
+  oneShot(variant(CREATURE_STEPS), e.x, e.y, size * (0.9 + Math.random() * 0.2))
+}
+
+/** Une créature vient de mourir en (x, y) : une des 4 variantes au hasard. */
+export function creatureDied(x: number, y: number): void {
+  oneShot(variant(CREATURE_DEATHS), x, y, 0.92 + Math.random() * 0.16)
 }
 
 // ------------------------------------------------------------ tir du joueur
@@ -302,7 +380,7 @@ export function playerShot(x: number, y: number): void {
 /** Coups par seconde de l'enregistrement du minigun (≈ 6 coups en 0,336 s) : à cette cadence il se joue à vitesse normale. */
 const MINIGUN_SAMPLE_RATE = 18
 /** Au-delà de ce nombre de miniguns qui tirent en même temps, les autres restent muets. */
-const MAX_MINIGUN_LOOPS = 6
+const MAX_MINIGUN_LOOPS = 4
 
 interface MinigunLoop {
   src: AudioBufferSourceNode
@@ -364,9 +442,31 @@ export function minigunShot(key: number): void {
   l.stop = setTimeout(() => endLoop(key), Math.max(200, l.interval * 2500))
 }
 
+// ------------------------------------------------------------ boutons de l'interface
+
+/** Son au survol et au clic de n'importe quel bouton de l'interface (menus, paramètres, boutique...). */
+function enableButtonSounds(): void {
+  const button = (t: EventTarget | null): HTMLButtonElement | null => {
+    const b = t instanceof Element ? t.closest('button') : null
+    return b && !b.disabled ? b : null
+  }
+  document.addEventListener('mouseover', (e) => {
+    const b = button(e.target)
+    // Pas de son quand la souris passe d'un élément à un autre du même bouton
+    if (b && !(e.relatedTarget instanceof Node && b.contains(e.relatedTarget))) play('menuHover')
+  })
+  document.addEventListener('click', (e) => {
+    if (button(e.target)) play('menuClick')
+  })
+}
+
+if (typeof document !== 'undefined') enableButtonSounds()
+
 // Branche les sons sur les effets du moteur
 sounds.play = play
 sounds.minigun = minigunShot
 sounds.player = playerShot
 sounds.step = footstep
 sounds.listen = listen
+sounds.creature = creatureStep
+sounds.died = creatureDied

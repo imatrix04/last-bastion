@@ -173,7 +173,7 @@ function decodeFx(v: unknown): FxEvent[] {
     } else if (e[0] === 'w' && isNum(e[1]) && isNum(e[2]) && isNum(e[3]) && isNum(e[4])) {
       out.push(['w', e[1], e[2], e[3], e[4], e[5] === 1 ? 1 : 0])
     } else if (e[0] === 's' && isNum(e[1]) && isNum(e[2]) && isNum(e[3])) {
-      out.push(['s', clamp(Math.round(e[1]), 0, 6), e[2], e[3]])
+      out.push(['s', clamp(Math.round(e[1]), 0, 7), e[2], e[3]])
     } else if (e[0] === 'd' && isNum(e[1]) && isNum(e[2]) && typeof e[3] === 'string' && isNum(e[4])) {
       out.push(['d', e[1], e[2], e[3].slice(0, 20), clamp(e[4], 0, 120)])
     }

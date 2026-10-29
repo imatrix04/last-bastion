@@ -1,17 +1,19 @@
 import { GFX } from './config/graphics'
 import { COLS, SPIT, TILE, WEB } from './config/constants'
-import type { FxEvent, GameState, Particle, ParticleShape } from './types'
+import type { Enemy, FxEvent, GameState, Particle, ParticleShape } from './types'
 
 /**
  * Sons des tirs. Vides par défaut (script de simulation sous Node) : l'interface les branche au démarrage (voir audio.ts),
  * pour que le moteur ne dépende pas de l'audio du navigateur.
  */
-export const sounds: { play: (sound: 'turret' | 'turretHeavy' | 'turretExplosive' | 'heavyImpact' | 'wallBuilt' | 'turretBuilt' | 'spikesBuilt' | 'upgrade' | 'repair', x: number, y: number) => void; minigun: (key: number) => void; player: (x: number, y: number) => void; step: (id: number, dist: number, speed: number, x: number, y: number) => void; listen: (id: number, x: number, y: number) => void } = {
+export const sounds: { play: (sound: 'turret' | 'turretHeavy' | 'turretExplosive' | 'heavyImpact' | 'wallBuilt' | 'turretBuilt' | 'spikesBuilt' | 'upgrade' | 'repair', x: number, y: number) => void; minigun: (key: number) => void; player: (x: number, y: number) => void; step: (id: number, dist: number, speed: number, x: number, y: number) => void; listen: (id: number, x: number, y: number) => void; creature: (e: Enemy, dist: number) => void; died: (x: number, y: number) => void } = {
   play: () => undefined,
   minigun: () => undefined,
   player: () => undefined,
   step: () => undefined,
-  listen: () => undefined
+  listen: () => undefined,
+  creature: () => undefined,
+  died: () => undefined
 }
 
 const MAX_TEXTS = 40
@@ -112,6 +114,12 @@ export function spikesBuilt(state: GameState, x: number, y: number): void {
   sounds.play('spikesBuilt', x, y)
 }
 
+/** Une créature vient de mourir : son de mort (rejoué chez l'invité). */
+export function creatureDied(state: GameState, x: number, y: number): void {
+  log(state, ['s', 7, Math.round(x), Math.round(y)])
+  sounds.died(x, y)
+}
+
 /** Un bâtiment vient d'être amélioré : son d'amélioration (rejoué chez l'invité). */
 export function upgraded(state: GameState, x: number, y: number): void {
   log(state, ['s', 3, Math.round(x), Math.round(y)])
@@ -157,10 +165,10 @@ export function muzzle(state: GameState, x: number, y: number, angle: number, ra
  * Toile d'araignée en vol. Sur l'hôte (col/row ≥ 0) elle englue l'arme visée à l'arrivée ;
  * chez le joueur distant elle ne sert qu'à l'affichage.
  */
-export function webShot(state: GameState, x: number, y: number, tx: number, ty: number, col = -1, row = -1, acid = false): void {
+export function webShot(state: GameState, x: number, y: number, tx: number, ty: number, col = -1, row = -1, acid = false, damage = SPIT.damage): void {
   log(state, ['w', Math.round(x), Math.round(y), Math.round(tx), Math.round(ty), acid ? 1 : 0])
   if (state.webs.length >= 40) state.webs.shift()
-  state.webs.push({ x, y, tx, ty, t: 0, dur: acid ? SPIT.flight : WEB.flight, col, row, acid })
+  state.webs.push({ x, y, tx, ty, t: 0, dur: acid ? SPIT.flight : WEB.flight, col, row, acid, damage })
 }
 
 export function addText(state: GameState, x: number, y: number, text: string, color: string): void {

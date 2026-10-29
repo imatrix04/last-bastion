@@ -23,7 +23,7 @@ import { activateAbility, activeBurn, tickAbilities } from './abilities'
 import { ABILITY_CONFIG, EXPLOSION, MINIGUN, PLAYER_AIM, WAVES } from './config/config'
 import { CONTROLS, DEV_ENABLED, DEV_GOLD_PER_SEC, DEV_REWARD_MULT, DEV_TOGGLE, SKIP_WAVE, type InputLike } from './config/controls'
 import { floating } from '../i18n'
-import { addText, burst, decal, heavyImpact, muzzle, ring, smoke, sounds, sparks, updateFx, webShot } from './fx'
+import { addText, burst, creatureDied, decal, heavyImpact, muzzle, ring, smoke, sounds, sparks, updateFx, webShot } from './fx'
 import { distToRect, idx, isBaseCell, isSolidCell, resolveTiles } from './grid'
 import { advanceEvent, eventMods, playerSight, rollEvent, turretSees } from './events'
 import { computeFlow, nextCell, nextCellAir } from './pathing'
@@ -31,7 +31,7 @@ import { killIndex } from './config/progress'
 import { fireRateMult, isWeapon, playerStats, spikeStats, tierOf, turretStats } from './stats'
 import { turretForm } from './config/turrets'
 import type { Building, Enemy, GameState, Player } from './types'
-import { composeWave, createEnemy, pickGates, spawnEnemy, spawnInterval } from './waves'
+import { composeWave, createEnemy, damageScale, pickGates, spawnEnemy, spawnInterval } from './waves'
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
@@ -489,7 +489,7 @@ function spitterAbility(state: GameState, e: Enemy, dt: number): boolean {
     const b = state.grid[idx(e.webCol, e.webRow)]
     if (b && b.kind === 'turret') {
       const a = Math.atan2((e.webRow + 0.5) * TILE - e.y, (e.webCol + 0.5) * TILE - e.x)
-      webShot(state, e.x + Math.cos(a) * e.radius, e.y + Math.sin(a) * e.radius, (e.webCol + 0.5) * TILE, (e.webRow + 0.5) * TILE, e.webCol, e.webRow, true)
+      webShot(state, e.x + Math.cos(a) * e.radius, e.y + Math.sin(a) * e.radius, (e.webCol + 0.5) * TILE, (e.webRow + 0.5) * TILE, e.webCol, e.webRow, true, SPIT.damage * damageScale(e.kind, state.wave))
     }
     return true
   }
@@ -520,7 +520,7 @@ export function advanceWebs(state: GameState, dt: number, apply: boolean): void 
     if (web.acid) {
       sparks(state, web.tx, web.ty, '#b2ff59', 10, 130)
       ring(state, web.tx, web.ty, '#aeea00', 30)
-      damageBuilding(state, b, SPIT.damage)
+      damageBuilding(state, b, web.damage)
       continue
     }
     b.web = WEB.duration
@@ -581,8 +581,9 @@ function advanceJump(state: GameState, e: Enemy, dt: number): void {
 function strike(state: GameState, e: Enemy, target: Building | null, onBase: boolean): void {
   const def = ENEMIES[e.kind]
   e.attackCd = def.interval
-  if (onBase) hitBase(state, def.damage, e)
-  else if (target) damageBuilding(state, target, def.damage)
+  const damage = def.damage * damageScale(e.kind, state.wave)
+  if (onBase) hitBase(state, damage, e)
+  else if (target) damageBuilding(state, target, damage)
 }
 
 /** Dernier recours pour un ennemi coincé : s'en prendre à l'obstacle solide le plus proche. */
@@ -684,6 +685,7 @@ function updateEnemies(state: GameState, dt: number): void {
     if (dist > 0.5) turnToward(e, Math.atan2(dy, dx), dt)
     e.x += (dx / dist) * move
     e.y += (dy / dist) * move
+    if (e.jump <= 0) sounds.creature(e, move)
     e.vx = ((dx / dist) * move) / dt
     e.vy = ((dy / dist) * move) / dt
   }
@@ -772,6 +774,7 @@ function reapEnemies(state: GameState): void {
     state.kills += 1
     state.kstats[killIndex(e.kind, e.minion)] += 1
     deathFx(state, e)
+    creatureDied(state, e.x, e.y)
     if (e.kind === 'splitter') split(state, e, born)
     addText(state, e.x, e.y - 12, `+${fmtGold(share)}`, '#ffd54a')
   }

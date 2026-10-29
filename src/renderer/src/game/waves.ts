@@ -56,6 +56,9 @@ export const FIRST_WAVE: Record<EnemyKind, number> = {
 /** Multiplicateur de PV d'un type de monstre à une vague donnée : ×1 à sa première apparition, puis +hpGrowth par vague. */
 export const hpScale = (kind: EnemyKind, wave: number): number => 1 + Math.max(0, wave - FIRST_WAVE[kind]) * WAVES.hpGrowth
 
+/** Multiplicateur de dégâts d'un type de monstre à une vague donnée : ×1 à sa première apparition, puis +dmgGrowth par vague. */
+export const damageScale = (kind: EnemyKind, wave: number): number => 1 + Math.max(0, wave - FIRST_WAVE[kind]) * WAVES.dmgGrowth
+
 export const spawnInterval = (wave: number): number => Math.max(WAVES.spawn.min, WAVES.spawn.base - wave * WAVES.spawn.perWave)
 
 /** Points d'entrée : 1 au début, jusqu'à 8 plus tard (répartis sur les 4 côtés, 2 par côté au maximum). */
@@ -112,6 +115,7 @@ export function createEnemy(state: GameState, kind: EnemyKind, x: number, y: num
     ly: y,
     checkT: 1.5,
     stuck: false,
+    step: 0,
     vx: 0,
     vy: 0,
     burnT: 0,
