@@ -34,6 +34,8 @@ export const fr = {
   'menu.solo': 'Solo',
   'menu.coop': 'Coop · même clavier',
   'menu.online': 'Coop en ligne',
+  'menu.modeNormal': 'Partie normale',
+  'menu.modeLive': 'Mode live TikTok',
   'menu.skills': 'Compétences',
   'menu.arsenal': 'Arsenal',
   'menu.shop': 'Boutique',

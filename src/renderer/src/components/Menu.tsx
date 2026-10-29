@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { SKIN_BY_ID, playerLabel } from '../game/config/appearance'
 import { ABILITY_SLOTS } from '../game/config/config'
-import { CONTROLS, SKIP_WAVE } from '../game/config/controls'
+import { CONTROLS, DEV_ENABLED, SKIP_WAVE } from '../game/config/controls'
 import { PERKS, UNLOCKS } from '../game/config/progress'
 import { tr, useT } from '../i18n'
 import { rich } from '../i18n/rich'
@@ -32,6 +32,21 @@ export function Menu(): React.JSX.Element {
     void window.api?.version().then(setVersion)
   }, [])
 
+  // Mode live (TikTok) : proposé seulement en développement. Installé, Solo / Coop lancent la partie directement.
+  const [pick, setPick] = useState<1 | 2 | null>(null)
+  const launch = (players: 1 | 2): void => {
+    if (DEV_ENABLED) setPick((p) => (p === players ? null : players))
+    else start(players)
+  }
+  const modeBox = (players: 1 | 2): React.JSX.Element => (
+    <div className="online-box mode-box">
+      <button onClick={() => start(players)}>{t('menu.modeNormal')}</button>
+      <button className="live" onClick={() => start(players, true)}>
+        {t('menu.modeLive')}
+      </button>
+    </div>
+  )
+
   const move = (i: number): string => {
     const c = CONTROLS[i]
     return [c.up, c.left, c.down, c.right].map(label).join(' ')
@@ -54,14 +69,16 @@ export function Menu(): React.JSX.Element {
         </header>
 
         <nav className="menu-list" aria-label={t('menu.navLabel')}>
-          <button className="mi primary" onClick={() => start(1)}>
+          <button className={`mi primary${pick === 1 ? ' open' : ''}`} onClick={() => launch(1)} aria-expanded={DEV_ENABLED ? pick === 1 : undefined}>
             <span className="mi-n">01</span>
             <span className="mi-label">{t('menu.solo')}</span>
           </button>
-          <button className="mi" onClick={() => start(2)}>
+          {pick === 1 && modeBox(1)}
+          <button className={`mi${pick === 2 ? ' open' : ''}`} onClick={() => launch(2)} aria-expanded={DEV_ENABLED ? pick === 2 : undefined}>
             <span className="mi-n">02</span>
             <span className="mi-label">{t('menu.coop')}</span>
           </button>
+          {pick === 2 && modeBox(2)}
           {session.available && (
             <button className={`mi${online ? ' open' : ''}`} onClick={() => setOnline((o) => !o)} aria-expanded={online}>
               <span className="mi-n">03</span>

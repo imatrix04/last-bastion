@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { DEFAULT_COLORS, NAME_MAX, SKIN_BY_ID, isHexColor, skinFits, type Look, type SkinId, type SkinPart } from './game/config/appearance'
 import { BASE } from './game/config/constants'
+import { DEV_ENABLED } from './game/config/controls'
 import {
   PERKS,
   PERK_INDEX,
@@ -113,6 +114,8 @@ interface Store {
   screen: Screen
   mode: Mode
   playerCount: 1 | 2
+  /** Mode live TikTok (promotion) : réservé à `npm run dev`, toujours false dans le jeu installé. */
+  live: boolean
   /** Change à chaque nouvelle partie : force le remontage du canvas. */
   runId: number
   hud: HudState
@@ -128,7 +131,7 @@ interface Store {
   peerOnline: boolean
   netError: string | null
   /** Partie sur cette machine (solo ou 2 joueurs au clavier). */
-  start: (playerCount: 1 | 2) => void
+  start: (playerCount: 1 | 2, live?: boolean) => void
   hostLobby: () => Promise<void>
   joinLobby: (address: string) => Promise<void>
   startHosted: () => void
@@ -171,6 +174,7 @@ export const useStore = create<Store>()((set, get) => ({
   screen: 'menu',
   mode: 'local',
   playerCount: 1,
+  live: false,
   runId: 0,
   hud: initialHud,
   result: null,
@@ -181,11 +185,12 @@ export const useStore = create<Store>()((set, get) => ({
   peerOnline: false,
   netError: null,
 
-  start: (playerCount) =>
+  start: (playerCount, live = false) =>
     set((s) => ({
       screen: 'playing',
       mode: 'local',
       playerCount,
+      live: DEV_ENABLED && live,
       runId: s.runId + 1,
       hud: initialHud,
       choice: null,
@@ -225,6 +230,7 @@ export const useStore = create<Store>()((set, get) => ({
       screen: 'playing',
       mode: 'host',
       playerCount: 2,
+      live: false,
       runId: s.runId + 1,
       hud: initialHud,
       choice: null,
@@ -237,6 +243,7 @@ export const useStore = create<Store>()((set, get) => ({
       screen: 'playing',
       mode: 'client',
       playerCount: 2,
+      live: false,
       runId: s.runId + 1,
       hud: initialHud,
       choice: null,
@@ -246,9 +253,9 @@ export const useStore = create<Store>()((set, get) => ({
     })),
 
   restart: () => {
-    const { mode, playerCount } = get()
+    const { mode, playerCount, live } = get()
     if (mode === 'host') get().startHosted()
-    else if (mode === 'local') get().start(playerCount)
+    else if (mode === 'local') get().start(playerCount, live)
     // client : c'est l'hôte qui relance
   },
 

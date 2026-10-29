@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { LiveConnectResult, LiveEvent } from '../shared/live'
 
 type NetEvent = { type: 'peer-joined' } | { type: 'peer-left' } | { type: 'message'; data: string }
 
@@ -20,6 +21,18 @@ const api = {
       ipcRenderer.on('update:event', handler)
       return () => {
         ipcRenderer.removeListener('update:event', handler)
+      }
+    }
+  },
+  /** Mode live TikTok : handlers présents seulement en développement. */
+  live: {
+    connect: (username: string): Promise<LiveConnectResult> => ipcRenderer.invoke('live:connect', username),
+    disconnect: (): Promise<void> => ipcRenderer.invoke('live:disconnect'),
+    onEvent: (callback: (event: LiveEvent) => void): (() => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, event: LiveEvent): void => callback(event)
+      ipcRenderer.on('live:event', handler)
+      return () => {
+        ipcRenderer.removeListener('live:event', handler)
       }
     }
   },

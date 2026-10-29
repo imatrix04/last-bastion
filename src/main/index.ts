@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { registerLiveHandlers } from './live'
 import { registerNetHandlers } from './net'
 import { registerUpdater } from './updater'
 
@@ -54,6 +55,7 @@ app.whenReady().then(() => {
   ipcMain.handle('app:quit', () => app.quit())
   ipcMain.handle('app:version', () => app.getVersion())
   registerNetHandlers()
+  registerLiveHandlers(() => mainWindow)
   registerUpdater(() => mainWindow)
 
   createWindow()

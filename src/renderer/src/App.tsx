@@ -3,6 +3,7 @@ import { DevMenu } from './components/DevMenu'
 import { Arsenal } from './components/Arsenal'
 import { GameCanvas } from './components/GameCanvas'
 import { Hud } from './components/Hud'
+import { LiveOverlay } from './components/LiveOverlay'
 import { Lobby } from './components/Lobby'
 import { Menu } from './components/Menu'
 import { Shop } from './components/Shop'
@@ -16,6 +17,7 @@ import { useStore } from './store'
 export default function App(): React.JSX.Element {
   const screen = useStore((s) => s.screen)
   const runId = useStore((s) => s.runId)
+  const live = useStore((s) => s.live)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -48,6 +50,7 @@ export default function App(): React.JSX.Element {
       <div className="stage">
         {inGame && <GameCanvas key={runId} />}
         {inGame && <Hud />}
+        {import.meta.env.DEV && live && inGame && <LiveOverlay key={runId} />}
         {import.meta.env.DEV && (screen === 'playing' || screen === 'paused') && <DevMenu />}
         {screen === 'playing' && choice && <UpgradePicker request={choice} />}
         {screen === 'paused' && <PauseOverlay />}

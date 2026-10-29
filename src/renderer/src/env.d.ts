@@ -20,6 +20,11 @@ interface Window {
       download(): Promise<void>
       onEvent(callback: (event: UpdateEvent) => void): () => void
     }
+    live: {
+      connect(username: string): Promise<import('../../shared/live').LiveConnectResult>
+      disconnect(): Promise<void>
+      onEvent(callback: (event: import('../../shared/live').LiveEvent) => void): () => void
+    }
     net: {
       host(port?: number): Promise<HostResult>
       join(address: string): Promise<JoinResult>

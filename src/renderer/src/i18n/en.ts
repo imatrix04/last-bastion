@@ -33,6 +33,8 @@ export const en: Record<keyof typeof fr, string> = {
   'menu.solo': 'Solo',
   'menu.coop': 'Co-op · same keyboard',
   'menu.online': 'Online co-op',
+  'menu.modeNormal': 'Normal game',
+  'menu.modeLive': 'TikTok live mode',
   'menu.skills': 'Skills',
   'menu.arsenal': 'Arsenal',
   'menu.shop': 'Shop',

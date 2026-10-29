@@ -19,7 +19,8 @@ const injectCsp = {
 }
 
 export default defineConfig({
-  main: {},
+  // Mode live (dev) : la lib reste hors du bundle, chargée à la demande par src/main/live.ts.
+  main: { build: { rollupOptions: { external: ['tiktok-live-connector'] } } },
   preload: {},
   renderer: {
     resolve: {
